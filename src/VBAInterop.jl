@@ -1,6 +1,5 @@
 module VBAInterop
-export x
-export serializeresult
+export z
 
 using Dates
 
@@ -17,7 +16,7 @@ encode(x::Any) =  x
 # https://discourse.julialang.org/t/reading-a-utf-16-le-file/11687
 readutf16lebom(filename::String) = transcode(String, reinterpret(UInt16, read(filename)))[4:end]
 
-function x()
+function z()#One-character function name thanks to extreme slowness of SendKeys...
 
     expression = readutf16lebom(expressionfile())
 
@@ -45,7 +44,7 @@ function serializeresult(x::Union{Number,String,Bool,Date,DateTime,Nothing,DataT
                          filename::String, success::Bool=true)
     io = open(filename, "w")
     if success
-        write(io, encode("NumDims=2|Type=$(typeof(x))") * "\n")
+        write(io, encode("NumDims=0|Type=$(typeof(x))") * "\n")
     else
         write(io, "NumDims=0|Type=Exception\n")
     end
@@ -62,7 +61,7 @@ end
 
 function serializeresult(x::Any, filename::String)
     io = open(filename, "w")
-    write(io, encode("NumDims=2|Type=$(typeof(x))") * "\n")
+    write(io, encode("NumDims=?|Type=$(typeof(x))") * "\n")
     write(io, encode("#Expression evaluated in Julia, but returned a variable of type $(typeof(x)), which the function serializeresult cannot (yet) handle!"))
     close(io)
 end

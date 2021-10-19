@@ -1,41 +1,19 @@
 Attribute VB_Name = "modVBAInterop"
 Option Explicit
-Private m_WshShell As Object
 
-Public Declare PtrSafe Function GetForegroundWindow Lib "user32" () As LongPtr
-Private Declare PtrSafe Function GetWindowText Lib "user32" Alias "GetWindowTextA" (ByVal HWnd As LongPtr, ByVal lpString As String, ByVal cch As Long) As Long
 
-' -----------------------------------------------------------------------------------------------------------------------
-' Procedure  : ActiveWindowTitle
-' Author     : Philip Swannell
-' Date       : 18-Oct-2021
-' Purpose    : Returns the window caption of the active application.
-' -----------------------------------------------------------------------------------------------------------------------
-Function ActiveWindowTitle() As String
-          Dim WinText As String
-          Dim HWnd As LongLong
-          Dim L As LongLong
-1         On Error GoTo ErrHandler
-2         HWnd = GetForegroundWindow()
-3         WinText = String(255, vbNullChar)
-4         L = GetWindowText(HWnd, WinText, 255)
-5         ActiveWindowTitle = Left(WinText, InStr(1, WinText, vbNullChar) - 1)
+Sub TimeIt()
+Dim Expression As String
+Dim Result As Variant
+Dim i As Long
 
-6         Exit Function
-ErrHandler:
-7         Throw "#ActiveWindowTitle (line " & CStr(Erl) + "): " & Err.Description & "!"
-End Function
+Expression = "1+1"
+tic
+For i = 1 To 100
+Result = JuliaEval(Expression)
+Next
+toc "JuliaEval"
 
-' -----------------------------------------------------------------------------------------------------------------------
-' Procedure  : Sendkeys
-' Author     : Philip Swannell
-' Date       : 18-Nov-2020
-' Purpose    : Alternative to Application.SendKeys that has the advantage of not messing with the NUMLOCK and CAPSLOCK states
-' But sendkeys is a proper PITA. Does not work as expected if Shift key is depressed for example.
-' -----------------------------------------------------------------------------------------------------------------------
-Public Sub Sendkeys(text As Variant, Optional wait As Boolean = False)
-1         If m_WshShell Is Nothing Then Set m_WshShell = CreateObject("wscript.shell")
-2         m_WshShell.Sendkeys CStr(text), wait
 End Sub
 
 ' -----------------------------------------------------------------------------------------------------------------------
@@ -45,12 +23,8 @@ End Sub
 ' Purpose    : Evaluate some julia code, returning the result to VBA.
 ' Parameters :
 '  JuliaCode     : Some julia code such as "1+1" or "collect(1:100)"
-'  KeepExcelActive: Alas, the current implementation involves SendKeys (arrgh!) and thus it's necessary to make the
-'                  Julia REPL the active application in order to send the keystrokes and then activate Excel again.
-'                  Switching applications is slow. If KeepExcelActive is passed as False then we don't activate Excel
-'                  to save time
 ' -----------------------------------------------------------------------------------------------------------------------
-Function JuliaEval(ByVal JuliaCode As String, Optional KeepExcelActive As Boolean = True)
+Function JuliaEval(ByVal JuliaCode As String)
           
           Const PackageLocation As String = "c:/Projects/VBAInterop"
           Dim EN As Long
@@ -64,6 +38,7 @@ Function JuliaEval(ByVal JuliaCode As String, Optional KeepExcelActive As Boolea
           Dim ts As Scripting.TextStream
           Static JuliaExe As String
           Static Rocket As String
+          Static HwndJulia As LongPtr
 
 1         On Error GoTo ErrHandler
 
@@ -71,53 +46,49 @@ Function JuliaEval(ByVal JuliaCode As String, Optional KeepExcelActive As Boolea
 3             JuliaExe = DefaultJuliaExe()
 4         End If
             
-5         On Error Resume Next
-          
-6         If ActiveWindowTitle() <> JuliaExe Then
-7             AppActivate JuliaExe
-8         End If
+5         If HwndJulia = 0 Then
+6             GetHandleFromPartialCaption HwndJulia, JuliaExe
+7         End If
 
-9         EN = Err.Number
-10        On Error GoTo ErrHandler
-11        If EN <> 0 Then
-12            LaunchJulia PackageLocation
-13        End If
+8         If HwndJulia = 0 Then
+9             LaunchJulia PackageLocation
+10            GetHandleFromPartialCaption HwndJulia, JuliaExe
+11            If HwndJulia = 0 Then
+12                Throw "OhOh"
+13            End If
+14        End If
 
           Dim tmp As String
           
-14        tmp = LocalTemp()
+15        tmp = LocalTemp()
           
-15        FlagFile = tmp & "\VBAInteropFlag.txt"
-16        ResultFile = tmp & "\VBAInteropResult.csv"
-17        ExpressionFile = tmp & "\VBAInteropExpression.txt"
-18        Set ts = FSO.OpenTextFile(FlagFile, ForWriting, True, TristateTrue)
-19        ts.Write ""
-20        ts.Close
-21        Set ts = FSO.OpenTextFile(ExpressionFile, ForWriting, True, TristateTrue)
-22        ts.Write JuliaCode
-23        ts.Close
+16        FlagFile = tmp & "\VBAInteropFlag.txt"
+17        ResultFile = tmp & "\VBAInteropResult.csv"
+18        ExpressionFile = tmp & "\VBAInteropExpression.txt"
+19        Set ts = FSO.OpenTextFile(FlagFile, ForWriting, True, TristateTrue)
+20        ts.Write ""
+21        ts.Close
+22        Set ts = FSO.OpenTextFile(ExpressionFile, ForWriting, True, TristateTrue)
+23        ts.Write JuliaCode
+24        ts.Close
           
-24        Sendkeys "{ESC}{BACKSPACE}x{(}{)}~"
+25        SendMessageToJulia HwndJulia
 
-25        If KeepExcelActive Then
-26            AppActivate Application.Caption
-27        End If
+26        Do While sFileExists(FlagFile)
+27            DoEvents
+28        Loop
 
-28        Do While sFileExists(FlagFile)
-29            DoEvents
-30        Loop
+29        res = sCSVRead(ResultFile, True, ",", , "ISO", , , 1, , , , , , , , , "UTF-8", , HeaderRow)
 
-31        res = sCSVRead(ResultFile, True, ",", , "ISO", , , 1, , , , , , , , , "UTF-8", , HeaderRow)
+30        NumDims = sStringBetweenStrings(HeaderRow(1, 1), "NumDims=", "|")
+31        If NumDims = "0" Then 'TODO cope with 1-dimensional case.
+32            res = res(1, 1)
+33        End If
+34        JuliaEval = res
 
-32        NumDims = sStringBetweenStrings(HeaderRow(1, 1), "NumDims=", "|")
-33        If NumDims = "0" Then
-34            res = res(1, 1)
-35        End If
-36        JuliaEval = res
-
-37        Exit Function
+35        Exit Function
 ErrHandler:
-38        JuliaEval = "#JuliaEval (line " & CStr(Erl) + "): " & Err.Description & "!"
+36        JuliaEval = "#JuliaEval (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Function
 
 'https://docs.julialang.org/en/v1/manual/getting-started/#man-getting-started
@@ -178,7 +149,7 @@ Sub LaunchJulia(Optional ByVal PackageLocation As String)
 
 22        ExecuteCommand JuliaExe, " --load """ + LoadFile + """", False, vbNormalFocus
 23        startTime = sElapsedTime
-24        While sElapsedTime() < startTime + 2
+24        While sElapsedTime() < startTime + 4
 25            DoEvents
 26        Wend
 27        Exit Sub
@@ -279,11 +250,6 @@ ErrHandler:
 9         JuliaCall = "#JuliaCall (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Function
 
-
-
-Sub vfserf()
-Debug.Print ToJuliaLiteral(Array(1#, 2#, 3#))
-End Sub
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : ToJuliaLiteral
 ' Author     : Philip Swannell
