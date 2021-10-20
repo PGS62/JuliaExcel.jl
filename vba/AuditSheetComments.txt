@@ -1,4 +1,6 @@
 Version	Date	Time	Author	Comment
+6	20-Oct-2021	17:56	Philip Swannell	Minor tweaks
+5	20-Oct-2021	17:31	Philip Swannell	Will no longer be cross-talk if we run two instance of Excel. Each Excel will talk to a dedicated Julia process.
 4	19-Oct-2021	19:07	Philip Swannell	No longer send commands to Julia via SendKeys but use WindowsAPI SendMessage instead.
 3	18-Oct-2021	16:24	Philip Swannell	First working version:<LF>We have two functions JuliaCall and JuliaEval.
 2	15-Oct-2021	10:18	Philip Swannell	Added experimental code from when I was trying to make VBAInterop work "properly" using sockets. I have given up on that approach, at least for now.
