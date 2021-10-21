@@ -90,4 +90,4 @@ Function GetHandleFromPartialCaption(ByRef lwnd As LongPtr, ByVal sCaption As St
 ErrHandler:
 16        Throw "#GetHandleFromPartialCaption (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Function
-()
+

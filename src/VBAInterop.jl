@@ -25,14 +25,6 @@ function z()
 
     expression = readutf16lebom(expressionfile())
 
-    #special case!
-    if expression == "exit()"
-        result = "Julia has shut down"
-        serializeresult(result, resultfile())
-        isfile(flagfile()) && rm(flagfile())
-        exit()
-    end
-
     success = true
     result =
     try

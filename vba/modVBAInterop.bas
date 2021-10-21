@@ -74,6 +74,7 @@ Function JuliaEval(ByVal JuliaCode As String)
 
 27        Do While FileExists(FlagFile)
 28            Sleep 1
+                If IsWindow(HwndJulia) = 0 Then Throw "Julia has shut down"
 29        Loop
 
 30        Res = CSVRead(ResultFile, True, ",", , "ISO", , , 1, , , , , , , , , "UTF-8", , HeaderRow)
@@ -114,12 +115,13 @@ Private Sub LaunchJulia()
 
 1         On Error GoTo ErrHandler
 2         JuliaExe = DefaultJuliaExe()
-3         PackageLocation = "c:\Projects\VBAInterop"
+3         PackageLocation = "c:\Projects\VBAInterop.jl"
 4         PackageLocationUnix = Replace(PackageLocation, "\", "/")
 5         PackageName = Mid(PackageLocation, InStrRev(PackageLocation, "\") + 1)
-6         If Not FolderExists(PackageLocation) Then Throw "Cannot find folder '" + PackageLocation + "'"
-7         ProjectFile = PackageLocation & "\Project.toml"
-8         If Not FileExists(ProjectFile) Then Throw "Cannot find file '" + ProjectFile + "'"
+6         PackageName = StringBetweenStrings(PackageName, "", ".")
+7         If Not FolderExists(PackageLocation) Then Throw "Cannot find folder '" + PackageLocation + "'"
+8         ProjectFile = PackageLocation & "\Project.toml"
+9         If Not FileExists(ProjectFile) Then Throw "Cannot find file '" + ProjectFile + "'"
 
 10        FlagFile = LocalTemp() & "\VBAInteropFlag_" & CStr(GetCurrentProcessId()) & ".txt"
 11        SaveTextFile FlagFile, "", TristateFalse
@@ -141,23 +143,23 @@ Private Sub LaunchJulia()
               "println(""Julia $VERSION, using VBAInterop to serve Excel running as process ID " & CStr(GetCurrentProcessId) & """)" & vbLf & _
               "rm(""" & Replace(FlagFile, "\", "/") & """)"
 
-15        SaveTextFile LoadFile, LoadFileContents, TristateFalse
+14        SaveTextFile LoadFile, LoadFileContents, TristateFalse
         
-16        Set wsh = New WshShell
-17        Command = JuliaExe & " --load """ & LoadFile & """"
-18        ErrorCode = wsh.Run(Command, vbMinimizedNoFocus, False)
-19        If ErrorCode <> 0 Then
-20            Throw "Command '" + Command + "' failed with error code " + CStr(ErrorCode)
-21        End If
+15        Set wsh = New WshShell
+16        Command = JuliaExe & " --load """ & LoadFile & """"
+17        ErrorCode = wsh.Run(Command, vbMinimizedNoFocus, False)
+18        If ErrorCode <> 0 Then
+19            Throw "Command '" + Command + "' failed with error code " + CStr(ErrorCode)
+20        End If
           
-23        While FileExists(FlagFile)
-24            DoEvents
-25        Wend
-26        CleanLocalTemp
+21        While FileExists(FlagFile)
+22            Sleep 10
+23        Wend
+24        CleanLocalTemp
 
-27        Exit Sub
+25        Exit Sub
 ErrHandler:
-28        Throw "#LaunchJulia (line " & CStr(Erl) + "): " & Err.Description & "!"
+26        Throw "#LaunchJulia (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Sub
 
 ' -----------------------------------------------------------------------------------------------------------------------
