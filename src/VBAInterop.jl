@@ -10,15 +10,28 @@ expressionfile() = joinpath(localtemp(), "VBAInteropExpression_$(Main.xlpid).txt
 encode(x::String) = "\"" * replace(x, "\"" => "\"\"") * "\""
 encode(x::Irrational) = Float64(x)
 encode(x::DataType) = "$x"
+encode(x::VersionNumber) = "$x"
+encode(x::Missing) = ""#will end up in Excel as the value of the ShowMissingsAs argument to CSVRead
 encode(x::Any) =  x
 
 # read a text file with UTF-16 encoding, little endian, with byte option mark
 # https://discourse.julialang.org/t/reading-a-utf-16-le-file/11687
 readutf16lebom(filename::String) = transcode(String, reinterpret(UInt16, read(filename)))[4:end]
 
-function z()# One-character function name thanks to extreme slowness of SendKeys...
+#=This function would be better named "serve_to_excel" or some such, but one-character
+function name is a time saving since we have to send the function's name via SendMessage 
+=#    
+function z()
 
     expression = readutf16lebom(expressionfile())
+
+    #special case!
+    if expression == "exit()"
+        result = "Julia has shut down"
+        serializeresult(result, resultfile())
+        isfile(flagfile()) && rm(flagfile())
+        exit()
+    end
 
     success = true
     result =
@@ -40,7 +53,7 @@ function z()# One-character function name thanks to extreme slowness of SendKeys
     result
 end
 
-function serializeresult(x::Union{Number,String,Bool,Date,DateTime,Nothing,DataType,Missing}, 
+function serializeresult(x::Union{Number,String,Bool,Date,DateTime,Nothing,DataType,Missing,VersionNumber}, 
                          filename::String, success::Bool=true)
     io = open(filename, "w")
     if success
@@ -49,6 +62,7 @@ function serializeresult(x::Union{Number,String,Bool,Date,DateTime,Nothing,DataT
         write(io, "NumDims=0|Type=Exception\n")
     end
     write(io, "$(encode(x))")
+    write(io, "\n")
     close(io)
 end
 
@@ -98,27 +112,22 @@ function serializeresult(x::Matrix{T}, filename::String, thetype::DataType=typeo
     for i in 1:nr
         for j in 1:nc
             write(io, "$(encode(x[i,j]))" * (j == nc ? "\n" : ","))
-    end
+        end
     end    
     close(io)
 end
 
+#https://docs.microsoft.com/en-us/windows/terminal/tutorials/tab-title
 function settitle()
     print("\033]0;Julia $VERSION serving Excel PID $(Main.xlpid)\a")
 end
 
 function truncate(x::String)
-if (length(x)) > 120
-    x[1:58] * " … " * x[end-58:end]
-else
-    x
+    if (length(x)) > 120
+        x[1:58] * " … " * x[end - 58:end]
+    else
+        x
+    end
 end
-
-
-end
-
-
-
-
 
 end # module

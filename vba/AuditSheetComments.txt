@@ -1,4 +1,5 @@
 Version	Date	Time	Author	Comment
+7	21-Oct-2021	17:40	Philip Swannell	First version with no dependency on SolumAddin.
 6	20-Oct-2021	17:56	Philip Swannell	Minor tweaks
 5	20-Oct-2021	17:31	Philip Swannell	Will no longer be cross-talk if we run two instance of Excel. Each Excel will talk to a dedicated Julia process.
 4	19-Oct-2021	19:07	Philip Swannell	No longer send commands to Julia via SendKeys but use WindowsAPI SendMessage instead.

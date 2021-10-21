@@ -1,5 +1,6 @@
 Attribute VB_Name = "modSendMessage"
 Option Explicit
+Option Private Module
 
 Private Declare PtrSafe Function PostMessage Lib "user32" Alias "PostMessageA" (ByVal hwnd As LongPtr, _
                                   ByVal wMsg As Long, ByVal wParam As LongPtr, lParam As Any) As Long
@@ -16,7 +17,6 @@ Private Const WM_CHAR = &H102
 
 'Source: https://docs.microsoft.com/en-gb/windows/win32/inputdev/virtual-key-codes?redirectedfrom=MSDN
 Private Const GW_HWNDNEXT = 2
-
 
 'References:
 'https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-sendmessagea
@@ -90,4 +90,4 @@ Function GetHandleFromPartialCaption(ByRef lwnd As LongPtr, ByVal sCaption As St
 ErrHandler:
 16        Throw "#GetHandleFromPartialCaption (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Function
-
+()
