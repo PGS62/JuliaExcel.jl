@@ -8,12 +8,12 @@ Option Private Module
 ' Date       : 21-Oct-2021
 ' Purpose    : Does a file exit?
 ' -----------------------------------------------------------------------------------------------------------------------
-Function FileExists(FileName As String) As Boolean
+Function FileExists(Filename As String) As Boolean
           Dim F As Scripting.File
           Static FSO As Scripting.FileSystemObject
 1         On Error GoTo ErrHandler
 2         If FSO Is Nothing Then Set FSO = New FileSystemObject
-3         Set F = FSO.GetFile(FileName)
+3         Set F = FSO.GetFile(Filename)
 4         FileExists = True
 5         Exit Function
 ErrHandler:
@@ -127,16 +127,29 @@ Function TwoDColTo1D(x As Variant)
 6         TwoDColTo1D = Res
 End Function
 
-Function SaveTextFile(FileName As String, Contents As String, Format As TriState)
+Function SaveTextFile(Filename As String, Contents As String, Format As TriState)
           Dim FSO As New Scripting.FileSystemObject
           Dim ts As Scripting.TextStream
 1         On Error GoTo ErrHandler
-2         Set ts = FSO.OpenTextFile(FileName, ForWriting, True, Format)
+2         Set ts = FSO.OpenTextFile(Filename, ForWriting, True, Format)
 3         ts.Write Contents
 4         ts.Close
 5         Exit Function
 ErrHandler:
 6         Throw "#SaveTextFile (line " & CStr(Erl) + "): " & Err.Description & "!"
+End Function
+
+Function ReadAllFromTextFile(Filename As String, Format As TriState)
+          Dim FSO As New Scripting.FileSystemObject
+          Dim ts As Scripting.TextStream
+1         On Error GoTo ErrHandler
+2         On Error GoTo ErrHandler
+3         Set ts = FSO.OpenTextFile(Filename, ForReading, , Format)
+4         ReadAllFromTextFile = ts.ReadAll
+5         ts.Close
+6         Exit Function
+ErrHandler:
+7         Throw "#ReadAllFromTextFile (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------

@@ -153,7 +153,7 @@ End Enum
 '             For discussion of the CSV format see
 '             https://tools.ietf.org/html/rfc4180#section-2
 ' -----------------------------------------------------------------------------------------------------------------------
-Public Function CSVRead(ByVal FileName As String, Optional ByVal ConvertTypes As Variant = False, _
+Public Function CSVRead(ByVal Filename As String, Optional ByVal ConvertTypes As Variant = False, _
     Optional ByVal Delimiter As Variant, Optional ByVal IgnoreRepeated As Boolean, _
     Optional ByVal DateFormat As String = "Y-M-D", Optional ByVal Comment As String, _
     Optional ByVal IgnoreEmptyLines As Boolean, Optional ByVal HeaderRowNum As Long, _
@@ -239,18 +239,18 @@ Public Function CSVRead(ByVal FileName As String, Optional ByVal ConvertTypes As
     
     On Error GoTo ErrHandler
 
-    SourceType = InferSourceType(FileName)
+    SourceType = InferSourceType(Filename)
 
     'Download file from internet to local temp folder
     If SourceType = st_URL Then
         TempFile = Environ$("Temp") & "\VBA-CSV\Downloads\DownloadedFile.csv"
-        FileName = Download(FileName, TempFile)
+        Filename = Download(Filename, TempFile)
         SourceType = st_File
     End If
 
     'Parse and validate inputs...
     If SourceType <> st_String Then
-        ParseEncoding FileName, Encoding, TriState, CharSet, useADODB
+        ParseEncoding Filename, Encoding, TriState, CharSet, useADODB
     End If
 
     If VarType(Delimiter) = vbBoolean Then
@@ -261,14 +261,14 @@ Public Function CSVRead(ByVal FileName As String, Optional ByVal ConvertTypes As
         End If
     ElseIf VarType(Delimiter) = vbString Then
         If Len(Delimiter) = 0 Then
-            strDelimiter = InferDelimiter(SourceType, FileName, TriState, DecimalSeparator)
+            strDelimiter = InferDelimiter(SourceType, Filename, TriState, DecimalSeparator)
         ElseIf Left$(Delimiter, 1) = DQ Or Left$(Delimiter, 1) = vbLf Or Left$(Delimiter, 1) = vbCr Then
             Throw Err_Delimiter2
         Else
             strDelimiter = Delimiter
         End If
     ElseIf IsEmpty(Delimiter) Or IsMissing(Delimiter) Then
-        strDelimiter = InferDelimiter(SourceType, FileName, TriState, DecimalSeparator)
+        strDelimiter = InferDelimiter(SourceType, Filename, TriState, DecimalSeparator)
     Else
         Throw Err_Delimiter
     End If
@@ -323,12 +323,12 @@ Public Function CSVRead(ByVal FileName As String, Optional ByVal ConvertTypes As
     End If
     
     If NotDelimited Then
-        CSVRead = ParseTextFile(FileName, SourceType <> st_String, useADODB, CharSet, TriState, SkipToRow, NumRows, CallingFromWorksheet)
+        CSVRead = ParseTextFile(Filename, SourceType <> st_String, useADODB, CharSet, TriState, SkipToRow, NumRows, CallingFromWorksheet)
         Exit Function
     End If
           
     If SourceType = st_String Then
-        CSVContents = FileName
+        CSVContents = Filename
         
         ParseCSVContents CSVContents, useADODB, DQ, strDelimiter, Comment, IgnoreEmptyLines, _
             IgnoreRepeated, SkipToRow, HeaderRowNum, NumRows, NumRowsFound, NumColsFound, _
@@ -340,10 +340,10 @@ Public Function CSVRead(ByVal FileName As String, Optional ByVal ConvertTypes As
             Set Stream = CreateObject("ADODB.Stream")
             Stream.CharSet = CharSet
             Stream.Open
-            Stream.LoadFromFile FileName
+            Stream.LoadFromFile Filename
             If Stream.EOS Then Throw Err_FileEmpty
         Else
-            Set Stream = m_FSO.GetFile(FileName).OpenAsTextStream(ForReading, TriState)
+            Set Stream = m_FSO.GetFile(Filename).OpenAsTextStream(ForReading, TriState)
             If Stream.atEndOfStream Then Throw Err_FileEmpty
         End If
 
@@ -615,26 +615,26 @@ End Sub
 ' Procedure  : InferSourceType
 ' Purpose    : Guess whether FileName is in fact a file, a URL or a string in CSV format
 ' -----------------------------------------------------------------------------------------------------------------------
-Private Function InferSourceType(FileName As String) As enmSourceType
+Private Function InferSourceType(Filename As String) As enmSourceType
 
     On Error GoTo ErrHandler
-    If InStr(FileName, vbLf) > 0 Then 'vbLf and vbCr are not permitted characters in file names or urls
+    If InStr(Filename, vbLf) > 0 Then 'vbLf and vbCr are not permitted characters in file names or urls
         InferSourceType = st_String
-    ElseIf InStr(FileName, vbCr) > 0 Then
+    ElseIf InStr(Filename, vbCr) > 0 Then
         InferSourceType = st_String
-    ElseIf Mid$(FileName, 2, 2) = ":\" Then
+    ElseIf Mid$(Filename, 2, 2) = ":\" Then
         InferSourceType = st_File
-    ElseIf Left$(FileName, 2) = "\\" Then
+    ElseIf Left$(Filename, 2) = "\\" Then
         InferSourceType = st_File
-    ElseIf Left$(FileName, 8) = "https://" Then
+    ElseIf Left$(Filename, 8) = "https://" Then
         InferSourceType = st_URL
-    ElseIf Left$(FileName, 7) = "http://" Then
+    ElseIf Left$(Filename, 7) = "http://" Then
         InferSourceType = st_URL
     Else
         'Doesn't look like either file with path, url or string in CSV format
         InferSourceType = st_String
-        If Len(FileName) < 1000 Then
-            If FileExists(FileName) Then 'file exists in current working directory
+        If Len(Filename) < 1000 Then
+            If FileExists(Filename) Then 'file exists in current working directory
                 InferSourceType = st_File
             End If
         End If
@@ -674,7 +674,7 @@ End Function
 ' Purpose   : Downloads bits from the Internet and saves them to a file.
 '             See https://msdn.microsoft.com/en-us/library/ms775123(v=vs.85).aspx
 ' -----------------------------------------------------------------------------------------------------------------------
-Private Function Download(URLAddress As String, ByVal FileName As String) As String
+Private Function Download(URLAddress As String, ByVal Filename As String) As String
     Dim EN As Long
     Dim ErrString As String
     Dim Res As Long
@@ -682,29 +682,29 @@ Private Function Download(URLAddress As String, ByVal FileName As String) As Str
 
     On Error GoTo ErrHandler
     
-    TargetFolder = FileFromPath(FileName, False)
+    TargetFolder = FileFromPath(Filename, False)
     CreatePath TargetFolder
-    If FileExists(FileName) Then
+    If FileExists(Filename) Then
         On Error Resume Next
-        FileDelete FileName
+        FileDelete Filename
         EN = Err.Number
         On Error GoTo ErrHandler
         If EN <> 0 Then
-            Throw "Cannot download from URL '" + URLAddress + "' because target file '" + FileName + _
+            Throw "Cannot download from URL '" + URLAddress + "' because target file '" + Filename + _
                 "' already exists and cannot be deleted. Is the target file open in a program such as Excel?"
         End If
     End If
     
-    Res = URLDownloadToFile(0, URLAddress, FileName, 0, 0)
+    Res = URLDownloadToFile(0, URLAddress, Filename, 0, 0)
     If Res <> 0 Then
         ErrString = ParseDownloadError(CLng(Res))
         Throw "Windows API function URLDownloadToFile returned error code " & CStr(Res) & _
             " with description '" & ErrString & "'"
     End If
-    If Not FileExists(FileName) Then Throw "Windows API function URLDownloadToFile did not report an error, " & _
-        "but appears to have not successfuly downloaded a file from " & URLAddress & " to " & FileName
+    If Not FileExists(Filename) Then Throw "Windows API function URLDownloadToFile did not report an error, " & _
+        "but appears to have not successfuly downloaded a file from " & URLAddress & " to " & Filename
         
-    Download = FileName
+    Download = Filename
 
     Exit Function
 ErrHandler:
@@ -818,7 +818,7 @@ End Function
 '  CharSet : Set by reference. Needed only when we read files using ADODB.Stream, i.e. when useADODB is True.
 '  useADODB: Should file be read via ADODB.Stream, which is capable of reading UTF-8 files
 ' -----------------------------------------------------------------------------------------------------------------------
-Private Sub ParseEncoding(FileName As String, Encoding As Variant, ByRef TriState As Long, _
+Private Sub ParseEncoding(Filename As String, Encoding As Variant, ByRef TriState As Long, _
     ByRef CharSet As String, ByRef useADODB As Boolean)
 
     Const Err_Encoding As String = "Encoding argument can usually be omitted, but otherwise Encoding be " & _
@@ -826,7 +826,7 @@ Private Sub ParseEncoding(FileName As String, Encoding As Variant, ByRef TriStat
     
     On Error GoTo ErrHandler
     If IsEmpty(Encoding) Or IsMissing(Encoding) Then
-        DetectEncoding FileName, TriState, CharSet, useADODB
+        DetectEncoding Filename, TriState, CharSet, useADODB
     ElseIf VarType(Encoding) = vbString Then
         Select Case UCase$(Replace(Replace(Encoding, "-", vbNullString), " ", vbNullString))
             Case "ASCII"
@@ -3139,11 +3139,11 @@ End Function
 ' Procedure  : FileExists
 ' Purpose    : Returns True if FileName exists on disk, False o.w.
 ' -----------------------------------------------------------------------------------------------------------------------
-Private Function FileExists(FileName As String) As Boolean
+Private Function FileExists(Filename As String) As Boolean
     Dim F As Scripting.File
     On Error GoTo ErrHandler
     If m_FSO Is Nothing Then Set m_FSO = New Scripting.FileSystemObject
-    Set F = m_FSO.GetFile(FileName)
+    Set F = m_FSO.GetFile(Filename)
     FileExists = True
     Exit Function
 ErrHandler:
@@ -3171,12 +3171,12 @@ End Function
 ' Procedure  : FileDelete
 ' Purpose    : Delete a file, returns True or error string.
 ' -----------------------------------------------------------------------------------------------------------------------
-Private Sub FileDelete(FileName As String)
+Private Sub FileDelete(Filename As String)
     Dim F As Scripting.File
     On Error GoTo ErrHandler
 
     If m_FSO Is Nothing Then Set m_FSO = New Scripting.FileSystemObject
-    Set F = m_FSO.GetFile(FileName)
+    Set F = m_FSO.GetFile(Filename)
     F.Delete
 
     Exit Sub
@@ -3512,7 +3512,7 @@ End Sub
 '             For discussion of the CSV format see
 '             https://tools.ietf.org/html/rfc4180#section-2
 ' -----------------------------------------------------------------------------------------------------------------------
-Public Function CSVWrite(ByVal Data As Variant, Optional ByVal FileName As String, _
+Public Function CSVWrite(ByVal Data As Variant, Optional ByVal Filename As String, _
     Optional ByVal QuoteAllStrings As Boolean = True, Optional ByVal DateFormat As String = "YYYY-MM-DD", _
     Optional ByVal DateTimeFormat As String = "ISO", Optional ByVal Delimiter As String = ",", _
     Optional ByVal Encoding As String = "ANSI", Optional ByVal EOL As String = vbNullString) As String
@@ -3542,7 +3542,7 @@ Public Function CSVWrite(ByVal Data As Variant, Optional ByVal FileName As Strin
             Throw Err_Encoding
     End Select
 
-    WriteToFile = Len(FileName) > 0
+    WriteToFile = Len(Filename) > 0
 
     If EOL = vbNullString Then
         If WriteToFile Then
@@ -3602,13 +3602,13 @@ Public Function CSVWrite(ByVal Data As Variant, Optional ByVal FileName As Strin
                 OneLineJoined = VBA.Join(OneLine, Delimiter) & EOL
                 Stream.WriteText OneLineJoined
             Next i
-            Stream.SaveToFile FileName, 2 'adSaveCreateOverWrite
+            Stream.SaveToFile Filename, 2 'adSaveCreateOverWrite
 
-            CSVWrite = FileName
+            CSVWrite = Filename
         Else
             Unicode = UCase$(Encoding) = "UTF-16"
             If m_FSO Is Nothing Then Set m_FSO = New Scripting.FileSystemObject
-            Set Stream = m_FSO.CreateTextFile(FileName, True, Unicode)
+            Set Stream = m_FSO.CreateTextFile(Filename, True, Unicode)
   
             For i = LBound(Data) To UBound(Data)
                 For j = LBound(Data, 2) To UBound(Data, 2)
@@ -3619,7 +3619,7 @@ Public Function CSVWrite(ByVal Data As Variant, Optional ByVal FileName As Strin
             Next i
 
             Stream.Close: Set Stream = Nothing
-            CSVWrite = FileName
+            CSVWrite = Filename
         End If
     Else
 

@@ -2,20 +2,7 @@ Attribute VB_Name = "modVBAInterop"
 Option Explicit
 Declare PtrSafe Function GetCurrentProcessId Lib "kernel32" () As Long
 Public Declare PtrSafe Sub Sleep Lib "kernel32" (ByVal Milliseconds As Long)
-Private Declare PtrSafe Function IsWindow Lib "user32" (ByVal hwnd As LongPtr) As Long
-
-Sub TimeIt()
-    Dim Expression As String
-    Dim i As Long
-    Dim Result As Variant
-
-    Expression = "1+1"
-    
-    For i = 1 To 100
-        Result = JuliaEval(Expression)
-    Next
-
-End Sub
+Public Declare PtrSafe Function IsWindow Lib "user32" (ByVal hwnd As LongPtr) As Long
 
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : JuliaEval
@@ -54,113 +41,127 @@ Function JuliaEval(ByVal JuliaCode As String)
 11        End If
 
 12        If HwndJulia = 0 Or IsWindow(HwndJulia) = 0 Then
-13            WindowTitle = "serving Excel PID " & CStr(PID)
-14            LaunchJulia
-15            GetHandleFromPartialCaption HwndJulia, WindowTitle
-16            If HwndJulia = 0 Then
-17                Throw "Unexpected error"
-18            End If
-19        End If
+13            Throw "Cannot find instance of Julia serving this instance of Excel (PID " & CStr(PID) & "). Please call function JuliaLaunch"
+14        End If
           
-20        Tmp = LocalTemp()
+15        Tmp = LocalTemp()
           
-21        FlagFile = Tmp & "\VBAInteropFlag_" & CStr(PID) & ".txt"
-22        ResultFile = Tmp & "\VBAInteropResult_" & CStr(PID) & ".csv"
-23        ExpressionFile = Tmp & "\VBAInteropExpression_" & CStr(PID) & ".txt"
-24        SaveTextFile FlagFile, "", TristateTrue
-25        SaveTextFile ExpressionFile, JuliaCode, TristateTrue
+16        FlagFile = Tmp & "\VBAInteropFlag_" & CStr(PID) & ".txt"
+17        ResultFile = Tmp & "\VBAInteropResult_" & CStr(PID) & ".csv"
+18        ExpressionFile = Tmp & "\VBAInteropExpression_" & CStr(PID) & ".txt"
+19        SaveTextFile FlagFile, "", TristateTrue
+20        SaveTextFile ExpressionFile, JuliaCode, TristateTrue
           
-26        SendMessageToJulia HwndJulia
+21        SendMessageToJulia HwndJulia
 
-27        Do While FileExists(FlagFile)
-28            Sleep 1
-                If IsWindow(HwndJulia) = 0 Then Throw "Julia has shut down"
-29        Loop
+22        Do While FileExists(FlagFile)
+23            Sleep 1
+24            If IsWindow(HwndJulia) = 0 Then Throw "The expression evaluated caused Julia to shut down"
+25        Loop
 
-30        Res = CSVRead(ResultFile, True, ",", , "ISO", , , 1, , , , , , , , , "UTF-8", , HeaderRow)
+26        Res = CSVRead(ResultFile, True, ",", , "ISO", , , 1, , , , , , , , , "UTF-8", , HeaderRow)
 
-31        NumDims = StringBetweenStrings(CStr(HeaderRow(1, 1)), "NumDims=", "|")
-32        If NumDims = "0" Then
-33            Res = Res(1, 1)
-34        ElseIf NumDims = "1" Then
-35            Res = TwoDColTo1D(Res)
-36        End If
-37        JuliaEval = Res
+27        NumDims = StringBetweenStrings(CStr(HeaderRow(1, 1)), "NumDims=", "|")
+28        If NumDims = "0" Then
+29            Res = Res(1, 1)
+30        ElseIf NumDims = "1" Then
+31            Res = TwoDColTo1D(Res)
+32        End If
+33        JuliaEval = Res
 
-38        Exit Function
+34        Exit Function
 ErrHandler:
-39        JuliaEval = "#JuliaEval (line " & CStr(Erl) + "): " & Err.Description & "!"
+35        JuliaEval = "#JuliaEval (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
-' Procedure  : LaunchJulia
+' Procedure  : JuliaLaunch
 ' Author     : Philip Swannell
 ' Date       : 14-Oct-2021
-' Purpose    : Launches Julia, and loads and instantiates the VBAInterop package. The instantiate step might be overkill,
-'              as it really needs to be done only at install-time, but useful when developing
+' Purpose    : Launches Julia, ready to "serve" current instance of Excel.
 ' -----------------------------------------------------------------------------------------------------------------------
-Private Sub LaunchJulia()
+Function JuliaLaunch(Optional Minimised As Boolean)
 
+          Const PackageName As String = "VBAInterop"
           Dim Command As String
           Dim ErrorCode As Long
+          Dim ErrorFile As String
           Dim FlagFile As String
-          Dim JuliaExe As String
+          Dim HwndJulia As LongPtr
           Dim LoadFile As String
           Dim LoadFileContents As String
-          Dim PackageLocation As String
-          Dim PackageLocationUnix As String
-          Dim PackageName As String
-          Dim ProjectFile As String
+          Dim WindowPartialTitle As String
+          Dim WindowTitle As String
           Dim wsh As WshShell
+          Dim JuliaExe As String
+          Dim PID As Long
 
 1         On Error GoTo ErrHandler
+
 2         JuliaExe = DefaultJuliaExe()
-3         PackageLocation = "c:\Projects\VBAInterop.jl"
-4         PackageLocationUnix = Replace(PackageLocation, "\", "/")
-5         PackageName = Mid(PackageLocation, InStrRev(PackageLocation, "\") + 1)
-6         PackageName = StringBetweenStrings(PackageName, "", ".")
-7         If Not FolderExists(PackageLocation) Then Throw "Cannot find folder '" + PackageLocation + "'"
-8         ProjectFile = PackageLocation & "\Project.toml"
-9         If Not FileExists(ProjectFile) Then Throw "Cannot find file '" + ProjectFile + "'"
+3         PID = GetCurrentProcessId
+4         WindowPartialTitle = "serving Excel PID " & CStr(PID)
+5         GetHandleFromPartialCaption HwndJulia, WindowPartialTitle
 
-10        FlagFile = LocalTemp() & "\VBAInteropFlag_" & CStr(GetCurrentProcessId()) & ".txt"
-11        SaveTextFile FlagFile, "", TristateFalse
+6         If HwndJulia <> 0 Then
+7             WindowTitle = WindowTitleFromHandle(HwndJulia)
+8             JuliaLaunch = "Julia is already running with title """ & WindowTitle & """"
+9             Exit Function
+10        End If
 
-12        LoadFile = LocalTemp() & "\VBAInteropStartUp_" & CStr(GetCurrentProcessId()) & ".jl"
-
-          'TODO change this code once I release VBAInterop as a package on GitHub, even if private... should not need to know the location of the package on the c:drive...
-13        LoadFileContents = "println(""Executing " & Replace(LoadFile, "\", "/") & """)" & vbLf & _
-              "using Revise" & vbLf & _
-              "cd(""" & PackageLocationUnix & """)" & vbLf & _
-              "using Pkg" & vbLf & _
-              "Pkg.activate(""" & PackageLocationUnix & """)" & vbLf & _
-              "Pkg.instantiate()" & vbLf & _
-              "using " & PackageName & vbLf & _
-              "using Dates" & vbLf & _
-              "const xlpid = " & CStr(GetCurrentProcessId) & vbLf & _
-              "@show xlpid" & vbLf & _
-              PackageName & ".settitle()" & vbLf & _
-              "println(""Julia $VERSION, using VBAInterop to serve Excel running as process ID " & CStr(GetCurrentProcessId) & """)" & vbLf & _
-              "rm(""" & Replace(FlagFile, "\", "/") & """)"
-
-14        SaveTextFile LoadFile, LoadFileContents, TristateFalse
-        
-15        Set wsh = New WshShell
-16        Command = JuliaExe & " --load """ & LoadFile & """"
-17        ErrorCode = wsh.Run(Command, vbMinimizedNoFocus, False)
-18        If ErrorCode <> 0 Then
-19            Throw "Command '" + Command + "' failed with error code " + CStr(ErrorCode)
-20        End If
+11        FlagFile = LocalTemp() & "\VBAInteropFlag_" & CStr(GetCurrentProcessId()) & ".txt"
+12        ErrorFile = LocalTemp() & "\VBAInteropLoadError_" & CStr(GetCurrentProcessId()) & ".txt"
+13        If FileExists(ErrorFile) Then Kill ErrorFile
           
-21        While FileExists(FlagFile)
-22            Sleep 10
-23        Wend
-24        CleanLocalTemp
+14        SaveTextFile FlagFile, "", TristateFalse
+15        LoadFile = LocalTemp() & "\VBAInteropStartUp_" & CStr(GetCurrentProcessId()) & ".jl"
+              
+16        LoadFileContents = _
+              "try" & vbLf & _
+              "    #println(""Executing $(@__FILE__)"")" & vbLf & _
+              "    using " & PackageName & vbLf & _
+              "    using Dates" & vbLf & _
+              "    global const xlpid = " & CStr(GetCurrentProcessId) & vbLf & _
+              "    " & PackageName & ".settitle()" & vbLf & _
+              "    println(""Julia $VERSION, using VBAInterop to serve Excel running as process ID " & CStr(GetCurrentProcessId) & """)" & vbLf & _
+              "    rm(""" & Replace(FlagFile, "\", "/") & """)" & vbLf & _
+              "catch e" & vbLf & _
+              "    theerror = ""$e""" & vbLf & _
+              "    @error theerror " & vbLf & _
+              "    errorfile = """ & Replace(ErrorFile, "\", "/") & """" & vbLf & _
+              "    io = open(errorfile, ""w"")" & vbLf & _
+              "    write(io,theerror)" & vbLf & _
+              "    close(io)" & vbLf & _
+              "    rm(""" & Replace(FlagFile, "\", "/") & """)" & vbLf & _
+              "    #exit()" & vbLf & _
+              "end"
 
-25        Exit Sub
+17        SaveTextFile LoadFile, LoadFileContents, TristateFalse
+        
+18        Set wsh = New WshShell
+19        Command = JuliaExe & " --banner=no --load """ & LoadFile & """"
+20        ErrorCode = wsh.Run(Command, IIf(Minimised, vbMinimizedFocus, vbNormalNoFocus), False)
+21        If ErrorCode <> 0 Then
+22            Throw "Command '" + Command + "' failed with error code " + CStr(ErrorCode)
+23        End If
+          
+24        While FileExists(FlagFile)
+25            Sleep 10
+26        Wend
+27        CleanLocalTemp
+28        If FileExists(ErrorFile) Then
+29            Throw "Julia launched but encountered an error when executing '" & LoadFile & "' the error was: " & ReadAllFromTextFile(ErrorFile, TristateFalse)
+30        End If
+          
+31        GetHandleFromPartialCaption HwndJulia, WindowPartialTitle
+32        WindowTitle = WindowTitleFromHandle(HwndJulia)
+          
+33        JuliaLaunch = "Julia launched with title """ & WindowTitle & """"
+
+34        Exit Function
 ErrHandler:
-26        Throw "#LaunchJulia (line " & CStr(Erl) + "): " & Err.Description & "!"
-End Sub
+35        JuliaLaunch = "#JuliaLaunch (line " & CStr(Erl) + "): " & Err.Description & "!"
+End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : DefaultJuliaExe

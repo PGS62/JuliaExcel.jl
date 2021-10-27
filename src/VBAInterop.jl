@@ -111,7 +111,7 @@ end
 
 #https://docs.microsoft.com/en-us/windows/terminal/tutorials/tab-title
 function settitle()
-    print("\033]0;Julia $VERSION serving Excel PID $(Main.xlpid)\a")
+    print("\033]0;Julia $VERSION PID $(getpid()) serving Excel PID $(Main.xlpid)\a")
 end
 
 function truncate(x::String)

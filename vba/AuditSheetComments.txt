@@ -1,4 +1,6 @@
 Version	Date	Time	Author	Comment
+10	27-Oct-2021	16:04	Philip Swannell	Better error handling for when executing the startup file leads to an error.
+9	27-Oct-2021	13:56	Philip Swannell	Now have separate function JuliaLaunch.
 8	21-Oct-2021	19:54	Philip Swannell	Wait loop in JuliaEval now tests if Julia is still alive, by checking if the window handle is still valid. So can evaluate "exit()" without an infinite loop!
 7	21-Oct-2021	17:40	Philip Swannell	First version with no dependency on SolumAddin.
 6	20-Oct-2021	17:56	Philip Swannell	Minor tweaks

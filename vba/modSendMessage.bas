@@ -75,19 +75,28 @@ Function GetHandleFromPartialCaption(ByRef lwnd As LongPtr, ByVal sCaption As St
 2         GetHandleFromPartialCaption = False
 3         lhWndP = FindWindow(vbNullString, vbNullString) 'PARENT WINDOW
 4         Do While lhWndP <> 0
-5             sStr = String(GetWindowTextLength(lhWndP) + 1, Chr$(0))
-6             GetWindowText lhWndP, sStr, Len(sStr)
-7             sStr = Left$(sStr, Len(sStr) - 1)
-8             If InStr(1, sStr, sCaption) > 0 Then
-9                 GetHandleFromPartialCaption = True
-10                lwnd = lhWndP
-11                Exit Do
-12            End If
-13            lhWndP = GetWindow(lhWndP, GW_HWNDNEXT)
-14        Loop
+5             sStr = WindowTitleFromHandle(lhWndP)
+6             If InStr(1, sStr, sCaption) > 0 Then
+7                 GetHandleFromPartialCaption = True
+8                 lwnd = lhWndP
+9                 Exit Do
+10            End If
+11            lhWndP = GetWindow(lhWndP, GW_HWNDNEXT)
+12        Loop
 
-15        Exit Function
+13        Exit Function
 ErrHandler:
-16        Throw "#GetHandleFromPartialCaption (line " & CStr(Erl) + "): " & Err.Description & "!"
+14        Throw "#GetHandleFromPartialCaption (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Function
 
+Function WindowTitleFromHandle(lhWndP As LongPtr)
+          Dim sStr As String
+1         On Error GoTo ErrHandler
+2         sStr = String(GetWindowTextLength(lhWndP) + 1, Chr$(0))
+3         GetWindowText lhWndP, sStr, Len(sStr)
+4         sStr = Left$(sStr, Len(sStr) - 1)
+5         WindowTitleFromHandle = sStr
+6         Exit Function
+ErrHandler:
+7         Throw "#WindowTitleFromHandle (line " & CStr(Erl) + "): " & Err.Description & "!"
+End Function
