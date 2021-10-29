@@ -10,9 +10,9 @@ Public Declare PtrSafe Function IsWindow Lib "user32" (ByVal hwnd As LongPtr) As
 ' Date       : 18-Oct-2021
 ' Purpose    : Evaluate some julia code, returning the result to VBA.
 ' Parameters :
-'  JuliaCode     : Some julia code such as "1+1" or "collect(1:100)"
+'  JuliaExpression : Some julia code such as "1+1" or "collect(1:100)"
 ' -----------------------------------------------------------------------------------------------------------------------
-Function JuliaEval(ByVal JuliaCode As String)
+Function JuliaEval(ByVal JuliaExpression As String)
           
           Dim ExpressionFile As String
           Dim FlagFile As String
@@ -49,8 +49,10 @@ Function JuliaEval(ByVal JuliaCode As String)
 16        FlagFile = Tmp & "\VBAInteropFlag_" & CStr(PID) & ".txt"
 17        ResultFile = Tmp & "\VBAInteropResult_" & CStr(PID) & ".csv"
 18        ExpressionFile = Tmp & "\VBAInteropExpression_" & CStr(PID) & ".txt"
+
+
 19        SaveTextFile FlagFile, "", TristateTrue
-20        SaveTextFile ExpressionFile, JuliaCode, TristateTrue
+20        SaveTextFile ExpressionFile, JuliaExpression, TristateTrue
           
 21        SendMessageToJulia HwndJulia
 
@@ -120,6 +122,7 @@ Function JuliaLaunch(Optional Minimised As Boolean)
               "try" & vbLf & _
               "    #println(""Executing $(@__FILE__)"")" & vbLf & _
               "    using " & PackageName & vbLf & _
+              "    using Revise" & vbLf & _
               "    using Dates" & vbLf & _
               "    global const xlpid = " & CStr(GetCurrentProcessId) & vbLf & _
               "    " & PackageName & ".settitle()" & vbLf & _
@@ -201,7 +204,7 @@ Private Function DefaultJuliaExe()
 15        Next
           
 16        If ChosenExe = "" Then
-              ErrString = "Julia executable not found, after looking in sub-folders of " + ParentFolderName + " which is the default location for Julia on Windows"
+17            ErrString = "Julia executable not found, after looking in sub-folders of " + ParentFolderName + " which is the default location for Julia on Windows"
 18            Throw ErrString
 19        Else
 20            DefaultJuliaExe = ChosenExe
@@ -215,20 +218,12 @@ End Function
 Function JuliaSetVar(VariableName As String, RefersTo As Variant)
           Dim Expression As String, Res As Variant
 1         On Error GoTo ErrHandler
-2             Expression = ToJuliaLiteral(VariableName) & " = " & ToJuliaLiteral(RefersTo) & ";nothing"
-3         Res = JuliaEval(Expression)
-4         If Res = "nothing" Then
-5             JuliaSetVar = VariableName + " was assigned"
-6         Else
-7             Throw Res
-8         End If
+2         JuliaSetVar = JuliaCall("VBAInterop.setvar", VariableName, RefersTo)
 
-
-9         Exit Function
+3         Exit Function
 ErrHandler:
-10        JuliaSetVar = "#JuliaSetVar (line " & CStr(Erl) + "): " & Err.Description & "!"
+4         JuliaSetVar = "#JuliaSetVar (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Function
-
 
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : JuliaCall
@@ -406,3 +401,6 @@ ErrHandler:
 End Function
 
 
+Function JuliaInclude(FileName As String)
+1         JuliaInclude = JuliaCall("VBAInterop.include", Replace(FileName, "\", "/"))
+End Function

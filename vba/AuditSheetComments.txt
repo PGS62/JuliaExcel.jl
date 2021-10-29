@@ -1,4 +1,5 @@
 Version	Date	Time	Author	Comment
+12	29-Oct-2021	18:03	Philip Swannell	Improved JuliaSetVar and added JuliaInclude
 11	29-Oct-2021	15:51	Philip Swannell	First naive version of JuliaSetVar.
 10	27-Oct-2021	16:04	Philip Swannell	Better error handling for when executing the startup file leads to an error.
 9	27-Oct-2021	13:56	Philip Swannell	Now have separate function JuliaLaunch.

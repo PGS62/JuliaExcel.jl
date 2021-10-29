@@ -45,6 +45,26 @@ function z()
     result
 end
 
+function setvar(name::String,arg)
+    if Base.isidentifier(name)
+        Main.eval(Main.eval(Meta.parse(":(global $name = $arg)")))
+        "Set global variable `$name` to a value with type $(typeof(Main.eval(Meta.parse(name))))"
+    else
+        "#`$name` is not an allowed variable name in Julia!"
+    end
+end
+
+# Overriding base include method to avoid serializing issue
+# Issue is `include` returns the last thing that it encounters in the file. Which may be something that is not serializable. To avoid the error, we add a `nothing` at the end
+function include(x::String)
+    if isfile(x)
+        Base.MainInclude.include(x)
+        "File `$(normpath(abspath(x)))` was included"
+    else
+        "#Cannot find file `$(normpath(abspath(x)))`!"
+    end
+end
+
 function serializeresult(x::Union{Number,String,Bool,Date,DateTime,Nothing,DataType,Missing,VersionNumber}, 
                          filename::String, success::Bool=true)
     io = open(filename, "w")
@@ -121,5 +141,6 @@ function truncate(x::String)
         x
     end
 end
+
 
 end # module
