@@ -212,6 +212,24 @@ ErrHandler:
 23        Throw "#DefaultJuliaExe (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Function
 
+Function JuliaSetVar(VariableName As String, RefersTo As Variant)
+          Dim Expression As String, Res As Variant
+1         On Error GoTo ErrHandler
+2             Expression = ToJuliaLiteral(VariableName) & " = " & ToJuliaLiteral(RefersTo) & ";nothing"
+3         Res = JuliaEval(Expression)
+4         If Res = "nothing" Then
+5             JuliaSetVar = VariableName + " was assigned"
+6         Else
+7             Throw Res
+8         End If
+
+
+9         Exit Function
+ErrHandler:
+10        JuliaSetVar = "#JuliaSetVar (line " & CStr(Erl) + "): " & Err.Description & "!"
+End Function
+
+
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : JuliaCall
 ' Author     : Philip Swannell
