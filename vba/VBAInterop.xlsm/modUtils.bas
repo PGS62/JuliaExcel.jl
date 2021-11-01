@@ -115,6 +115,12 @@ ErrHandler:
 39        StringBetweenStrings = "#StringBetweenStrings (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Function
 
+' -----------------------------------------------------------------------------------------------------------------------
+' Procedure  : TwoDColTo1D
+' Author     : Philip Swannell
+' Date       : 01-Nov-2021
+' Purpose    : Convert a two dimensional array with a single column into a 1-dimensional array.
+' -----------------------------------------------------------------------------------------------------------------------
 Function TwoDColTo1D(x As Variant)
           Dim i As Long
           Dim j As Long
@@ -127,6 +133,16 @@ Function TwoDColTo1D(x As Variant)
 6         TwoDColTo1D = Res
 End Function
 
+' -----------------------------------------------------------------------------------------------------------------------
+' Procedure  : SaveTextFile
+' Author     : Philip Swannell
+' Date       : 01-Nov-2021
+' Purpose    :
+' Parameters :
+'  FileName:
+'  Contents:
+'  Format  :
+' -----------------------------------------------------------------------------------------------------------------------
 Function SaveTextFile(FileName As String, Contents As String, Format As TriState)
           Dim FSO As New Scripting.FileSystemObject
           Dim ts As Scripting.TextStream

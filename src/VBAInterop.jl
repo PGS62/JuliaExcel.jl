@@ -2,24 +2,23 @@ module VBAInterop
 export z
 
 using Dates
+using StringEncodings
 
 localtemp() = joinpath(ENV["TEMP"], "VBAInterop")
 flagfile() = joinpath(localtemp(), "VBAInteropFlag_$(Main.xlpid).txt")
 resultfile() = joinpath(localtemp(), "VBAInteropResult_$(Main.xlpid).csv")
 expressionfile() = joinpath(localtemp(), "VBAInteropExpression_$(Main.xlpid).txt")
-encode(x::String) = "\"" * replace(x, "\"" => "\"\"") * "\""
-encode(x::Irrational) = Float64(x)
-encode(x::DataType) = "$x"
-encode(x::VersionNumber) = "$x"
-encode(x::Missing) = ""#will end up in Excel as the value of the ShowMissingsAs argument to CSVRead
-encode(x::Any) =  x
+encode_for_csv(x::String) = "\"" * replace(x, "\"" => "\"\"") * "\""
+encode_for_csv(x::Irrational) = "$(Float64(x))"
+encode_for_csv(x::Missing) = ""#will end up in Excel as the value of the ShowMissingsAs argument to CSVRead
+encode_for_csv(x::Any) =  "$x"
 
 # read a text file with UTF-16 encoding, little endian, with byte option mark
 # https://discourse.julialang.org/t/reading-a-utf-16-le-file/11687
 readutf16lebom(filename::String) = transcode(String, reinterpret(UInt16, read(filename)))[4:end]
 
 #=This function would be better named "serve_to_excel" or some such, but one-character
-function name is a time saving since we have to send the function's name via SendMessage 
+function name is a time saving since we have to send the function's name via PostMessage 
 =#    
 function z()
 
@@ -69,11 +68,11 @@ function serializeresult(x::Union{Number,String,Bool,Date,DateTime,Nothing,DataT
                          filename::String, success::Bool=true)
     io = open(filename, "w")
     if success
-        write(io, encode("NumDims=0|Type=$(typeof(x))") * "\n")
+        write(io, encode_for_csv("NumDims=0|Type=$(typeof(x))") * "\n")
     else
         write(io, "NumDims=0|Type=Exception\n")
     end
-    write(io, "$(encode(x))")
+    write(io, encode_for_csv(x))
     write(io, "\n")
     close(io)
 end
@@ -81,7 +80,7 @@ end
 function reporterror(error::String, filename)
     io = open(filename, "w")
     write(io, "NumDims=0|Type=ErrorException\n")
-    write(io, encode("#$(error)!"))
+    write(io, encode_for_csv("#$(error)!"))
     close(io)
 end
 
@@ -102,17 +101,17 @@ function serializeresult(x::Any, filename::String)
         serializeresult(xasarray, filename, typeof(x))
     else
         io = open(filename, "w")
-        write(io, encode("NumDims=?|Type=$(typeof(x))") * "\n")
-        write(io, encode("#Expression evaluates to a variable of type $(typeof(x)), and no method exists to return variables of that type to Excel!"))
+        write(io, encode_for_csv("NumDims=?|Type=$(typeof(x))") * "\n")
+        write(io, encode_for_csv("#Expression evaluates to a variable of type $(typeof(x)), and no method exists to return variables of that type to Excel!"))
         close(io)
     end
 end
 
 function serializeresult(x::Vector{T}, filename::String, thetype::DataType=typeof(x)) where T
     io = open(filename, "w")
-    write(io, encode("NumDims=1|Type=$(thetype)") * "\n")
+    write(io, encode_for_csv("NumDims=1|Type=$(thetype)") * "\n")
     for i in eachindex(x)
-        write(io, "$(encode(x[i]))\n")
+        write(io, "$(encode_for_csv(x[i]))\n")
     end    
     close(io)
 end
@@ -120,10 +119,10 @@ end
 function serializeresult(x::Matrix{T}, filename::String, thetype::DataType=typeof(x)) where T
     nr, nc = size(x)
     io = open(filename, "w")
-    write(io, encode("NumDims=2|Type=$(thetype)") * "\n")
+    write(io, encode_for_csv("NumDims=2|Type=$(thetype)") * "\n")
     for i in 1:nr
         for j in 1:nc
-            write(io, "$(encode(x[i,j]))" * (j == nc ? "\n" : ","))
+            write(io, encode_for_csv(x[i,j]) * (j == nc ? "\n" : ","))
         end
     end    
     close(io)

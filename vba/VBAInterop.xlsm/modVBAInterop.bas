@@ -50,7 +50,6 @@ Function JuliaEval(ByVal JuliaExpression As String)
 17        ResultFile = Tmp & "\VBAInteropResult_" & CStr(PID) & ".csv"
 18        ExpressionFile = Tmp & "\VBAInteropExpression_" & CStr(PID) & ".txt"
 
-
 19        SaveTextFile FlagFile, "", TristateTrue
 20        SaveTextFile ExpressionFile, JuliaExpression, TristateTrue
           
