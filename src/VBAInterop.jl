@@ -103,7 +103,7 @@ function serializeresult(x::Any, filename::String)
     else
         io = open(filename, "w")
         write(io, encode("NumDims=?|Type=$(typeof(x))") * "\n")
-        write(io, encode("#Expression evaluated in Julia, but returned a variable of type $(typeof(x)), which the function serializeresult does not (currently) handle!"))
+        write(io, encode("#Expression evaluates to a variable of type $(typeof(x)), and no method exists to return variables of that type to Excel!"))
         close(io)
     end
 end

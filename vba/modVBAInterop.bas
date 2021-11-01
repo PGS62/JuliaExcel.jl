@@ -82,7 +82,7 @@ End Function
 ' Date       : 14-Oct-2021
 ' Purpose    : Launches Julia, ready to "serve" current instance of Excel.
 ' -----------------------------------------------------------------------------------------------------------------------
-Function JuliaLaunch(Optional Minimised As Boolean)
+Function JuliaLaunch(Optional MinimiseWindow As Boolean, Optional ByVal JuliaExe As String)
 
           Const PackageName As String = "VBAInterop"
           Dim Command As String
@@ -95,30 +95,37 @@ Function JuliaLaunch(Optional Minimised As Boolean)
           Dim WindowPartialTitle As String
           Dim WindowTitle As String
           Dim wsh As WshShell
-          Dim JuliaExe As String
           Dim PID As Long
 
 1         On Error GoTo ErrHandler
-
-2         JuliaExe = DefaultJuliaExe()
-3         PID = GetCurrentProcessId
-4         WindowPartialTitle = "serving Excel PID " & CStr(PID)
-5         GetHandleFromPartialCaption HwndJulia, WindowPartialTitle
-
-6         If HwndJulia <> 0 Then
-7             WindowTitle = WindowTitleFromHandle(HwndJulia)
-8             JuliaLaunch = "Julia is already running with title """ & WindowTitle & """"
-9             Exit Function
+2         If JuliaExe = "" Then
+3             JuliaExe = DefaultJuliaExe()
+4         Else
+5             If LCase(Right(JuliaExe, 10)) <> "\julia.exe" Then
+6                 Throw "Argument JuliaExe has been provided but is not the full path to a file with name julia.exe"
+7             ElseIf Not FileExists(JuliaExe) Then
+8                 Throw "Cannot find file '" + JuliaExe + "'"
+9             End If
 10        End If
 
-11        FlagFile = LocalTemp() & "\VBAInteropFlag_" & CStr(GetCurrentProcessId()) & ".txt"
-12        ErrorFile = LocalTemp() & "\VBAInteropLoadError_" & CStr(GetCurrentProcessId()) & ".txt"
-13        If FileExists(ErrorFile) Then Kill ErrorFile
+11        PID = GetCurrentProcessId
+12        WindowPartialTitle = "serving Excel PID " & CStr(PID)
+13        GetHandleFromPartialCaption HwndJulia, WindowPartialTitle
+
+14        If HwndJulia <> 0 Then
+15            WindowTitle = WindowTitleFromHandle(HwndJulia)
+16            JuliaLaunch = "Julia is already running in window """ & WindowTitle & """"
+17            Exit Function
+18        End If
+
+19        FlagFile = LocalTemp() & "\VBAInteropFlag_" & CStr(GetCurrentProcessId()) & ".txt"
+20        ErrorFile = LocalTemp() & "\VBAInteropLoadError_" & CStr(GetCurrentProcessId()) & ".txt"
+21        If FileExists(ErrorFile) Then Kill ErrorFile
           
-14        SaveTextFile FlagFile, "", TristateFalse
-15        LoadFile = LocalTemp() & "\VBAInteropStartUp_" & CStr(GetCurrentProcessId()) & ".jl"
+22        SaveTextFile FlagFile, "", TristateFalse
+23        LoadFile = LocalTemp() & "\VBAInteropStartUp_" & CStr(GetCurrentProcessId()) & ".jl"
               
-16        LoadFileContents = _
+24        LoadFileContents = _
               "try" & vbLf & _
               "    #println(""Executing $(@__FILE__)"")" & vbLf & _
               "    using " & PackageName & vbLf & _
@@ -139,40 +146,40 @@ Function JuliaLaunch(Optional Minimised As Boolean)
               "    #exit()" & vbLf & _
               "end"
 
-17        SaveTextFile LoadFile, LoadFileContents, TristateFalse
+25        SaveTextFile LoadFile, LoadFileContents, TristateFalse
         
-18        Set wsh = New WshShell
-19        Command = JuliaExe & " --banner=no --load """ & LoadFile & """"
-20        ErrorCode = wsh.Run(Command, IIf(Minimised, vbMinimizedFocus, vbNormalNoFocus), False)
-21        If ErrorCode <> 0 Then
-22            Throw "Command '" + Command + "' failed with error code " + CStr(ErrorCode)
-23        End If
+26        Set wsh = New WshShell
+27        Command = JuliaExe & " --banner=no --load """ & LoadFile & """"
+28        ErrorCode = wsh.Run(Command, IIf(MinimiseWindow, vbMinimizedFocus, vbNormalNoFocus), False)
+29        If ErrorCode <> 0 Then
+30            Throw "Command '" + Command + "' failed with error code " + CStr(ErrorCode)
+31        End If
           
-24        While FileExists(FlagFile)
-25            Sleep 10
-26        Wend
-27        CleanLocalTemp
-28        If FileExists(ErrorFile) Then
-29            Throw "Julia launched but encountered an error when executing '" & LoadFile & "' the error was: " & ReadAllFromTextFile(ErrorFile, TristateFalse)
-30        End If
+32        While FileExists(FlagFile)
+33            Sleep 10
+34        Wend
+35        CleanLocalTemp
+36        If FileExists(ErrorFile) Then
+37            Throw "Julia launched but encountered an error when executing '" & LoadFile & "' the error was: " & ReadAllFromTextFile(ErrorFile, TristateFalse)
+38        End If
           
-31        GetHandleFromPartialCaption HwndJulia, WindowPartialTitle
-32        WindowTitle = WindowTitleFromHandle(HwndJulia)
+39        GetHandleFromPartialCaption HwndJulia, WindowPartialTitle
+40        WindowTitle = WindowTitleFromHandle(HwndJulia)
           
-33        JuliaLaunch = "Julia launched with title """ & WindowTitle & """"
+41        JuliaLaunch = "Julia launched in window """ & WindowTitle & """"
 
-34        Exit Function
+42        Exit Function
 ErrHandler:
-35        JuliaLaunch = "#JuliaLaunch (line " & CStr(Erl) + "): " & Err.Description & "!"
+43        JuliaLaunch = "#JuliaLaunch (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : DefaultJuliaExe
 ' Author     : Philip Swannell
 ' Date       : 14-Oct-2021
-' Purpose    : Returns the location of the Julia executable. Assumes the user has installed to the default location
-'              suggested by the installer program, and if more than one version of Julia is installed, it returns the
-'              most-recently installed version - likely, but not necessarily, the version with the highest version number.
+' Purpose    : Returns the location of the Julia executable. First looks at the path, and if not found looks at the
+'              locations to which julia is (by default) installed. If more than one version is found then returns the
+'              most recently installed one.
 ' -----------------------------------------------------------------------------------------------------------------------
 Private Function DefaultJuliaExe()
 
@@ -181,38 +188,59 @@ Private Function DefaultJuliaExe()
           Dim CreatedDate As Double
           Dim ErrString As String
           Dim ExeFile As String
+          Dim Folder As String
+          Dim FolderExists As String
           Dim FSO As New FileSystemObject
+          Dim i As Long
           Dim ParentFolder As Scripting.Folder
           Dim ParentFolderName As String
+          Dim Path As String
+          Dim Paths() As String
           Dim ThisCreatedDate As Double
 
 1         On Error GoTo ErrHandler
-2         ParentFolderName = Environ("LOCALAPPDATA") & "\Programs"
-3         Set ParentFolder = FSO.GetFolder(ParentFolderName)
 
-4         For Each ChildFolder In ParentFolder.SubFolders
-5             If Left(ChildFolder.Name, 5) = "Julia" Then
-6                 ExeFile = ParentFolder & "\" & ChildFolder.Name & "\bin\julia.exe"
-7                 If FileExists(ExeFile) Then
-8                     ThisCreatedDate = ChildFolder.DateCreated
-9                     If ThisCreatedDate > CreatedDate Then
-10                        CreatedDate = ThisCreatedDate
-11                        ChosenExe = ExeFile
-12                    End If
-13                End If
-14            End If
-15        Next
+          'First search on PATH
+2         Path = Environ("PATH")
+3         Paths = VBA.Split(Path, ";")
+4         For i = LBound(Paths) To UBound(Paths)
+5             Folder = Paths(i)
+6             If Right(Folder, 1) <> "\" Then Folder = Folder + "\"
+7             ExeFile = Folder + "julia.exe"
+8             If FileExists(ExeFile) Then
+9                 DefaultJuliaExe = ExeFile
+10                Exit Function
+11            End If
+12        Next i
+          'If not found on path, search in the locations to which the windows installer installs julia (if the user accepts defaults) and choose the most recently installed
+
+13        ParentFolderName = Environ("LOCALAPPDATA") & "\Programs"
+14        Set ParentFolder = FSO.GetFolder(ParentFolderName)
+
+15        For Each ChildFolder In ParentFolder.SubFolders
+16            If Left(ChildFolder.Name, 5) = "Julia" Then
+17                ExeFile = ParentFolder & "\" & ChildFolder.Name & "\bin\julia.exe"
+18                If FileExists(ExeFile) Then
+19                    ThisCreatedDate = ChildFolder.DateCreated
+20                    If ThisCreatedDate > CreatedDate Then
+21                        CreatedDate = ThisCreatedDate
+22                        ChosenExe = ExeFile
+23                    End If
+24                End If
+25            End If
+26        Next
           
-16        If ChosenExe = "" Then
-17            ErrString = "Julia executable not found, after looking in sub-folders of " + ParentFolderName + " which is the default location for Julia on Windows"
-18            Throw ErrString
-19        Else
-20            DefaultJuliaExe = ChosenExe
-21        End If
+27        If ChosenExe = "" Then
+28            ErrString = "Julia executable not found, after looking on the path and then in sub-folders of " + _
+                  ParentFolderName + " which is the default location for Julia on Windows"
+29            Throw ErrString
+30        Else
+31            DefaultJuliaExe = ChosenExe
+32        End If
 
-22        Exit Function
+33        Exit Function
 ErrHandler:
-23        Throw "#DefaultJuliaExe (line " & CStr(Erl) + "): " & Err.Description & "!"
+34        Throw "#DefaultJuliaExe (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Function
 
 Function JuliaSetVar(VariableName As String, RefersTo As Variant)
