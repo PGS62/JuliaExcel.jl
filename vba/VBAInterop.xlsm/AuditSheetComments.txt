@@ -1,4 +1,5 @@
 Version	Date	Time	Author	Comment
+16	03-Nov-2021	12:23	Philip Swannell	Last version prior to experimenting (on a branch) with a custom file format in place of CSV for communicating data back to Excel.
 15	01-Nov-2021	14:51	Philip Swannell	New location of VBA code in repo
 14	31-Oct-2021	18:32	Philip Swannell	Changed method DefaultJuliaExe to search first on path.
 13	30-Oct-2021	18:30	Philip Swannell	Planning name change VBAInterop to ExcelJuliaCall

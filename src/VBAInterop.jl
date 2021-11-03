@@ -10,16 +10,15 @@ resultfile() = joinpath(localtemp(), "VBAInteropResult_$(Main.xlpid).csv")
 expressionfile() = joinpath(localtemp(), "VBAInteropExpression_$(Main.xlpid).txt")
 encode_for_csv(x::String) = "\"" * replace(x, "\"" => "\"\"") * "\""
 encode_for_csv(x::Irrational) = "$(Float64(x))"
-encode_for_csv(x::Missing) = ""#will end up in Excel as the value of the ShowMissingsAs argument to CSVRead
+encode_for_csv(x::Missing) = ""# will end up in Excel as the value of the ShowMissingsAs argument to CSVRead
 encode_for_csv(x::Any) =  "$x"
 
 # read a text file with UTF-16 encoding, little endian, with byte option mark
 # https://discourse.julialang.org/t/reading-a-utf-16-le-file/11687
 readutf16lebom(filename::String) = transcode(String, reinterpret(UInt16, read(filename)))[4:end]
 
-#=This function would be better named "serve_to_excel" or some such, but one-character
-function name is a time saving since we have to send the function's name via PostMessage 
-=#    
+#= This function would be better named "serve_to_excel" or some such, but one-character
+function name is a time saving since we have to send the function's name via PostMessage =#    
 function z()
 
     expression = readutf16lebom(expressionfile())
@@ -44,7 +43,7 @@ function z()
     result
 end
 
-function setvar(name::String,arg)
+function setvar(name::String, arg)
     if Base.isidentifier(name)
         Main.eval(Main.eval(Meta.parse(":(global $name = $arg)")))
         "Set global variable `$name` to a value with type $(typeof(Main.eval(Meta.parse(name))))"
@@ -110,9 +109,7 @@ end
 function serializeresult(x::Vector{T}, filename::String, thetype::DataType=typeof(x)) where T
     io = open(filename, "w")
     write(io, encode_for_csv("NumDims=1|Type=$(thetype)") * "\n")
-    for i in eachindex(x)
-        write(io, "$(encode_for_csv(x[i]))\n")
-    end    
+    write(io, join([encode_for_csv(x[i]) * "\n" for i in eachindex(x)]))
     close(io)
 end
 
@@ -120,15 +117,11 @@ function serializeresult(x::Matrix{T}, filename::String, thetype::DataType=typeo
     nr, nc = size(x)
     io = open(filename, "w")
     write(io, encode_for_csv("NumDims=2|Type=$(thetype)") * "\n")
-    for i in 1:nr
-        for j in 1:nc
-            write(io, encode_for_csv(x[i,j]) * (j == nc ? "\n" : ","))
-        end
-    end    
+    write(io, join([join([encode_for_csv(x[i,j]) for j in 1:nc],",") * "\n" for i in 1:nr]))
     close(io)
 end
 
-#https://docs.microsoft.com/en-us/windows/terminal/tutorials/tab-title
+# https://docs.microsoft.com/en-us/windows/terminal/tutorials/tab-title
 function settitle()
     print("\033]0;Julia $VERSION PID $(getpid()) serving Excel PID $(Main.xlpid)\a")
 end

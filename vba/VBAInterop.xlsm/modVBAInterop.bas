@@ -1,8 +1,45 @@
 Attribute VB_Name = "modVBAInterop"
 Option Explicit
+#If VBA7 And Win64 Then
 Declare PtrSafe Function GetCurrentProcessId Lib "kernel32" () As Long
 Public Declare PtrSafe Sub Sleep Lib "kernel32" (ByVal Milliseconds As Long)
 Public Declare PtrSafe Function IsWindow Lib "user32" (ByVal hwnd As LongPtr) As Long
+#Else
+Declare Function GetCurrentProcessId Lib "kernel32" () As Long
+Public Declare Sub Sleep Lib "kernel32" (ByVal Milliseconds As Long)
+Public Declare Function IsWindow Lib "user32" (ByVal hwnd As Long) As Long
+#End If
+
+'02-Nov-2021 18:24:59
+'Expression = Fill("xxx", 1000, 1000)
+'Average time in JuliaEval    1.97846575998701
+'02-Nov-2021 18:26:03
+'Expression = Fill("xxx", 1000, 1000)
+'Average time in JuliaEval    2.36411444998812
+'02-Nov-2021 18:27:12
+'Expression = Fill("xxx", 1000, 1000)
+'Average time in JuliaEval    1.92937137000263
+
+Sub speedtest()
+
+          Const Expression As String = "fill(""xxx"",1000,1000)"
+          Dim t1 As Double, t2 As Double
+          Dim res
+          Const NumCalls = 10
+          Dim i As Long
+
+1         JuliaLaunch
+2         t1 = ElapsedTime
+3         For i = 1 To NumCalls
+4             res = JuliaEval(Expression)
+5         Next i
+6         t2 = ElapsedTime
+
+7         Debug.Print Format(Now(), "dd-mmm-yyyy hh:mm:ss")
+8         Debug.Print "Expression = " & Expression
+9         Debug.Print "Average time in JuliaEval", (t2 - t1) / NumCalls
+
+End Sub
 
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : JuliaEval
@@ -18,7 +55,7 @@ Function JuliaEval(ByVal JuliaExpression As String)
           Dim FlagFile As String
           Dim HeaderRow As Variant
           Dim NumDims As String
-          Dim Res As Variant
+          Dim res As Variant
           Dim ResultFile As String
           Dim Tmp As String
           Dim WindowTitle As String
@@ -60,15 +97,15 @@ Function JuliaEval(ByVal JuliaExpression As String)
 24            If IsWindow(HwndJulia) = 0 Then Throw "The expression evaluated caused Julia to shut down"
 25        Loop
 
-26        Res = CSVRead(ResultFile, True, ",", , "ISO", , , 1, , , , , , , , , "UTF-8", , HeaderRow)
+26        res = CSVRead(ResultFile, True, ",", , "ISO", , , 1, , , , , , , , , "UTF-8", , HeaderRow)
 
 27        NumDims = StringBetweenStrings(CStr(HeaderRow(1, 1)), "NumDims=", "|")
 28        If NumDims = "0" Then
-29            Res = Res(1, 1)
+29            res = res(1, 1)
 30        ElseIf NumDims = "1" Then
-31            Res = TwoDColTo1D(Res)
+31            res = TwoDColTo1D(res)
 32        End If
-33        JuliaEval = Res
+33        JuliaEval = res
 
 34        Exit Function
 ErrHandler:
@@ -243,7 +280,7 @@ ErrHandler:
 End Function
 
 Function JuliaSetVar(VariableName As String, RefersTo As Variant)
-          Dim Expression As String, Res As Variant
+          Dim Expression As String, res As Variant
 1         On Error GoTo ErrHandler
 2         JuliaSetVar = JuliaCall("VBAInterop.setvar", VariableName, RefersTo)
 
@@ -369,38 +406,38 @@ End Function
 ' Purpose    : Convert a singleton into a string which julia will parse as the equivalent to the passed in x.
 ' -----------------------------------------------------------------------------------------------------------------------
 Private Function SingletonToJuliaLiteral(x As Variant)
-          Dim Res As String
+          Dim res As String
 
 1         On Error GoTo ErrHandler
 2         Select Case VarType(x)
 
               Case vbString
-3                 Res = x
+3                 res = x
 4                 If InStr(x, "\") > 0 Then
-5                     Res = Replace(Res, "\", "\\")
+5                     res = Replace(res, "\", "\\")
 6                 End If
 7                 If InStr(x, vbCr) > 0 Then
-8                     Res = Replace(Res, vbCr, "\r")
+8                     res = Replace(res, vbCr, "\r")
 9                 End If
 10                If InStr(x, vbLf) > 0 Then
-11                    Res = Replace(Res, vbLf, "\n")
+11                    res = Replace(res, vbLf, "\n")
 12                End If
 13                If InStr(x, "$") > 0 Then
-14                    Res = Replace(Res, "$", "\$")
+14                    res = Replace(res, "$", "\$")
 15                End If
 16                If InStr(x, """") > 0 Then
-17                    Res = Replace(Res, """", "\""")
+17                    res = Replace(res, """", "\""")
 18                End If
-19                SingletonToJuliaLiteral = """" & Res & """"
+19                SingletonToJuliaLiteral = """" & res & """"
 20                Exit Function
 21            Case vbDouble
-22                Res = CStr(x)
-23                If InStr(Res, ".") = 0 Then
-24                    If InStr(Res, "E") = 0 Then
-25                        Res = Res + ".0"
+22                res = CStr(x)
+23                If InStr(res, ".") = 0 Then
+24                    If InStr(res, "E") = 0 Then
+25                        res = res + ".0"
 26                    End If
 27                End If
-28                SingletonToJuliaLiteral = Res
+28                SingletonToJuliaLiteral = res
 29                Exit Function
 30            Case vbLong, vbInteger
 31                SingletonToJuliaLiteral = CStr(x)

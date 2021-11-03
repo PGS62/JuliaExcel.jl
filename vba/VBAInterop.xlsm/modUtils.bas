@@ -2,6 +2,37 @@ Attribute VB_Name = "modUtils"
 Option Explicit
 Option Private Module
 
+#If VBA7 And Win64 Then
+Private Declare PtrSafe Function QueryPerformanceFrequency Lib "kernel32" (lpFrequency As Currency) As Long
+Private Declare PtrSafe Function QueryPerformanceCounter Lib "kernel32" (lpPerformanceCount As Currency) As Long
+#Else
+Private Declare Function QueryPerformanceFrequency Lib "kernel32" (lpFrequency As Currency) As Long
+Private Declare Function QueryPerformanceCounter Lib "kernel32" (lpPerformanceCount As Currency) As Long
+#End If
+
+' -----------------------------------------------------------------------------------------------------------------------
+' Procedure : ElapsedTime
+' Author    : Philip Swannell
+' Date      : 16-Jun-2013
+' Purpose   : Retrieves the current value of the performance counter, which is a high resolution (<1us)
+'             time stamp that can be used for time-interval measurements.
+'
+'             See http://msdn.microsoft.com/en-us/library/windows/desktop/ms644904(v=vs.85).aspx
+' -----------------------------------------------------------------------------------------------------------------------
+Function ElapsedTime() As Double
+          Dim a As Currency
+          Dim b As Currency
+1         On Error GoTo ErrHandler
+
+2         QueryPerformanceCounter a
+3         QueryPerformanceFrequency b
+4         ElapsedTime = a / b
+
+5         Exit Function
+ErrHandler:
+6         Throw "#ElapsedTime (line " & CStr(Erl) + "): " & Err.Description & "!"
+End Function
+
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : FileExists
 ' Author     : Philip Swannell
@@ -125,12 +156,12 @@ Function TwoDColTo1D(x As Variant)
           Dim i As Long
           Dim j As Long
 1         j = LBound(x, 2)
-          Dim Res() As Variant
-2         ReDim Res(LBound(x, 1) To UBound(x, 1))
+          Dim res() As Variant
+2         ReDim res(LBound(x, 1) To UBound(x, 1))
 3         For i = LBound(x, 1) To UBound(x, 1)
-4             Res(i) = x(i, j)
+4             res(i) = x(i, j)
 5         Next i
-6         TwoDColTo1D = Res
+6         TwoDColTo1D = res
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
@@ -150,6 +181,7 @@ Function SaveTextFile(FileName As String, Contents As String, Format As TriState
 2         Set ts = FSO.OpenTextFile(FileName, ForWriting, True, Format)
 3         ts.Write Contents
 4         ts.Close
+          SaveTextFile = FileName
 5         Exit Function
 ErrHandler:
 6         Throw "#SaveTextFile (line " & CStr(Erl) + "): " & Err.Description & "!"
@@ -159,13 +191,12 @@ Function ReadAllFromTextFile(FileName As String, Format As TriState)
           Dim FSO As New Scripting.FileSystemObject
           Dim ts As Scripting.TextStream
 1         On Error GoTo ErrHandler
-2         On Error GoTo ErrHandler
-3         Set ts = FSO.OpenTextFile(FileName, ForReading, , Format)
-4         ReadAllFromTextFile = ts.ReadAll
-5         ts.Close
-6         Exit Function
+2         Set ts = FSO.OpenTextFile(FileName, ForReading, , Format)
+3         ReadAllFromTextFile = ts.ReadAll
+4         ts.Close
+5         Exit Function
 ErrHandler:
-7         Throw "#ReadAllFromTextFile (line " & CStr(Erl) + "): " & Err.Description & "!"
+6         Throw "#ReadAllFromTextFile (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
@@ -175,11 +206,11 @@ End Function
 ' Purpose    : Return a writable directory for saving results files to be communicated to Julia.
 ' -----------------------------------------------------------------------------------------------------------------------
 Function LocalTemp()
-          Static Res As String
+          Static res As String
           Const FolderName = "VBAInterop"
 1         On Error GoTo ErrHandler
-2         If Res <> "" Then
-3             LocalTemp = Res
+2         If res <> "" Then
+3             LocalTemp = res
 4             Exit Function
 5         End If
 
@@ -189,9 +220,9 @@ Function LocalTemp()
 7             Set F = FSO.GetFolder(Environ("TEMP"))
 8             F.SubFolders.Add FolderName
 9         End If
-10        Res = Environ("TEMP") & "\" & FolderName
+10        res = Environ("TEMP") & "\" & FolderName
 
-11        LocalTemp = Res
+11        LocalTemp = res
 12        Exit Function
 ErrHandler:
 13        Throw "#LocalTemp (line " & CStr(Erl) + "): " & Err.Description & "!"

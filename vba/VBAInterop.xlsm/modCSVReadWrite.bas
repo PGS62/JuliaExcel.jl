@@ -164,6 +164,7 @@ Public Function CSVRead(ByVal FileName As String, Optional ByVal ConvertTypes As
     Optional ByVal Encoding As Variant, Optional ByVal DecimalSeparator As String, _
     Optional ByRef HeaderRow As Variant) As Variant
 
+
     Const DQ As String = """"
     Const Err_Delimiter As String = "Delimiter character must be passed as a string, FALSE for no delimiter. " & _
         "Omit to guess from file contents"
@@ -203,7 +204,7 @@ Public Function CSVRead(ByVal FileName As String, Optional ByVal ConvertTypes As
     Dim ISO8601 As Boolean
     Dim j As Long
     Dim k As Long
-    Dim Lengths() As Long
+    Dim lengths() As Long
     Dim m As Long
     Dim MaxSentinelLength As Long
     Dim MSLIA As Long
@@ -332,7 +333,7 @@ Public Function CSVRead(ByVal FileName As String, Optional ByVal ConvertTypes As
         
         ParseCSVContents CSVContents, useADODB, DQ, strDelimiter, Comment, IgnoreEmptyLines, _
             IgnoreRepeated, SkipToRow, HeaderRowNum, NumRows, NumRowsFound, NumColsFound, _
-            NumFields, Ragged, Starts, Lengths, RowIndexes, ColIndexes, QuoteCounts, HeaderRow
+            NumFields, Ragged, Starts, lengths, RowIndexes, ColIndexes, QuoteCounts, HeaderRow
     Else
         If m_FSO Is Nothing Then Set m_FSO = New Scripting.FileSystemObject
             
@@ -353,11 +354,11 @@ Public Function CSVRead(ByVal FileName As String, Optional ByVal ConvertTypes As
             
             ParseCSVContents CSVContents, useADODB, DQ, strDelimiter, Comment, IgnoreEmptyLines, _
                 IgnoreRepeated, SkipToRow, HeaderRowNum, NumRows, NumRowsFound, NumColsFound, NumFields, _
-                Ragged, Starts, Lengths, RowIndexes, ColIndexes, QuoteCounts, HeaderRow
+                Ragged, Starts, lengths, RowIndexes, ColIndexes, QuoteCounts, HeaderRow
         Else
             CSVContents = ParseCSVContents(Stream, useADODB, DQ, strDelimiter, Comment, IgnoreEmptyLines, _
                 IgnoreRepeated, SkipToRow, HeaderRowNum, NumRows, NumRowsFound, NumColsFound, NumFields, _
-                Ragged, Starts, Lengths, RowIndexes, ColIndexes, QuoteCounts, HeaderRow)
+                Ragged, Starts, lengths, RowIndexes, ColIndexes, QuoteCounts, HeaderRow)
             Stream.Close
         End If
     End If
@@ -390,9 +391,9 @@ Public Function CSVRead(ByVal FileName As String, Optional ByVal ConvertTypes As
         j = ColIndexes(k) - SkipToCol + 1
         If j >= 1 And j <= NumColsInReturn Then
             If CallingFromWorksheet Then
-                If Lengths(k) > MSLIA Then
+                If lengths(k) > MSLIA Then
                     Err_StringTooLong = "The file has a field (row " + CStr(i + SkipToRow - 1) & _
-                        ", column " & CStr(j + SkipToCol - 1) & ") of length " + Format$(Lengths(k), "###,###")
+                        ", column " & CStr(j + SkipToCol - 1) & ") of length " + Format$(lengths(k), "###,###")
                     If MSLIA >= 32767 Then
                         Err_StringTooLong = Err_StringTooLong & ". Excel cells cannot contain strings longer than " + Format$(MSLIA, "####,####")
                     Else
@@ -405,10 +406,10 @@ Public Function CSVRead(ByVal FileName As String, Optional ByVal ConvertTypes As
             End If
         
             If ColByColFormatting Then
-                ReturnArray(i + Adj, j + Adj) = Mid$(CSVContents, Starts(k), Lengths(k))
+                ReturnArray(i + Adj, j + Adj) = Mid$(CSVContents, Starts(k), lengths(k))
             Else
-                ReturnArray(i + Adj, j + Adj) = ConvertField(Mid$(CSVContents, Starts(k), Lengths(k)), AnyConversion, _
-                    Lengths(k), TrimFields, DQ, QuoteCounts(k), ConvertQuoted, ShowNumbersAsNumbers, SepStandard, _
+                ReturnArray(i + Adj, j + Adj) = ConvertField(Mid$(CSVContents, Starts(k), lengths(k)), AnyConversion, _
+                    lengths(k), TrimFields, DQ, QuoteCounts(k), ConvertQuoted, ShowNumbersAsNumbers, SepStandard, _
                     DecimalSeparator, SysDecimalSeparator, ShowDatesAsDates, ISO8601, AcceptWithoutTimeZone, _
                     AcceptWithTimeZone, DateOrder, DateSeparator, SysDateOrder, SysDateSeparator, AnySentinels, _
                     Sentinels, MaxSentinelLength, ShowMissingsAs)
@@ -654,19 +655,19 @@ End Function
 ' https://stackoverflow.com/questions/69303804/excel-versions-and-limits-on-the-length-of-string-elements-in-arrays-returned-by
 ' -----------------------------------------------------------------------------------------------------------------------
 Private Function MaxStringLengthInArray() As Long
-    Static Res As Long
-    If Res = 0 Then
+    Static res As Long
+    If res = 0 Then
         Select Case Val(Application.Version)
             Case Is <= 14 'Excel 2010
-                Res = 255
+                res = 255
             Case 15
-                Res = 32767 'Don't yet know if this is correct for Excel 2013
+                res = 32767 'Don't yet know if this is correct for Excel 2013
             Case Else
-                Res = 32767 'Excel 2016, 2019, 365. Hopefully these versions (which all _
+                res = 32767 'Excel 2016, 2019, 365. Hopefully these versions (which all _
                              return 16 as Application.Version) have the same limit.
         End Select
     End If
-    MaxStringLengthInArray = Res
+    MaxStringLengthInArray = res
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
@@ -677,7 +678,7 @@ End Function
 Private Function Download(URLAddress As String, ByVal FileName As String) As String
     Dim EN As Long
     Dim ErrString As String
-    Dim Res As Long
+    Dim res As Long
     Dim TargetFolder As String
 
     On Error GoTo ErrHandler
@@ -695,10 +696,10 @@ Private Function Download(URLAddress As String, ByVal FileName As String) As Str
         End If
     End If
     
-    Res = URLDownloadToFile(0, URLAddress, FileName, 0, 0)
-    If Res <> 0 Then
-        ErrString = ParseDownloadError(CLng(Res))
-        Throw "Windows API function URLDownloadToFile returned error code " & CStr(Res) & _
+    res = URLDownloadToFile(0, URLAddress, FileName, 0, 0)
+    If res <> 0 Then
+        ErrString = ParseDownloadError(CLng(res))
+        Throw "Windows API function URLDownloadToFile returned error code " & CStr(res) & _
             " with description '" & ErrString & "'"
     End If
     If Not FileExists(FileName) Then Throw "Windows API function URLDownloadToFile did not report an error, " & _
@@ -1223,7 +1224,7 @@ Private Sub DetectEncoding(FilePath As String, ByRef TriState As Long, _
     Dim intAsc1Chr As Long
     Dim intAsc2Chr As Long
     Dim intAsc3Chr As Long
-    Dim T As Scripting.TextStream
+    Dim t As Scripting.TextStream
 
     On Error GoTo ErrHandler
     
@@ -1234,24 +1235,24 @@ Private Sub DetectEncoding(FilePath As String, ByRef TriState As Long, _
     End If
 
     ' 1=Read-only, False=do not create if not exist, -1=Unicode 0=ASCII
-    Set T = m_FSO.OpenTextFile(FilePath, 1, False, 0)
-    If T.atEndOfStream Then
-        T.Close: Set T = Nothing
+    Set t = m_FSO.OpenTextFile(FilePath, 1, False, 0)
+    If t.atEndOfStream Then
+        t.Close: Set t = Nothing
         TriState = TristateFalse
         CharSet = "_autodetect_all"
         useADODB = False
         Exit Sub
     End If
-    intAsc1Chr = Asc(T.Read(1))
-    If T.atEndOfStream Then
-        T.Close: Set T = Nothing
+    intAsc1Chr = Asc(t.Read(1))
+    If t.atEndOfStream Then
+        t.Close: Set t = Nothing
         TriState = TristateFalse
         CharSet = "_autodetect_all"
         useADODB = False
         Exit Sub
     End If
     
-    intAsc2Chr = Asc(T.Read(1))
+    intAsc2Chr = Asc(t.Read(1))
     
     If (intAsc1Chr = 255) And (intAsc2Chr = 254) Then
         'File is probably encoded UTF-16 LE BOM (little endian, with Byte Option Marker)
@@ -1264,11 +1265,11 @@ Private Sub DetectEncoding(FilePath As String, ByRef TriState As Long, _
         CharSet = "utf-16"
         useADODB = False
     Else
-        If T.atEndOfStream Then
+        If t.atEndOfStream Then
             TriState = TristateFalse
             Exit Sub
         End If
-        intAsc3Chr = Asc(T.Read(1))
+        intAsc3Chr = Asc(t.Read(1))
         If (intAsc1Chr = 239) And (intAsc2Chr = 187) And (intAsc3Chr = 191) Then
             'File is probably encoded UTF-8 with BOM
             CharSet = "utf-8"
@@ -1282,7 +1283,7 @@ Private Sub DetectEncoding(FilePath As String, ByRef TriState As Long, _
         End If
     End If
 
-    T.Close: Set T = Nothing
+    t.Close: Set t = Nothing
     Exit Sub
 ErrHandler:
     Throw "#DetectEncoding: " & Err.Description & "!"
@@ -1308,7 +1309,7 @@ Private Function InferDelimiter(st As enmSourceType, FileNameOrContents As Strin
     Dim i As Long
     Dim j As Long
     Dim MaxChars As Long
-    Dim T As TextStream
+    Dim t As TextStream
 
     On Error GoTo ErrHandler
 
@@ -1318,16 +1319,16 @@ Private Function InferDelimiter(st As enmSourceType, FileNameOrContents As Strin
     If st = st_File Then
 
         Set F = m_FSO.GetFile(FileNameOrContents)
-        Set T = F.OpenAsTextStream(ForReading, TriState)
+        Set t = F.OpenAsTextStream(ForReading, TriState)
 
-        If T.atEndOfStream Then
-            T.Close: Set T = Nothing: Set F = Nothing
+        If t.atEndOfStream Then
+            t.Close: Set t = Nothing: Set F = Nothing
             Throw "File is empty"
         End If
 
-        Do While Not T.atEndOfStream And j <= MAX_CHUNKS
+        Do While Not t.atEndOfStream And j <= MAX_CHUNKS
             j = j + 1
-            Contents = T.Read(CHUNK_SIZE)
+            Contents = t.Read(CHUNK_SIZE)
             For i = 1 To Len(Contents)
                 Select Case Mid$(Contents, i, 1)
                     Case QuoteChar
@@ -1336,14 +1337,14 @@ Private Function InferDelimiter(st As enmSourceType, FileNameOrContents As Strin
                         If EvenQuotes Then
                             If Mid$(Contents, i, 1) <> DecimalSeparator Then
                                 InferDelimiter = Mid$(Contents, i, 1)
-                                T.Close: Set T = Nothing: Set F = Nothing
+                                t.Close: Set t = Nothing: Set F = Nothing
                                 Exit Function
                             End If
                         End If
                 End Select
             Next i
         Loop
-        T.Close
+        t.Close
     ElseIf st = st_String Then
         Contents = FileNameOrContents
         MaxChars = MAX_CHUNKS * CHUNK_SIZE
@@ -1379,9 +1380,9 @@ Private Function InferDelimiter(st As enmSourceType, FileNameOrContents As Strin
     Exit Function
 ErrHandler:
     CopyOfErr = "#InferDelimiter: " & Err.Description & "!"
-    If Not T Is Nothing Then
-        T.Close
-        Set T = Nothing: Set F = Nothing
+    If Not t Is Nothing Then
+        t.Close
+        Set t = Nothing: Set F = Nothing
     End If
     Throw CopyOfErr
 End Function
@@ -1505,7 +1506,7 @@ Private Function ParseCSVContents(ContentsOrStream As Variant, useADODB As Boole
      Delimiter As String, Comment As String, IgnoreEmptyLines As Boolean, _
      IgnoreRepeated As Boolean, SkipToRow As Long, HeaderRowNum As Long, NumRows As Long, _
     ByRef NumRowsFound As Long, ByRef NumColsFound As Long, ByRef NumFields As Long, ByRef Ragged As Boolean, _
-    ByRef Starts() As Long, ByRef Lengths() As Long, ByRef RowIndexes() As Long, ByRef ColIndexes() As Long, _
+    ByRef Starts() As Long, ByRef lengths() As Long, ByRef RowIndexes() As Long, ByRef ColIndexes() As Long, _
     ByRef QuoteCounts() As Long, ByRef HeaderRow As Variant) As String
 
     Const Err_Delimiter As String = "Delimiter must not be the null string"
@@ -1567,7 +1568,7 @@ Private Function ParseCSVContents(ContentsOrStream As Variant, useADODB As Boole
         QuoteArray(1) = QuoteChar
     End If
 
-    ReDim Starts(1 To 8): ReDim Lengths(1 To 8): ReDim RowIndexes(1 To 8)
+    ReDim Starts(1 To 8): ReDim lengths(1 To 8): ReDim RowIndexes(1 To 8)
     ReDim ColIndexes(1 To 8): ReDim QuoteCounts(1 To 8)
     
     LDlm = Len(Delimiter)
@@ -1620,7 +1621,7 @@ Private Function ParseCSVContents(ContentsOrStream As Variant, useADODB As Boole
 
             If j + 1 > UBound(Starts) Then
                 ReDim Preserve Starts(1 To UBound(Starts) * 2)
-                ReDim Preserve Lengths(1 To UBound(Lengths) * 2)
+                ReDim Preserve lengths(1 To UBound(lengths) * 2)
                 ReDim Preserve RowIndexes(1 To UBound(RowIndexes) * 2)
                 ReDim Preserve ColIndexes(1 To UBound(ColIndexes) * 2)
                 ReDim Preserve QuoteCounts(1 To UBound(QuoteCounts) * 2)
@@ -1629,7 +1630,7 @@ Private Function ParseCSVContents(ContentsOrStream As Variant, useADODB As Boole
             Select Case Which
                 Case 1
                     'Found Delimiter
-                    Lengths(j) = i - Starts(j)
+                    lengths(j) = i - Starts(j)
                     If IgnoreRepeated Then
                         Do While Mid$(Buffer, i + LDlm, LDlm) = Delimiter
                             i = i + LDlm
@@ -1645,7 +1646,7 @@ Private Function ParseCSVContents(ContentsOrStream As Variant, useADODB As Boole
                     i = i + LDlm - 1
                 Case 2, 3
                     'Found line ending
-                    Lengths(j) = i - Starts(j)
+                    lengths(j) = i - Starts(j)
                     If Which = 3 Then 'Found a vbCr
                         If Mid$(Buffer, i + 1, 1) = vbLf Then
                             'Ending is Windows rather than Mac or Unix.
@@ -1661,7 +1662,7 @@ Private Function ParseCSVContents(ContentsOrStream As Variant, useADODB As Boole
                     If IgnoreRepeated Then
                         'IgnoreRepeated: Handle repeated delimiters at the end of the line, _
                          all but one will have already been handled.
-                        If Lengths(j) = 0 Then
+                        If lengths(j) = 0 Then
                             If ColNum > 1 Then
                                 j = j - 1
                                 ColNum = ColNum - 1
@@ -1690,14 +1691,14 @@ Private Function ParseCSVContents(ContentsOrStream As Variant, useADODB As Boole
                     If RowNum = 1 Then
                         If SkipToRow = 1 Then
                             If HeaderRowNum = 1 Then
-                                HeaderRow = GetLastParsedRow(Buffer, Starts, Lengths, _
+                                HeaderRow = GetLastParsedRow(Buffer, Starts, lengths, _
                                      ColIndexes, QuoteCounts, j)
                             End If
                         End If
                     End If
                     If Not HaveReachedSkipToRow Then
                         If RowNum = HeaderRowNum Then
-                            HeaderRow = GetLastParsedRow(Buffer, Starts, Lengths, _
+                            HeaderRow = GetLastParsedRow(Buffer, Starts, lengths, _
                                  ColIndexes, QuoteCounts, j)
                         End If
                     End If
@@ -1715,7 +1716,7 @@ Private Function ParseCSVContents(ContentsOrStream As Variant, useADODB As Boole
                         If RowNum = SkipToRow Then
                             HaveReachedSkipToRow = True
                             Tmp = Starts(j)
-                            ReDim Starts(1 To 8): ReDim Lengths(1 To 8): ReDim RowIndexes(1 To 8)
+                            ReDim Starts(1 To 8): ReDim lengths(1 To 8): ReDim RowIndexes(1 To 8)
                             ReDim ColIndexes(1 To 8): ReDim QuoteCounts(1 To 8)
                             RowNum = 1: j = 1: NumFields = 0
                             Starts(1) = Tmp
@@ -1738,7 +1739,7 @@ Private Function ParseCSVContents(ContentsOrStream As Variant, useADODB As Boole
                 'Malformed Buffer (not RFC4180 compliant). There should always be an even number of double quotes. _
                  If there are an odd number then all text after the last double quote in the file will be (part of) _
                  the last field in the last line.
-                Lengths(j) = OrigLen - Starts(j) + 1
+                lengths(j) = OrigLen - Starts(j) + 1
                 ColIndexes(j) = ColNum: RowIndexes(j) = RowNum
                 
                 RowNum = RowNum + 1
@@ -1795,23 +1796,23 @@ End Function
 '              function return). The argument j should point into the Starts, Lengths etc arrays, pointing to the last
 '              field in the header row
 ' -----------------------------------------------------------------------------------------------------------------------
-Private Function GetLastParsedRow(Buffer As String, Starts() As Long, Lengths() As Long, _
+Private Function GetLastParsedRow(Buffer As String, Starts() As Long, lengths() As Long, _
     ColIndexes() As Long, QuoteCounts() As Long, j As Long) As Variant
     Dim NC As Long
 
     Dim Field As String
     Dim i As Long
-    Dim Res() As String
+    Dim res() As String
 
     On Error GoTo ErrHandler
     NC = ColIndexes(j)
 
-    ReDim Res(1 To 1, 1 To NC)
+    ReDim res(1 To 1, 1 To NC)
     For i = j To j - NC + 1 Step -1
-        Field = Mid$(Buffer, Starts(i), Lengths(i))
-        Res(1, NC + i - j) = Unquote(Trim$(Field), """", QuoteCounts(i))
+        Field = Mid$(Buffer, Starts(i), lengths(i))
+        res(1, NC + i - j) = Unquote(Trim$(Field), """", QuoteCounts(i))
     Next i
-    GetLastParsedRow = Res
+    GetLastParsedRow = res
 
     Exit Function
 ErrHandler:
@@ -1985,7 +1986,7 @@ End Function
 '              QuoteChar and vbCrLf. This ensures that the calls to Instr that search the buffer for these strings do
 '              not needlessly scan the unupdated part of the buffer.
 ' -----------------------------------------------------------------------------------------------------------------------
-Private Sub GetMoreFromStream(T As Variant, Delimiter As String, QuoteChar As String, _
+Private Sub GetMoreFromStream(t As Variant, Delimiter As String, QuoteChar As String, _
 ByRef Buffer As String, ByRef BufferUpdatedTo As Long)
 
     Const ChunkSize As Long = 5000  ' The number of characters to read from the stream on each call. _
@@ -2005,7 +2006,7 @@ ByRef Buffer As String, ByRef BufferUpdatedTo As Long)
 
     On Error GoTo ErrHandler
     
-    Select Case TypeName(T)
+    Select Case TypeName(t)
         Case "TextStream"
             IsScripting = True
         Case "Stream"
@@ -2017,11 +2018,11 @@ ByRef Buffer As String, ByRef BufferUpdatedTo As Long)
     FirstPass = True
     Do
         If IsScripting Then
-            NewChars = T.Read(IIf(FirstPass, ChunkSize, 1))
-            atEndOfStream = T.atEndOfStream
+            NewChars = t.Read(IIf(FirstPass, ChunkSize, 1))
+            atEndOfStream = t.atEndOfStream
         Else
-            NewChars = T.ReadText(IIf(FirstPass, ChunkSize, 1))
-            atEndOfStream = T.EOS
+            NewChars = t.ReadText(IIf(FirstPass, ChunkSize, 1))
+            atEndOfStream = t.EOS
         End If
         FirstPass = False
         If atEndOfStream Then
@@ -2936,7 +2937,7 @@ Private Function ParseTextFile(FileNameOrContents As String, isFile As Boolean, 
     Dim i As Long 'Index to read from Buffer
     Dim j As Long 'Index to write to Starts, Lengths
     Dim Err_StringTooLong As String
-    Dim Lengths() As Long
+    Dim lengths() As Long
     Dim MSLIA As Long
     Dim NumLinesFound As Long
     Dim PosCR As Long
@@ -2982,7 +2983,7 @@ Private Function ParseTextFile(FileNameOrContents As String, isFile As Boolean, 
         SearchFor(2) = vbCr
     End If
 
-    ReDim Starts(1 To 8): ReDim Lengths(1 To 8)
+    ReDim Starts(1 To 8): ReDim lengths(1 To 8)
     
     If Not Streaming Then
         'Ensure Buffer terminates with vbCrLf
@@ -3023,10 +3024,10 @@ Private Function ParseTextFile(FileNameOrContents As String, isFile As Boolean, 
 
         If j + 1 > UBound(Starts) Then
             ReDim Preserve Starts(1 To UBound(Starts) * 2)
-            ReDim Preserve Lengths(1 To UBound(Lengths) * 2)
+            ReDim Preserve lengths(1 To UBound(lengths) * 2)
         End If
 
-        Lengths(j) = i - Starts(j)
+        lengths(j) = i - Starts(j)
         If FoundCR Then
             If Mid$(Buffer, i + 1, 1) = vbLf Then
                 'Ending is Windows rather than Mac or Unix.
@@ -3042,7 +3043,7 @@ Private Function ParseTextFile(FileNameOrContents As String, isFile As Boolean, 
             If NumLinesFound = SkipToLine - 1 Then
                 HaveReachedSkipToLine = True
                 Tmp = Starts(j)
-                ReDim Starts(1 To 8): ReDim Lengths(1 To 8)
+                ReDim Starts(1 To 8): ReDim lengths(1 To 8)
                 j = 1: NumLinesFound = 0
                 Starts(1) = Tmp
             End If
@@ -3070,8 +3071,8 @@ Private Function ParseTextFile(FileNameOrContents As String, isFile As Boolean, 
     MSLIA = MaxStringLengthInArray()
     For i = 1 To MinLngs(NumLinesToReturn, NumLinesFound)
         If CallingFromWorksheet Then
-            If Lengths(i) > MSLIA Then
-                Err_StringTooLong = "Line " & Format$(i, "#,###") & " of the file is of length " + Format$(Lengths(i), "###,###")
+            If lengths(i) > MSLIA Then
+                Err_StringTooLong = "Line " & Format$(i, "#,###") & " of the file is of length " + Format$(lengths(i), "###,###")
                 If MSLIA >= 32767 Then
                     Err_StringTooLong = Err_StringTooLong & ". Excel cells cannot contain strings longer than " + Format$(MSLIA, "####,####")
                 Else
@@ -3082,7 +3083,7 @@ Private Function ParseTextFile(FileNameOrContents As String, isFile As Boolean, 
                 Throw Err_StringTooLong
             End If
         End If
-        ReturnArray(i, 1) = Mid$(Buffer, Starts(i), Lengths(i))
+        ReturnArray(i, 1) = Mid$(Buffer, Starts(i), lengths(i))
     Next i
 
     ParseTextFile = ReturnArray
@@ -3764,7 +3765,7 @@ End Function
 '              argument" if the error is caused by attempting to write illegal characters to a stream opened with
 '              TriStateFalse.
 ' -----------------------------------------------------------------------------------------------------------------------
-Private Sub WriteLineWrap(T As TextStream, text As String, EOLIsWindows As Boolean, EOL As String, Unicode As Boolean)
+Private Sub WriteLineWrap(t As TextStream, text As String, EOLIsWindows As Boolean, EOL As String, Unicode As Boolean)
 
     Dim ErrDesc As String
     Dim ErrNum As Long
@@ -3772,10 +3773,10 @@ Private Sub WriteLineWrap(T As TextStream, text As String, EOLIsWindows As Boole
 
     On Error GoTo ErrHandler
     If EOLIsWindows Then
-        T.WriteLine text
+        t.WriteLine text
     Else
-        T.Write text
-        T.Write EOL
+        t.Write text
+        t.Write EOL
     End If
 
     Exit Sub
