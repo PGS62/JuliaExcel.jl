@@ -72,99 +72,6 @@ ErrHandler:
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
-' Procedure : StringBetweenStrings
-' Author    : Philip Swannell
-' Purpose   : The function returns the substring of the input TheString which lies between LeftString
-'             and RightString.
-' Arguments
-' TheString : The input string to be searched.
-' LeftString: The returned string will start immediately after the first occurrence of LeftString in
-'             TheString. If LeftString is not found or is the null string or missing, then
-'             the return will start at the first character of TheString.
-' RightString: The return will stop immediately before the first subsequent occurrence of RightString. If
-'             such occurrrence is not found or if RightString is the null string or
-'             missing, then the return will stop at the last character of TheString.
-' IncludeLeftString: If TRUE, then if LeftString appears in TheString, the return will include LeftString. This
-'             argument is optional and defaults to FALSE.
-' IncludeRightString: If TRUE, then if RightString appears in TheString (and appears after the first occurance
-'             of LeftString) then the return will include RightString. This argument is
-'             optional and defaults to FALSE.
-' -----------------------------------------------------------------------------------------------------------------------
-Function StringBetweenStrings(TheString As String, LeftString As String, RightString As String, Optional IncludeLeftString As Boolean, Optional IncludeRightString As Boolean)
-          Dim MatchPoint1 As Long        ' the position of the first character to return
-          Dim MatchPoint2 As Long        ' the position of the last character to return
-          Dim FoundLeft As Boolean
-          Dim FoundRight As Boolean
-          
-1         On Error GoTo ErrHandler
-          
-2         If LeftString = vbNullString Then
-3             MatchPoint1 = 0
-4         Else
-5             MatchPoint1 = InStr(1, TheString, LeftString, vbTextCompare)
-6         End If
-
-7         If MatchPoint1 = 0 Then
-8             FoundLeft = False
-9             MatchPoint1 = 1
-10        Else
-11            FoundLeft = True
-12        End If
-
-13        If RightString = vbNullString Then
-14            MatchPoint2 = 0
-15        ElseIf FoundLeft Then
-16            MatchPoint2 = InStr(MatchPoint1 + Len(LeftString), TheString, RightString, vbTextCompare)
-17        Else
-18            MatchPoint2 = InStr(1, TheString, RightString, vbTextCompare)
-19        End If
-
-20        If MatchPoint2 = 0 Then
-21            FoundRight = False
-22            MatchPoint2 = Len(TheString)
-23        Else
-24            FoundRight = True
-25            MatchPoint2 = MatchPoint2 - 1
-26        End If
-
-27        If Not IncludeLeftString Then
-28            If FoundLeft Then
-29                MatchPoint1 = MatchPoint1 + Len(LeftString)
-30            End If
-31        End If
-
-32        If IncludeRightString Then
-33            If FoundRight Then
-34                MatchPoint2 = MatchPoint2 + Len(RightString)
-35            End If
-36        End If
-
-37        StringBetweenStrings = Mid$(TheString, MatchPoint1, MatchPoint2 - MatchPoint1 + 1)
-
-38        Exit Function
-ErrHandler:
-39        StringBetweenStrings = "#StringBetweenStrings (line " & CStr(Erl) + "): " & Err.Description & "!"
-End Function
-
-' -----------------------------------------------------------------------------------------------------------------------
-' Procedure  : TwoDColTo1D
-' Author     : Philip Swannell
-' Date       : 01-Nov-2021
-' Purpose    : Convert a two dimensional array with a single column into a 1-dimensional array.
-' -----------------------------------------------------------------------------------------------------------------------
-Function TwoDColTo1D(x As Variant)
-          Dim i As Long
-          Dim j As Long
-1         j = LBound(x, 2)
-          Dim res() As Variant
-2         ReDim res(LBound(x, 1) To UBound(x, 1))
-3         For i = LBound(x, 1) To UBound(x, 1)
-4             res(i) = x(i, j)
-5         Next i
-6         TwoDColTo1D = res
-End Function
-
-' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : SaveTextFile
 ' Author     : Philip Swannell
 ' Date       : 01-Nov-2021
@@ -206,11 +113,11 @@ End Function
 ' Purpose    : Return a writable directory for saving results files to be communicated to Julia.
 ' -----------------------------------------------------------------------------------------------------------------------
 Function LocalTemp()
-          Static res As String
+          Static Res As String
           Const FolderName = "VBAInterop"
 1         On Error GoTo ErrHandler
-2         If res <> "" Then
-3             LocalTemp = res
+2         If Res <> "" Then
+3             LocalTemp = Res
 4             Exit Function
 5         End If
 
@@ -220,9 +127,9 @@ Function LocalTemp()
 7             Set F = FSO.GetFolder(Environ("TEMP"))
 8             F.SubFolders.Add FolderName
 9         End If
-10        res = Environ("TEMP") & "\" & FolderName
+10        Res = Environ("TEMP") & "\" & FolderName
 
-11        LocalTemp = res
+11        LocalTemp = Res
 12        Exit Function
 ErrHandler:
 13        Throw "#LocalTemp (line " & CStr(Erl) + "): " & Err.Description & "!"
