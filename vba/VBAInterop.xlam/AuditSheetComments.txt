@@ -1,4 +1,5 @@
 Version	Date	Time	Author	Comment
+20	04-Nov-2021	21:46	Philip Swannell	Fixed compile errors on 32bit Excel.
 19	04-Nov-2021	15:43	Philip Swannell	Moved sheet Examples to a new workbook.
 18	04-Nov-2021	10:15	Philip Swannell	Better handliing of results which are a) Functions, b) arrays containing arrays.
 17	03-Nov-2021	18:40	Philip Swannell	No longer use CSV file format, but my own custom serialization.

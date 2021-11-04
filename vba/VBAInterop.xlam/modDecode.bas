@@ -12,38 +12,36 @@ Option Base 1
 Function Decode(Chars As String, Optional ByRef Depth As Long)
 
 1         On Error GoTo ErrHandler
-          Depth = Depth + 1
-2         Select Case Left$(Chars, 1)
+2         Depth = Depth + 1
+3         Select Case Left$(Chars, 1)
               Case "#"    'vbDouble
-3                 Decode = CDbl(Mid$(Chars, 2))
-4             Case "£"    'vbString
-5                 Decode = Mid$(Chars, 2)
-6             Case "T" 'Boolean True
-7                 Decode = True
-8             Case "F" 'Boolean False
-9                 Decode = False
-10            Case "D"    'vbDate
-11                Decode = CDate(Mid$(Chars, 2))
-12            Case "E" 'vbEmpty
-13                Decode = Empty
-14            Case "N" 'vbNull
-15                Decode = Null
-16            Case "%" 'vbInteger
-17                Decode = CInt(Mid$(Chars, 2))
-18            Case "&" 'vbLong
-19                Decode = CLng(Mid$(Chars, 2))
-20            Case "S"    'vbSingle
-21                Decode = CSng(Mid$(Chars, 2))
-22            Case "C"    'vbCurrency
-23                Decode = CCur(Mid$(Chars, 2))
-24            Case "!"    'vbError
-25                Decode = CVErr(Mid$(Chars, 2))
-26            Case "@"    'vbDecimal
-27                Decode = CDec(Mid$(Chars, 2))
-28            Case "L"    'vbLongLong
-29                Decode = CLngLng(Mid$(Chars, 2))
-30            Case "*" ' vbArray
-                  If Depth > 1 Then Throw "Excel cannot display arrays containing arrays"
+4                 Decode = CDbl(Mid$(Chars, 2))
+5             Case "£"    'vbString
+6                 Decode = Mid$(Chars, 2)
+7             Case "T" 'Boolean True
+8                 Decode = True
+9             Case "F" 'Boolean False
+10                Decode = False
+11            Case "D"    'vbDate
+12                Decode = CDate(Mid$(Chars, 2))
+13            Case "E" 'vbEmpty
+14                Decode = Empty
+15            Case "N" 'vbNull
+16                Decode = Null
+17            Case "%" 'vbInteger
+18                Decode = CInt(Mid$(Chars, 2))
+19            Case "&" 'vbLong
+20                Decode = CLng(Mid$(Chars, 2))
+21            Case "S"    'vbSingle
+22                Decode = CSng(Mid$(Chars, 2))
+23            Case "C"    'vbCurrency
+24                Decode = CCur(Mid$(Chars, 2))
+25            Case "!"    'vbError
+26                Decode = CVErr(Mid$(Chars, 2))
+27            Case "@"    'vbDecimal
+28                Decode = CDec(Mid$(Chars, 2))
+29            Case "*" ' vbArray
+30                If Depth > 1 Then Throw "Excel cannot display arrays containing arrays"
                   Dim Ret() As Variant
                   Dim p1 As Long 'Position of first semi-colon
                   Dim p2 As Long 'Position of second semi-colon
@@ -143,42 +141,40 @@ Function Encode(x) As String
 23                Encode = IIf(x, "T", "F")
 24            Case vbDecimal
 25                Encode = "@" & CStr(x)
-26            Case vbLongLong
-27                Encode = "L" & CStr(x)
-28            Case Is >= vbArray
-29                Select Case NumDimensions(x)
+26            Case Is >= vbArray
+27                Select Case NumDimensions(x)
                       Case 1
-30                        ReDim lengthsArray(LBound(x) To UBound(x))
-31                        ReDim contentsArray(LBound(x) To UBound(x))
-32                        For i = LBound(x) To UBound(x)
-33                            contentsArray(i) = Encode(x(i))
-34                            lengthsArray(i) = CStr(Len(contentsArray(i)))
-35                        Next i
-36                        Encode = "*1," & CStr(UBound(x) - LBound(x) + 1) & ";" & VBA.Join(lengthsArray, ",") & ",;" & VBA.Join(contentsArray, "")
-37                    Case 2
-38                        NR = UBound(x, 1) - LBound(x, 1) + 1
-39                        NC = UBound(x, 2) - LBound(x, 2) + 1
-40                        k = 0
-41                        ReDim lengthsArray(NR * NC)
-42                        ReDim contentsArray(NR * NC)
-43                        For j = LBound(x, 2) To UBound(x, 2)
-44                            For i = LBound(x, 1) To UBound(x, 1)
-45                                k = k + 1
-46                                contentsArray(k) = Encode(x(i, j))
-47                                lengthsArray(k) = CStr(Len(contentsArray(k)))
-48                            Next i
-49                        Next j
-50                        Encode = "*2," & CStr(UBound(x, 1) - LBound(x, 1) + 1) & "," & CStr(UBound(x, 2) - LBound(x, 2) + 1) & ";" & VBA.Join(lengthsArray, ",") & ",;" & VBA.Join(contentsArray, "")
-51                    Case Else
-52                        Throw "Cannot encode array with " + CStr(NumDimensions(x)) + " dimensions"
-53                End Select
-54            Case Else
-55                Throw "Cannot encode variable of type " & TypeName(x)
-56        End Select
+28                        ReDim lengthsArray(LBound(x) To UBound(x))
+29                        ReDim contentsArray(LBound(x) To UBound(x))
+30                        For i = LBound(x) To UBound(x)
+31                            contentsArray(i) = Encode(x(i))
+32                            lengthsArray(i) = CStr(Len(contentsArray(i)))
+33                        Next i
+34                        Encode = "*1," & CStr(UBound(x) - LBound(x) + 1) & ";" & VBA.Join(lengthsArray, ",") & ",;" & VBA.Join(contentsArray, "")
+35                    Case 2
+36                        NR = UBound(x, 1) - LBound(x, 1) + 1
+37                        NC = UBound(x, 2) - LBound(x, 2) + 1
+38                        k = 0
+39                        ReDim lengthsArray(NR * NC)
+40                        ReDim contentsArray(NR * NC)
+41                        For j = LBound(x, 2) To UBound(x, 2)
+42                            For i = LBound(x, 1) To UBound(x, 1)
+43                                k = k + 1
+44                                contentsArray(k) = Encode(x(i, j))
+45                                lengthsArray(k) = CStr(Len(contentsArray(k)))
+46                            Next i
+47                        Next j
+48                        Encode = "*2," & CStr(UBound(x, 1) - LBound(x, 1) + 1) & "," & CStr(UBound(x, 2) - LBound(x, 2) + 1) & ";" & VBA.Join(lengthsArray, ",") & ",;" & VBA.Join(contentsArray, "")
+49                    Case Else
+50                        Throw "Cannot encode array with " + CStr(NumDimensions(x)) + " dimensions"
+51                End Select
+52            Case Else
+53                Throw "Cannot encode variable of type " & TypeName(x)
+54        End Select
 
-57        Exit Function
+55        Exit Function
 ErrHandler:
-58        Throw "#Encode (line " & CStr(Erl) + "): " & Err.Description & "!"
+56        Throw "#Encode (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Function
 
 

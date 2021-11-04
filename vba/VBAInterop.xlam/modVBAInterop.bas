@@ -186,7 +186,6 @@ Function JuliaLaunch(Optional MinimiseWindow As Boolean, Optional ByVal JuliaExe
               "try" & vbLf & _
               "    #println(""Executing $(@__FILE__)"")" & vbLf & _
               "    using " & PackageName & vbLf & _
-              "    using Revise" & vbLf & _
               "    using Dates" & vbLf & _
               "    global const xlpid = " & CStr(GetCurrentProcessId) & vbLf & _
               "    " & PackageName & ".settitle()" & vbLf & _
