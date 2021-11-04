@@ -1,0 +1,14 @@
+Version	Date	Time	Author	Comment
+13	15-Oct-2021	20:08	Philip Swannell	Create VBA-CSV-Intellisense.xlsx workbook
+12	13-Oct-2021	12:45	Philip Swannell	Tweaks to CSVWrite documentation.
+11	12-Oct-2021	12:32	Philip Swannell	CSVWrite now accepts Data having one dimension.
+10	30-Sep-2021	17:05	Philip Swannell	Edit to function CodeToRegister.
+9	29-Sep-2021	19:55	Philip Swannell	Edit to function CodeToRegister.
+8	27-Sep-2021	19:22	Philip Swannell	DateFormat arg to CSVRead now defaults to Y-M-D.
+7	23-Sep-2021	13:15	Philip Swannell	CSVWrite now takes argument Encoding, not Unicode.
+6	20-Sep-2021	14:42	Philip Swannell	Edits to help.
+5	09-Sep-2021	08:28	Philip Swannell	Edits to help.
+4	08-Sep-2021	18:46	Philip Swannell	Edits to help.
+3	06-Sep-2021	14:26	Philip Swannell	Fixed typo in IgnoreRepeated.
+2	05-Sep-2021	07:52	Philip Swannell	Now save backups of this workbook to my one-drive.
+1	15-Aug-2021	13:29	Philip Swannell	Added audit sheet
