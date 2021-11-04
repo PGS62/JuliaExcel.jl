@@ -94,11 +94,11 @@ Function CopyNamedFiles(ByVal TheSourceFolder, ByVal TheDestinationFolder, ByVal
     FileNamesArray = Split(FileNames, ",")
     For i = LBound(FileNamesArray) To UBound(FileNamesArray)
         If Not (FileExists(TheSourceFolder & FileNamesArray(i))) Then
-			If ThrowErrorIfNoSourceFile Then
-				gErrorsEncountered = True
-				ErrorMessage = "Cannot find file: " & TheSourceFolder & FileNamesArray(i)
-				MsgBox ErrorMessage, vbOKOnly + vbExclamation, MsgBoxTitleBad
-			End If
+            If ThrowErrorIfNoSourceFile Then
+                gErrorsEncountered = True
+                ErrorMessage = "Cannot find file: " & TheSourceFolder & FileNamesArray(i)
+                MsgBox ErrorMessage, vbOKOnly + vbExclamation, MsgBoxTitleBad
+            End If
         Else
             On Error Resume Next
             fso.CopyFile TheSourceFolder & FileNamesArray(i), TheDestinationFolder & FileNamesArray(i), True
@@ -221,29 +221,29 @@ If WScript.Arguments.length = 0 Then
    objShell.ShellExecute "wscript.exe", Chr(34) & _
       ThisFileName & Chr(34) & " uac", "", "runas", 1
 Else
-	Set myWS = CreateObject("WScript.Shell")
-	
-	MsgBoxTitle = "Install VBAInterop"
-	MsgBoxTitleBad = "Install VBAInterop - Error Encountered"
+    Set myWS = CreateObject("WScript.Shell")
+    
+    MsgBoxTitle = "Install VBAInterop"
+    MsgBoxTitleBad = "Install VBAInterop - Error Encountered"
 
-	gErrorsEncountered = False
-	CheckProcess "Excel.exe"
+    gErrorsEncountered = False
+    CheckProcess "Excel.exe"
 
-	AddinsDest = "C:\ProgramData\VBAInterop\Addins\"
+    AddinsDest = "C:\ProgramData\VBAInterop\Addins\"
 
-	AltStartupPath = GetAltStartupPath()
+    AltStartupPath = GetAltStartupPath()
     AltStartupAlreadyDefined = True
-	If AltStartupPath = "" Or AltStartupPath = "Not found" Then
+    If AltStartupPath = "" Or AltStartupPath = "Not found" Then
         AltStartupAlreadyDefined = False
-		SetAltStartupPath Left(AddinsDest, Len(AddinsDest) - 1)
-	End If
-	'If the user already has an AltStartUp path set then we use that location...
-	AddinsDest = GetAltStartupPath() & "\"
+        SetAltStartupPath Left(AddinsDest, Len(AddinsDest) - 1)
+    End If
+    'If the user already has an AltStartUp path set then we use that location...
+    AddinsDest = GetAltStartupPath() & "\"
 
-	Dim AddinsSource
-	AddinsSource = WScript.ScriptFullName
-	AddinsSource = Left(AddinsSource, InStrRev(AddinsSource, "\") - 1)
-	AddinsSource = Left(AddinsSource, InStrRev(AddinsSource, "\"))
+    Dim AddinsSource
+    AddinsSource = WScript.ScriptFullName
+    AddinsSource = Left(AddinsSource, InStrRev(AddinsSource, "\") - 1)
+    AddinsSource = Left(AddinsSource, InStrRev(AddinsSource, "\"))
     AddinsSource = AddinsSource & "workbooks\"
 
     if OfficeVersion(0) = "Office Not found" Then
@@ -251,30 +251,30 @@ Else
         WScript.Quit
     End If
 
-	Dim Prompt
-	Prompt = "This will install VBAInterop.xlsm by copying it from " & vbLf & vblf & _
-		AddinsSource & vbLf & vbLf & _
-		"To Excel's AltStartup location " & iif(AltStartupAlreadyDefined,"which is at:","which has been set to:") & vbLf & AddinsDest & vbLf & vbLf & _
-		"Do you wish to continue?"
-	Dim result
+    Dim Prompt
+    Prompt = "This will install VBAInterop.xlsm by copying it from " & vbLf & vblf & _
+        AddinsSource & vbLf & vbLf & _
+        "To Excel's AltStartup location " & iif(AltStartupAlreadyDefined,"which is at:","which has been set to:") & vbLf & AddinsDest & vbLf & vbLf & _
+        "Do you wish to continue?"
+    Dim result
 
-	result = MsgBox(Prompt, vbYesNo + vbQuestion, MsgBoxTitle)
+    result = MsgBox(Prompt, vbYesNo + vbQuestion, MsgBoxTitle)
     if result <> vbYes Then WScript.Quit
 
-	ForceFolderToExist AddinsDest
+    ForceFolderToExist AddinsDest
 
-	'Copy files
-	Dim fso
-	Set fso = CreateObject("Scripting.FileSystemObject")
-	CopyNamedFiles AddinsSource , AddinsDest, AddInNames,True
+    'Copy files
+    Dim fso
+    Set fso = CreateObject("Scripting.FileSystemObject")
+    CopyNamedFiles AddinsSource , AddinsDest, AddInNames,True
 
-	If gErrorsEncountered Then
-		Prompt = "The install script has finished, but errors were encountered, which may mean the software will not work correctly."
-		MsgBox Prompt, vbOKOnly + vbCritical, MsgBoxTitleBad
-	Else
-		Prompt = "VBAInterop is installed, and its functions such as JuliaEval and JuliaCall will be available the next time you start Excel."
+    If gErrorsEncountered Then
+        Prompt = "The install script has finished, but errors were encountered, which may mean the software will not work correctly."
+        MsgBox Prompt, vbOKOnly + vbCritical, MsgBoxTitleBad
+    Else
+        Prompt = "VBAInterop is installed, and its functions such as JuliaEval and JuliaCall will be available the next time you start Excel."
         MsgBox Prompt, vbOKOnly + vbInformation, MsgBoxTitle
-	End If
+    End If
 
-	WScript.Quit
+    WScript.Quit
 End If
