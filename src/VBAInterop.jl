@@ -32,8 +32,7 @@ function z()
     encodedresult = try
         encode_for_xl(result)
     catch e
-        # encodefor_mff("$e")
-        "\$Expression evaluated in Julia to a variable of type $(typeof(result)) but there was a failure when encoding for return to Excel: ($e)!"
+        encode_for_xl("\$Expression evaluated in Julia to a variable of type $(typeof(result)) but there was a failure when encoding for return to Excel: ($e)!")
     end
 
     io = open(resultfile(), "w")
@@ -138,7 +137,13 @@ encode_for_xl(x::VersionNumber) = encode_for_xl("$x")
 encode_for_xl(x::Tuple) = encode_for_xl([x[i] for i in eachindex(x)])
 encode_for_xl(x::Any) = throw("No method exists to encode a variable of type $(typeof(x)) for return to Excel")
 
-    function encode_for_xl(x::Float64)
+function encode_for_xl(x::T) where T <: Function
+    io = IOBuffer()
+    show(io,"text/plain",x)
+    encode_for_xl(String(take!(io)))
+end
+
+function encode_for_xl(x::Float64)
     if isinf(x)
         "#$(prevfloat(x, x > 0 ? 1 : -1))"
     elseif isnan(x)

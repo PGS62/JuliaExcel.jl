@@ -1,4 +1,5 @@
 Version	Date	Time	Author	Comment
+18	04-Nov-2021	10:15	Philip Swannell	Better handliing of results which are a) Functions, b) arrays containing arrays.
 17	03-Nov-2021	18:40	Philip Swannell	No longer use CSV file format, but my own custom serialization.
 16	03-Nov-2021	12:23	Philip Swannell	Last version prior to experimenting (on a branch) with a custom file format in place of CSV for communicating data back to Excel.
 15	01-Nov-2021	14:51	Philip Swannell	New location of VBA code in repo

@@ -61,9 +61,10 @@ Sub speedtest()
 
 End Sub
 
-Function Decode(Chars As String)
+Function Decode(Chars As String, Optional ByRef Depth As Long)
 
 1         On Error GoTo ErrHandler
+          Depth = Depth + 1
 2         Select Case Left$(Chars, 1)
               Case "#"    'vbDouble
 3                 Decode = CDbl(Mid$(Chars, 2))
@@ -94,7 +95,7 @@ Function Decode(Chars As String)
 28            Case "L"    'vbLongLong
 29                Decode = CLngLng(Mid$(Chars, 2))
 30            Case "*" ' vbArray
-              
+                  If Depth > 1 Then Throw "Excel cannot display arrays containing arrays"
                   Dim Ret() As Variant
                   Dim p1 As Long 'Position of first semi-colon
                   Dim p2 As Long 'Position of second semi-colon
@@ -119,7 +120,7 @@ Function Decode(Chars As String)
 39                        For i = 1 To N
 40                            m2 = InStr(m + 1, Chars, ",")
 41                            thislength = Mid$(Chars, m, m2 - m)
-42                            Ret(i) = Decode(Mid$(Chars, k, thislength))
+42                            Ret(i) = Decode(Mid$(Chars, k, thislength), Depth)
 43                            k = k + thislength
 44                            m = m2 + 1
 45                        Next i
@@ -135,7 +136,7 @@ Function Decode(Chars As String)
 54                            For i = 1 To NR
 55                                m2 = InStr(m + 1, Chars, ",")
 56                                thislength = Mid$(Chars, m, m2 - m)
-57                                Ret(i, j) = Decode(Mid$(Chars, k, thislength))
+57                                Ret(i, j) = Decode(Mid$(Chars, k, thislength), Depth)
 58                                k = k + thislength
 59                                m = m2 + 1
 60                            Next i
