@@ -1,66 +1,14 @@
-Attribute VB_Name = "modEncode"
+Attribute VB_Name = "modDecode"
 Option Explicit
 Option Private Module
 Option Base 1
 
-'Experimenting with a file format other than CSV for transporting data back from Julia to Excel.
-'looks like MyFileFormat is about 2 to 3 times faster to read than CSV, no type conversion
-
-'Examples Array(1#, "2.3")
-' *1,2;2,4,;#1$2.3
-
-' * = it's an array
-' 1 = it has one dimension
-' , = delimiter in dimensions section
-' 2 = it's first dimension is of length 2
-' ; = delimiter between sections
-' 2 = the encoding of the first element of the contents section is of length 2
-' , = delimiter in lengths section
-' 4 = the encoding of the second element of the contents section is of length 4
-' , = delimiter in the lengths section, note this terminatng delimiter
-' ; = delimiter between the lengths section and the contents section
-' #1 = encoding of the first element, # indicates Double
-' $2.3 = encoding of the second element, $ indicates string
-
-
-'FileFormat = TypeIndicatorNumDims;NR;NC,lengths;contents
-
-
-'assumes lower bounds of 1. Write code would be in Julia but here write in VBA to test read speed
-
-
-Sub speedtest()
-          Dim Data
-          Const FileName1 = "c:\Temp\test.csv"
-          Const FileName2 = "c:\Temp\test.mff"
-          Dim Res1 As Variant
-          Dim Res2 As Variant
-          Dim t1 As Double, t2 As Double, t3 As Double
-
-          'Data = sreshape(sarraystack("xxx", 2, True, False), 1000, 1000) '2.13 times faster
-          'Data = sReshape(CVErr(xlErrNA), 1000, 1000) ' 1.4 times faster
-          'Data = sreshape(True, 1000, 1000) '2.19 times faster
-          'Data = sreshape(False, 1000, 1000) '2 times faster
-          'Data = sreshape(Date, 1000, 1000) '4 times faster
-          'Data = sreshape("xxx", 1000, 1000) ' 2 times faster
-          'Data = sreshape(CDate("2021-11-03 18:00:00"), 1000, 1000) '3.5 times faster
-          'Data = Application.WorksheetFunction.Sequence(1000, 1000) '1.8 times faster
-1         'Data = Application.WorksheetFunction.RandArray(1000, 100) '1.4 times faster
-
-2         Application.Run "sCSVWrite", Data, FileName1, True
-3         EncodeAndWriteFile Data, FileName2
-
-4         t1 = ElapsedTime()
-5         Res1 = Application.Run("sCSVRead", FileName1, "NDBE", ",", , "ISO")
-6         t2 = ElapsedTime()
-7         Res2 = ReadFileAndDecode(FileName2)
-8         t3 = ElapsedTime()
-
-9         Debug.Print Application.Run("sArraysNearlyIdentical", Res1, Res2)
-10        Debug.Print t2 - t1, t3 - t2, (t2 - t1) / (t3 - t2)
-
-End Sub
-
+' -----------------------------------------------------------------------------------------------------------------------
+' Procedure  : Decode
+' Author     : Philip Swannell
+' Date       : 04-Nov-2021
+' Purpose    : Decodes (unserializes) the contents of the results file saved by JuliaInterop julia code.
+' -----------------------------------------------------------------------------------------------------------------------
 Function Decode(Chars As String, Optional ByRef Depth As Long)
 
 1         On Error GoTo ErrHandler
@@ -154,13 +102,20 @@ ErrHandler:
 70        Throw "#Decode (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Function
 
-
+' -----------------------------------------------------------------------------------------------------------------------
+' Procedure  : Encode
+' Author     : Philip Swannell
+' Date       : 04-Nov-2021
+' Purpose    : Equivalent to the julia function in VBAInterop.encode_for_xl and encodes to the same format, though this
+'              VBA version is not currently used.
+' Parameters :
+'  x:
+' -----------------------------------------------------------------------------------------------------------------------
 Function Encode(x) As String
 
           Dim lengthsArray() As String
           Dim contentsArray() As String
           Dim i As Long, j As Long, k As Long, NR As Long, NC As Long
-
 
 1         On Error GoTo ErrHandler
 2         Select Case VarType(x)
@@ -248,7 +203,14 @@ ErrHandler:
 11        Throw ErrMsg
 End Function
 
-
+' -----------------------------------------------------------------------------------------------------------------------
+' Procedure  : ReadFileAndDecode
+' Author     : Philip Swannell
+' Date       : 04-Nov-2021
+' Purpose    : Read the file saved by the Julia code and unserialize its contents.
+' Parameters :
+'  FileName:
+' -----------------------------------------------------------------------------------------------------------------------
 Function ReadFileAndDecode(FileName As String)
           Dim FSO As New Scripting.FileSystemObject
           Dim ts As Scripting.TextStream

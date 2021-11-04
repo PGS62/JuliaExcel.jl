@@ -71,16 +71,6 @@ ErrHandler:
 6         FolderExists = False
 End Function
 
-' -----------------------------------------------------------------------------------------------------------------------
-' Procedure  : SaveTextFile
-' Author     : Philip Swannell
-' Date       : 01-Nov-2021
-' Purpose    :
-' Parameters :
-'  FileName:
-'  Contents:
-'  Format  :
-' -----------------------------------------------------------------------------------------------------------------------
 Function SaveTextFile(FileName As String, Contents As String, Format As TriState)
           Dim FSO As New Scripting.FileSystemObject
           Dim ts As Scripting.TextStream
@@ -188,12 +178,16 @@ End Function
 
 Sub Throw(ByVal ErrorString As String)
           '"Out of stack space" errors can lead to enormous error strings, _
-           but we cannot handle strings longer than 32767, so just take the right part...
+           but Excel cannot handle strings longer than 32767, so just take the right part...
 2         If Len(ErrorString) > 32000 Then
 3             Err.Raise vbObjectError + 1, , Left$(ErrorString, 1) & Right$(ErrorString, 31999)
 4         Else
 5             Err.Raise vbObjectError + 1, , Right$(ErrorString, 32000)
 6         End If
+End Sub
+
+Sub MakeMeAnAddin()
+    ThisWorkbook.IsAddin = True
 End Sub
 
 

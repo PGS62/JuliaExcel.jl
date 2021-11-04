@@ -41,6 +41,35 @@ Sub speedtest()
 
 End Sub
 
+Private Function ToOneString(JuliaExpression As Variant) As String
+          Dim i As Long
+          Dim NR As Long, NC As Long, Tmp() As String
+1         On Error GoTo ErrHandler
+2         If TypeName(JuliaExpression) = "Range" Then
+3             JuliaExpression = JuliaExpression.Value
+4         End If
+5         Select Case NumDimensions(JuliaExpression)
+              Case 0
+6                 ToOneString = CStr(JuliaExpression)
+7             Case 1
+8                 ToOneString = VBA.Join(JuliaExpression, ";")
+9             Case 2
+10                NC = UBound(JuliaExpression, 2) - LBound(JuliaExpression, 1) + 1
+11                If NC > 1 Then Throw "When passed as an array or a Range, JuliaExpression should have only one column, but got " + CStr(NC) + " columns"
+12                ReDim Tmp(LBound(JuliaExpression, 1) To UBound(JuliaExpression, 1))
+13                For i = LBound(Tmp) To UBound(Tmp)
+14                    Tmp(i) = JuliaExpression(i, LBound(JuliaExpression, 2))
+15                Next
+16                ToOneString = VBA.Join(Tmp, ";")
+17            Case Else
+18                Throw "Too many dimensions in JuliaExpression"
+19        End Select
+20        Exit Function
+ErrHandler:
+21        Throw "#ToOneString (line " & CStr(Erl) + "): " & Err.Description & "!"
+End Function
+
+
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : JuliaEval
 ' Author     : Philip Swannell
@@ -49,11 +78,12 @@ End Sub
 ' Parameters :
 '  JuliaExpression : Some julia code such as "1+1" or "collect(1:100)"
 ' -----------------------------------------------------------------------------------------------------------------------
-Function JuliaEval(ByVal JuliaExpression As String)
+Function JuliaEval(ByVal JuliaExpression As Variant)
           
           Dim ExpressionFile As String
           Dim FlagFile As String
           Dim ResultFile As String
+          Dim strJuliaExpression As String
           Dim Tmp As String
           Dim WindowTitle As String
           Static HwndJulia As LongPtr
@@ -61,6 +91,8 @@ Function JuliaEval(ByVal JuliaExpression As String)
           Static PID As Long
 
 1         On Error GoTo ErrHandler
+
+          strJuliaExpression = ToOneString(JuliaExpression)
 
 2         If JuliaExe = "" Then
 3             JuliaExe = DefaultJuliaExe()
@@ -85,7 +117,7 @@ Function JuliaEval(ByVal JuliaExpression As String)
 18        ExpressionFile = Tmp & "\VBAInteropExpression_" & CStr(PID) & ".txt"
 
 19        SaveTextFile FlagFile, "", TristateTrue
-20        SaveTextFile ExpressionFile, JuliaExpression, TristateTrue
+20        SaveTextFile ExpressionFile, strJuliaExpression, TristateTrue
           
 21        SendMessageToJulia HwndJulia
 

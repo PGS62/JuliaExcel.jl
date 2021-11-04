@@ -1,6 +1,6 @@
 AuditSheetComments.txt
-modEncode.bas
+modDecode.bas
 modSendMessage.bas
 modUtils.bas
 modVBAInterop.bas
-VBAInterop.xlsm
+VBAInterop.xlam

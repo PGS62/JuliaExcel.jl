@@ -1,8 +1,19 @@
 module VBAInterop
+export install_vbainterop
 export z
 
 using Dates
 import StringEncodings
+using DataFrames
+
+function install_vbainterop()
+    Sys.iswindows() || throw("VBAInterop can only be installed on Windows")
+    installscript = normpath(joinpath(@__DIR__,"..","vbscript","installvbinterop.vbs"))
+    exefile = "C:/Windows/System32/wscript.exe"
+    isfile(exefile) || throw("Cannot find Windows Script Host at '$exefile'")
+    isfile(installscript) || throw("Cannot find install script at '$installscript'")
+    run(`$exefile $installscript`)
+end
 
 localtemp() = joinpath(ENV["TEMP"], "VBAInterop")
 flagfile() = joinpath(localtemp(), "VBAInteropFlag_$(Main.xlpid).txt")
@@ -135,11 +146,13 @@ encode_for_xl(x::DateTime) = string("D", Dates.value(x) - 693594)  # VBA has no 
 encode_for_xl(x::DataType) = encode_for_xl("$x")
 encode_for_xl(x::VersionNumber) = encode_for_xl("$x")
 encode_for_xl(x::Tuple) = encode_for_xl([x[i] for i in eachindex(x)])
+encode_for_xl(x::T) where T <: Function = wrapshow(x)
+encode_for_xl(x::Symbol) = wrapshow(x)
 encode_for_xl(x::Any) = throw("No method exists to encode a variable of type $(typeof(x)) for return to Excel")
 
-function encode_for_xl(x::T) where T <: Function
+function wrapshow(x)
     io = IOBuffer()
-    show(io,"text/plain",x)
+    show(io, "text/plain", x)
     encode_for_xl(String(take!(io)))
 end
 
@@ -177,6 +190,16 @@ function encode_for_xl(x::T) where T <: AbstractArray
     end   
 
     "*" * dimssection * ";" * String(take!(lengths_buf)) * ";" * String(take!(contents_buf))
+end
+
+function encode_for_xl(x::DataFrame)
+    nc = size(x)[2]
+    data = Matrix{Any}(x)
+    headers = Matrix{Any}(undef, 1, nc)
+    for i in 1:nc
+        headers[1,i] = names(x)[i]
+    end
+    encode_for_xl(vcat(headers, data))
 end
 
 end # module
