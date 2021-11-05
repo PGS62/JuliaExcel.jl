@@ -45,6 +45,38 @@ Function FolderExists(TheFolderName)
     FolderExists = fso.FolderExists(TheFolderName)
 End Function
 
+Function FolderIsWritable(FolderPath)
+          Dim FName
+          Dim fso
+          Dim Counter
+          Dim EN
+          Dim T
+
+         If (Right(FolderPath, 1) <> "\") Then FolderPath = FolderPath & "\"
+         Set fso = CreateObject("Scripting.FileSystemObject")
+         If Not fso.FolderExists(FolderPath) Then
+             FolderIsWritable = False
+         Else
+             Do
+                 FName = FolderPath & "TempFile" & Counter & ".tmp"
+                 Counter = Counter + 1
+            Loop Until Not FileExists(FName)
+            On Error Resume Next
+            Set T = fso.OpenTextFile(FName, 2, True)
+            EN = Err.Number
+            On Error GoTo 0
+            If EN = 0 Then
+                T.Close
+                fso.GetFile(FName).Delete
+                FolderIsWritable = True
+            Else
+                FolderIsWritable = False
+            End If
+        End If
+
+End Function
+
+
 Function DeleteFolder(TheFolderName)
     Dim fso, f
     Set fso = CreateObject("Scripting.FileSystemObject")
@@ -209,6 +241,13 @@ Function IIf( expr, truepart, falsepart )
    If expr Then IIf = truepart
 End Function
 
+'It appears that VBSCript does not have the Environ funciton that VBA has. Sigh, roll my own.
+Function Environ(Expression)
+	Dim WshShell
+	Set WshShell = CreateObject("WScript.Shell")
+	Environ = WshShell.ExpandEnvironmentStrings("%" & Expression & "%")
+End Function
+
 '***********************************************************************************************************************************************
 'Effective start of this VBScript. Note elevating to admin as per http://www.winhelponline.com/blog/vbscripts-and-uac-elevation/
 'although, by design we put files in places where admim shouldn't be required
@@ -229,16 +268,19 @@ Else
     gErrorsEncountered = False
     CheckProcess "Excel.exe"
 
-    AddinsDest = "C:\ProgramData\VBAInterop\Addins\"
-
-    AltStartupPath = GetAltStartupPath()
-    AltStartupAlreadyDefined = True
-    If AltStartupPath = "" Or AltStartupPath = "Not found" Then
-        AltStartupAlreadyDefined = False
-        SetAltStartupPath Left(AddinsDest, Len(AddinsDest) - 1)
-    End If
+    'Code to copy to AltStartup, but I think StartUpPath might be better. PGS 5/11/21
+    'Need to test if using StartupPath leads to "Excel Link Hell" when sharing workbooks that call functions from the addin between users
+   ' AddinsDest = "C:\ProgramData\VBAInterop\Addins\"
+   ' AltStartupPath = GetAltStartupPath()
+   ' AltStartupAlreadyDefined = True
+   ' If AltStartupPath = "" Or AltStartupPath = "Not found" Then
+   '     AltStartupAlreadyDefined = False
+   '     SetAltStartupPath Left(AddinsDest, Len(AddinsDest) - 1)
+   ' End If
     'If the user already has an AltStartUp path set then we use that location...
-    AddinsDest = GetAltStartupPath() & "\"
+    'AddinsDest = GetAltStartupPath() & "\"
+
+    AddinsDest = Environ("USERPROFILE") & "\AppData\Roaming\Microsoft\Excel\XLSTART"
 
     Dim AddinsSource
     AddinsSource = WScript.ScriptFullName
@@ -251,10 +293,21 @@ Else
         WScript.Quit
     End If
 
+    if Not FolderExists(AddinsDest) Then
+        MsgBox "Installation cannot proceed because the Excel StartupPath cannot be found, it was expected to be at '" & AddinsDest & "'.",vbCritical,MsgBoxTitleBad
+        WScript.Quit
+    End If
+
+    if Not FolderIsWritable(AddinsDest) Then
+        MsgBox "Installation cannot proceed because the Excel StartupPath at '" & AddinsDest & "' is not writable.",vbCritical,MsgBoxTitleBad
+        WScript.Quit
+    End If
+
     Dim Prompt
     Prompt = "This will install VBAInterop.xlsm by copying it from " & vbLf & vblf & _
         AddinsSource & vbLf & vbLf & _
-        "To Excel's AltStartup location " & iif(AltStartupAlreadyDefined,"which is at:","which has been set to:") & vbLf & AddinsDest & vbLf & vbLf & _
+        "To Excel's StartupPath at:" & vblf & vblf & _
+        AddinsDest & vblf & vblf & _
         "Do you wish to continue?"
     Dim result
 

@@ -1,4 +1,6 @@
 Version	Date	Time	Author	Comment
+22	05-Nov-2021	18:02	Philip Swannell	Bashing on.
+21	05-Nov-2021	16:50	Philip Swannell	Speedup to method Decode, added code comments, hack change to method LocalTemp to remove 8.3 encoding of username.
 20	04-Nov-2021	21:46	Philip Swannell	Fixed compile errors on 32bit Excel.
 19	04-Nov-2021	15:43	Philip Swannell	Moved sheet Examples to a new workbook.
 18	04-Nov-2021	10:15	Philip Swannell	Better handliing of results which are a) Functions, b) arrays containing arrays.

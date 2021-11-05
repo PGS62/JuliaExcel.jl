@@ -78,10 +78,10 @@ Function SaveTextFile(FileName As String, Contents As String, Format As TriState
 2         Set ts = FSO.OpenTextFile(FileName, ForWriting, True, Format)
 3         ts.Write Contents
 4         ts.Close
-          SaveTextFile = FileName
-5         Exit Function
+5         SaveTextFile = FileName
+6         Exit Function
 ErrHandler:
-6         Throw "#SaveTextFile (line " & CStr(Erl) + "): " & Err.Description & "!"
+7         Throw "#SaveTextFile (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Function
 
 Function ReadAllFromTextFile(FileName As String, Format As TriState)
@@ -119,10 +119,27 @@ Function LocalTemp()
 9         End If
 10        Res = Environ("TEMP") & "\" & FolderName
 
-11        LocalTemp = Res
-12        Exit Function
+          'Arrgh Environ("Temp") still (2021) uses 8.3 convention if user name > 8 characters, patch up.
+11        If InStr(Res, "~") > 0 Then
+              Dim ThirdPart As String, Parts() As String
+12            Parts = VBA.Split(Res, "\")
+13            If UBound(Parts) > 2 Then
+14                ThirdPart = Parts(2)
+15                If InStr(ThirdPart, "~") > 0 Then
+16                    If UCase(Left(ThirdPart, 5)) = UCase(Left(Environ("username"), 5)) Then
+17                        Parts(2) = Environ("username")
+18                        If FolderExists(VBA.Join(Parts, "\")) Then
+19                            Res = VBA.Join(Parts, "\")
+20                        End If
+21                    End If
+22                End If
+23            End If
+24        End If
+
+25        LocalTemp = Res
+26        Exit Function
 ErrHandler:
-13        Throw "#LocalTemp (line " & CStr(Erl) + "): " & Err.Description & "!"
+27        Throw "#LocalTemp (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
@@ -179,15 +196,15 @@ End Function
 Sub Throw(ByVal ErrorString As String)
           '"Out of stack space" errors can lead to enormous error strings, _
            but Excel cannot handle strings longer than 32767, so just take the right part...
-2         If Len(ErrorString) > 32000 Then
-3             Err.Raise vbObjectError + 1, , Left$(ErrorString, 1) & Right$(ErrorString, 31999)
-4         Else
-5             Err.Raise vbObjectError + 1, , Right$(ErrorString, 32000)
-6         End If
+1         If Len(ErrorString) > 32000 Then
+2             Err.Raise vbObjectError + 1, , Left$(ErrorString, 1) & Right$(ErrorString, 31999)
+3         Else
+4             Err.Raise vbObjectError + 1, , Right$(ErrorString, 32000)
+5         End If
 End Sub
 
 Sub MakeMeAnAddin()
-    ThisWorkbook.IsAddin = True
+1         ThisWorkbook.IsAddin = True
 End Sub
 
 

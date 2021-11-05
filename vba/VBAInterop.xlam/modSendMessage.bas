@@ -55,29 +55,29 @@ Private Const GW_HWNDNEXT = 2
 '  HwndJulia : Window handle for the Julia REPL
 ' -----------------------------------------------------------------------------------------------------------------------
 Sub SendMessageToJulia(HwndJulia As LongPtr)
-    
-    Dim i As Long
-      
-    'In case there's some random text at the Julia REPL...
-    For i = 1 To 3
-        'Send ESCAPE
-        PostMessage HwndJulia, WM_CHAR, ByVal 27, ByVal &H10001
-        'Send BACKSPCE
-        PostMessage HwndJulia, WM_CHAR, ByVal 8, ByVal &H10001
-    Next i
+          
+          Dim i As Long
+            
+          'In case there's some random text at the Julia REPL...
+1         For i = 1 To 3
+              'Send ESCAPE
+2             PostMessage HwndJulia, WM_CHAR, ByVal 27, ByVal &H10001
+              'Send BACKSPCE
+3             PostMessage HwndJulia, WM_CHAR, ByVal 8, ByVal &H10001
+4         Next i
 
-    'Send z
-    PostMessage HwndJulia, WM_CHAR, ByVal Asc("z"), ByVal &H2C0001
-    'Send (
-    PostMessage HwndJulia, WM_CHAR, ByVal Asc("("), ByVal &HA0001
-    'Send )
-    PostMessage HwndJulia, WM_CHAR, ByVal Asc(")"), ByVal &HB0001
-    'Send Enter
-    PostMessage HwndJulia, WM_CHAR, ByVal Asc(vbLf), ByVal &H1C0001
+          'Send z
+5         PostMessage HwndJulia, WM_CHAR, ByVal Asc("z"), ByVal &H2C0001
+          'Send (
+6         PostMessage HwndJulia, WM_CHAR, ByVal Asc("("), ByVal &HA0001
+          'Send )
+7         PostMessage HwndJulia, WM_CHAR, ByVal Asc(")"), ByVal &HB0001
+          'Send Enter
+8         PostMessage HwndJulia, WM_CHAR, ByVal Asc(vbLf), ByVal &H1C0001
 
-    Exit Sub
+9         Exit Sub
 ErrHandler:
-    Throw "#SendMessageToJulia (line " & CStr(Erl) + "): " & Err.Description & "!"
+10        Throw "#SendMessageToJulia (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Sub
 
 'Adapted from
