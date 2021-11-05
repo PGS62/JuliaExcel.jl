@@ -3,6 +3,49 @@ Option Explicit
 Option Private Module
 Option Base 1
 
+
+'Decode implements a data un-serialisation for a format that's easier and faster to
+'unserialise than csv.
+'- Singleton types are prefixed with a type indicator character.
+'- Dates are converted to their Excel representation - faster to unserialise in VBA.
+'- Arrays are written with type indicator *, then three sections separated by semi-colons:
+'  First section gives the number of dimensions and the dimensions themselves, comma
+'  delimited e.g. a 3 x 4 array would have a dimensions section "2,3,4".
+'  Second section gives the lengths of the encodings of each element, comma delimited with a
+'  terminating comma.
+'  Third section gives the encodings, concatenated with no delimiter.
+'  - Note that arrays are written in column-major order.
+'Type indicator characters are as follows:
+'# vbDouble
+'£ (pound sterling) vbString
+'T Boolean True
+'F Boolean False
+'D vbDate
+'E vbEmpty
+'N vbNull
+'% vbInteger
+'& vbLong
+'S vbSingle
+'C vbCurrency
+'! vbError
+'@ vbDecimal
+'* vbArray
+
+'
+'Examples:
+'?encode(CDbl(1))
+'#1
+'?encode(CLng(1))
+'&1
+'?encode("Hello")
+'£Hello
+'?encode(True)
+'T
+'?encode(False)
+'F
+'?encode(Array(1,2,3.0,True,False,"Hello","World"))
+'*1,7;2,2,2,1,1,6,6,;%1%2#3TF£Hello£World
+
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : Decode
 ' Author     : Philip Swannell
@@ -13,34 +56,34 @@ Function Decode(Chars As String, Optional ByRef Depth As Long)
 
 1         On Error GoTo ErrHandler
 2         Depth = Depth + 1
-3         Select Case Left$(Chars, 1)
-              Case "#"    'vbDouble
+3         Select Case Asc(Left$(Chars, 1))
+              Case 35    '# vbDouble
 4                 Decode = CDbl(Mid$(Chars, 2))
-5             Case "£"    'vbString
+5             Case 163    '£ (pound sterling) vbString
 6                 Decode = Mid$(Chars, 2)
-7             Case "T" 'Boolean True
+7             Case 84     'T Boolean True
 8                 Decode = True
-9             Case "F" 'Boolean False
+9             Case 70     'F Boolean False
 10                Decode = False
-11            Case "D"    'vbDate
+11            Case 68     'D vbDate
 12                Decode = CDate(Mid$(Chars, 2))
-13            Case "E" 'vbEmpty
+13            Case 69     'E vbEmpty
 14                Decode = Empty
-15            Case "N" 'vbNull
+15            Case 78     'N vbNull
 16                Decode = Null
-17            Case "%" 'vbInteger
+17            Case 37     '% vbInteger
 18                Decode = CInt(Mid$(Chars, 2))
-19            Case "&" 'vbLong
+19            Case 38     '& vbLong
 20                Decode = CLng(Mid$(Chars, 2))
-21            Case "S"    'vbSingle
+21            Case 83     'S vbSingle
 22                Decode = CSng(Mid$(Chars, 2))
-23            Case "C"    'vbCurrency
+23            Case 67    'C vbCurrency
 24                Decode = CCur(Mid$(Chars, 2))
-25            Case "!"    'vbError
+25            Case 33     '! vbError
 26                Decode = CVErr(Mid$(Chars, 2))
-27            Case "@"    'vbDecimal
+27            Case 64     '@ vbDecimal
 28                Decode = CDec(Mid$(Chars, 2))
-29            Case "*" ' vbArray
+29            Case 42     '* vbArray
 30                If Depth > 1 Then Throw "Excel cannot display arrays containing arrays"
                   Dim Ret() As Variant
                   Dim p1 As Long 'Position of first semi-colon
