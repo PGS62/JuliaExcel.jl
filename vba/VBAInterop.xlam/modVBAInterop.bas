@@ -1,13 +1,13 @@
 Attribute VB_Name = "modVBAInterop"
 Option Explicit
 #If VBA7 And Win64 Then
-Declare PtrSafe Function GetCurrentProcessId Lib "kernel32" () As Long
-Public Declare PtrSafe Sub Sleep Lib "kernel32" (ByVal Milliseconds As Long)
-Public Declare PtrSafe Function IsWindow Lib "user32" (ByVal hwnd As LongPtr) As Long
+    Declare PtrSafe Function GetCurrentProcessId Lib "kernel32" () As Long
+    Public Declare PtrSafe Sub Sleep Lib "kernel32" (ByVal Milliseconds As Long)
+    Public Declare PtrSafe Function IsWindow Lib "user32" (ByVal hwnd As LongPtr) As Long
 #Else
-Declare Function GetCurrentProcessId Lib "kernel32" () As Long
-Public Declare Sub Sleep Lib "kernel32" (ByVal Milliseconds As Long)
-Public Declare Function IsWindow Lib "user32" (ByVal hwnd As Long) As Long
+    Declare Function GetCurrentProcessId Lib "kernel32" () As Long
+    Public Declare Sub Sleep Lib "kernel32" (ByVal Milliseconds As Long)
+    Public Declare Function IsWindow Lib "user32" (ByVal hwnd As Long) As Long
 #End If
 
 '02-Nov-2021 18:24:59
@@ -336,7 +336,7 @@ End Function
 ' Date       : 05-Nov-2021
 ' Purpose    : Offers control of calculation order
 ' -----------------------------------------------------------------------------------------------------------------------
-Function JuliaCall2(JuliaFunction, CallAfterThisCellIsCalculated As Range, ParamArray Args())
+Function JuliaCall2(JuliaFunction As String, CallAfterThisCellIsCalculated As Range, ParamArray Args())
 1         JuliaCall2 = JuliaCall(JuliaFunction, Args)
 End Function
 

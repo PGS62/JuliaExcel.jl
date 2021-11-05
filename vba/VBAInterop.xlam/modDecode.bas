@@ -3,6 +3,17 @@ Option Explicit
 Option Private Module
 Option Base 1
 
+#If Win64 Then
+    Function parseInt64(x As String)
+        parseInt64 = CLngLng(x)
+    End Function
+#Else
+    Function parseInt64(x As String)
+        parseInt64 = CDbl(x)
+    End Function
+#End If
+
+
 
 'Decode implements a data un-serialisation for a format that's easier and faster to
 'unserialise than csv.
@@ -73,8 +84,8 @@ Function Decode(Chars As String, Optional ByRef Depth As Long)
 16                Decode = Null
 17            Case 37     '% vbInteger
 18                Decode = CInt(Mid$(Chars, 2))
-19            Case 38     '& vbLong
-20                Decode = CLng(Mid$(Chars, 2))
+19            Case 38     '& Int64 converts to LongLong on 64bit, Double on 32bit
+20                Decode = parseInt64(Mid$(Chars, 2))
 21            Case 83     'S vbSingle
 22                Decode = CSng(Mid$(Chars, 2))
 23            Case 67    'C vbCurrency
