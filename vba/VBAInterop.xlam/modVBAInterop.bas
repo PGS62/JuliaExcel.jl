@@ -19,6 +19,9 @@ Public Declare Function IsWindow Lib "user32" (ByVal hwnd As Long) As Long
 '02-Nov-2021 18:27:12
 'Expression = Fill("xxx", 1000, 1000)
 'Average time in JuliaEval    1.92937137000263
+'05-Nov-2021 16:18:37        DESKTOP-0VD2AF0
+'Expression = Fill("xxx", 1000, 1000)
+'Average time in JuliaEval    1.47189380999916
 
 Sub speedtest()
 
@@ -35,13 +38,20 @@ Sub speedtest()
 5         Next i
 6         t2 = ElapsedTime
 
-7         Debug.Print Format(Now(), "dd-mmm-yyyy hh:mm:ss")
+7         Debug.Print Format(Now(), "dd-mmm-yyyy hh:mm:ss"), Environ("ComputerName")
 8         Debug.Print "Expression = " & Expression
 9         Debug.Print "Average time in JuliaEval", (t2 - t1) / NumCalls
 
 End Sub
 
-Private Function ToOneString(JuliaExpression As Variant) As String
+' -----------------------------------------------------------------------------------------------------------------------
+' Procedure  : ConcatenateExpressions
+' Author     : Philip Swannell
+' Date       : 05-Nov-2021
+' Purpose    : It's convenient to be able to pass in a multi-line expression, which we first concatenate with semi-colon
+'              delimiter before passing to Julia for evaluation
+' -----------------------------------------------------------------------------------------------------------------------
+Private Function ConcatenateExpressions(JuliaExpression As Variant) As String
           Dim i As Long
           Dim NR As Long, NC As Long, Tmp() As String
 1         On Error GoTo ErrHandler
@@ -50,9 +60,9 @@ Private Function ToOneString(JuliaExpression As Variant) As String
 4         End If
 5         Select Case NumDimensions(JuliaExpression)
               Case 0
-6                 ToOneString = CStr(JuliaExpression)
+6                 ConcatenateExpressions = CStr(JuliaExpression)
 7             Case 1
-8                 ToOneString = VBA.Join(JuliaExpression, ";")
+8                 ConcatenateExpressions = VBA.Join(JuliaExpression, ";")
 9             Case 2
 10                NC = UBound(JuliaExpression, 2) - LBound(JuliaExpression, 1) + 1
 11                If NC > 1 Then Throw "When passed as an array or a Range, JuliaExpression should have only one column, but got " + CStr(NC) + " columns"
@@ -60,15 +70,24 @@ Private Function ToOneString(JuliaExpression As Variant) As String
 13                For i = LBound(Tmp) To UBound(Tmp)
 14                    Tmp(i) = JuliaExpression(i, LBound(JuliaExpression, 2))
 15                Next
-16                ToOneString = VBA.Join(Tmp, ";")
+16                ConcatenateExpressions = VBA.Join(Tmp, ";")
 17            Case Else
 18                Throw "Too many dimensions in JuliaExpression"
 19        End Select
 20        Exit Function
 ErrHandler:
-21        Throw "#ToOneString (line " & CStr(Erl) + "): " & Err.Description & "!"
+21        Throw "#ConcatenateExpressions (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Function
 
+' -----------------------------------------------------------------------------------------------------------------------
+' Procedure  : JuliaEval2
+' Author     : Philip Swannell
+' Date       : 05-Nov-2021
+' Purpose    : Offers control of calculation order
+' -----------------------------------------------------------------------------------------------------------------------
+Function JuliaEval2(JuliaExpression As Variant, EvaluateAfterThisCellIsCalculated As Range)
+1         JuliaEval2 = JuliaEval(JuliaExpression)
+End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : JuliaEval
@@ -92,45 +111,45 @@ Function JuliaEval(ByVal JuliaExpression As Variant)
 
 1         On Error GoTo ErrHandler
 
-          strJuliaExpression = ToOneString(JuliaExpression)
+2         strJuliaExpression = ConcatenateExpressions(JuliaExpression)
 
-2         If JuliaExe = "" Then
-3             JuliaExe = DefaultJuliaExe()
-4         End If
-5         If PID = 0 Then
-6             PID = GetCurrentProcessId
-7         End If
+3         If JuliaExe = "" Then
+4             JuliaExe = DefaultJuliaExe()
+5         End If
+6         If PID = 0 Then
+7             PID = GetCurrentProcessId
+8         End If
             
-8         If HwndJulia = 0 Or IsWindow(HwndJulia) = 0 Then
-9             WindowTitle = "serving Excel PID " & CStr(PID)
-10            GetHandleFromPartialCaption HwndJulia, WindowTitle
-11        End If
+9         If HwndJulia = 0 Or IsWindow(HwndJulia) = 0 Then
+10            WindowTitle = "serving Excel PID " & CStr(PID)
+11            GetHandleFromPartialCaption HwndJulia, WindowTitle
+12        End If
 
-12        If HwndJulia = 0 Or IsWindow(HwndJulia) = 0 Then
-13            Throw "Cannot find instance of Julia serving this instance of Excel (PID " & CStr(PID) & "). Please call function JuliaLaunch"
-14        End If
+13        If HwndJulia = 0 Or IsWindow(HwndJulia) = 0 Then
+14            Throw "Cannot find instance of Julia serving this instance of Excel (PID " & CStr(PID) & "). Please call function JuliaLaunch"
+15        End If
           
-15        Tmp = LocalTemp()
+16        Tmp = LocalTemp()
           
-16        FlagFile = Tmp & "\VBAInteropFlag_" & CStr(PID) & ".txt"
-17        ResultFile = Tmp & "\VBAInteropResult_" & CStr(PID) & ".txt"
-18        ExpressionFile = Tmp & "\VBAInteropExpression_" & CStr(PID) & ".txt"
+17        FlagFile = Tmp & "\VBAInteropFlag_" & CStr(PID) & ".txt"
+18        ResultFile = Tmp & "\VBAInteropResult_" & CStr(PID) & ".txt"
+19        ExpressionFile = Tmp & "\VBAInteropExpression_" & CStr(PID) & ".txt"
 
-19        SaveTextFile FlagFile, "", TristateTrue
-20        SaveTextFile ExpressionFile, strJuliaExpression, TristateTrue
+20        SaveTextFile FlagFile, "", TristateTrue
+21        SaveTextFile ExpressionFile, strJuliaExpression, TristateTrue
           
-21        SendMessageToJulia HwndJulia
+22        SendMessageToJulia HwndJulia
 
-22        Do While FileExists(FlagFile)
-23            Sleep 1
-24            If IsWindow(HwndJulia) = 0 Then Throw "The expression evaluated caused Julia to shut down"
-25        Loop
+23        Do While FileExists(FlagFile)
+24            Sleep 1
+25            If IsWindow(HwndJulia) = 0 Then Throw "The expression evaluated caused Julia to shut down"
+26        Loop
 
-26        JuliaEval = ReadFileAndDecode(ResultFile)
+27        JuliaEval = ReadFileAndDecode(ResultFile)
 
-27        Exit Function
+28        Exit Function
 ErrHandler:
-28        JuliaEval = "#JuliaEval (line " & CStr(Erl) + "): " & Err.Description & "!"
+29        JuliaEval = "#JuliaEval (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
@@ -298,6 +317,10 @@ ErrHandler:
 34        Throw "#DefaultJuliaExe (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Function
 
+Function JuliaSetVar2(VariableName As String, RefersTo As Variant, SetAfterThisCellIsCalculated As Range)
+1         JuliaSetVar2 = JuliaSetVar(VariableName, RefersTo)
+End Function
+
 Function JuliaSetVar(VariableName As String, RefersTo As Variant)
 1         On Error GoTo ErrHandler
 2         JuliaSetVar = JuliaCall("VBAInterop.setvar", VariableName, RefersTo)
@@ -305,6 +328,16 @@ Function JuliaSetVar(VariableName As String, RefersTo As Variant)
 3         Exit Function
 ErrHandler:
 4         JuliaSetVar = "#JuliaSetVar (line " & CStr(Erl) + "): " & Err.Description & "!"
+End Function
+
+' -----------------------------------------------------------------------------------------------------------------------
+' Procedure  : JuliaCall2
+' Author     : Philip Swannell
+' Date       : 05-Nov-2021
+' Purpose    : Offers control of calculation order
+' -----------------------------------------------------------------------------------------------------------------------
+Function JuliaCall2(JuliaFunction, CallAfterThisCellIsCalculated As Range, ParamArray Args())
+1         JuliaCall2 = JuliaCall(JuliaFunction, Args)
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
