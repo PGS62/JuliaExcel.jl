@@ -110,6 +110,22 @@ unserialise than csv.
   Third section gives the encodings, concatenated with no delimiter.
   - Note that arrays are written in column-major order.
 
+When decoded (by VBA function modDecode.Decode), the type indicator characters are interpreted as follows:
+'# vbDouble
+'£ (pound sterling) vbString
+'T Boolean True
+'F Boolean False
+'D vbDate (D should be followed by the number that represents the date, Excel-style i.e,. Dates.value(x) - 693594)
+'E vbEmpty
+'N vbNull
+'% vbInteger
+'& vbLong
+'S vbSingle
+'C vbCurrency
+'! vbError (! should be followed by an Excel error number, e.g. 2042 for #N/A )
+'@ vbDecimal
+'* vbArray
+
   Examples:
   julia> VBAInterop.encode_for_xl(1.0)
 "#1.0"
@@ -133,7 +149,8 @@ julia> VBAInterop.encode_for_xl([1 2;true π;"Hello" "World"])
 "*2,3,2;2,1,6,2,18,6,;&1T£Hello&2#3.141592653589793£World" =#
 
 # See also VBA method Decode which unserialises i.e. inverts this function
-encode_for_xl(x::String) = "£" * x        # String in VBA/Excel
+encode_for_xl(x::String) = "£" * x         # String in VBA/Excel
+encode_for_xl(x::Char) = "£" * x           # String in VBA/Excel
 encode_for_xl(x::Int64) = string("&", x)   # Long in VBA 64-bit
 encode_for_xl(x::Int32) = string("&", x)   # Long in VBA 64-bit, no native 32-bit integer type exists on 64 bit Excel
 encode_for_xl(x::Int16) = string("S", x)   # Integer in VBA
@@ -158,7 +175,7 @@ end
 
 function encode_for_xl(x::Float64)
     if isinf(x)
-        "#$(prevfloat(x, x > 0 ? 1 : -1))"
+        "!2036" # #NUM! in Excel
     elseif isnan(x)
         "!2042" # #N/A in Excel
     else
@@ -168,7 +185,8 @@ end
     
 function encode_for_xl(x::Float32)
     if isinf(x)
-        "#$(prevfloat(x, x > 0 ? 1 : -1))"
+        #"#$(prevfloat(x, x > 0 ? 1 : -1))"
+        "!2036" # #NUM! in Excel
     elseif isnan(x)
         "!2042" # #N/A in Excel
     else
