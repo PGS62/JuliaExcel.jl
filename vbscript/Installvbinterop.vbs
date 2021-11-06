@@ -132,6 +132,10 @@ Function CopyNamedFiles(ByVal TheSourceFolder, ByVal TheDestinationFolder, ByVal
                 MsgBox ErrorMessage, vbOKOnly + vbExclamation, MsgBoxTitleBad
             End If
         Else
+            if FileExists TheDestinationFolder & FileNamesArray(i) Then
+                On Error Resume Next
+                MakeFileWritable TheDestinationFolder & FileNamesArray(i)
+            End If
             On Error Resume Next
             fso.CopyFile TheSourceFolder & FileNamesArray(i), TheDestinationFolder & FileNamesArray(i), True
             If Err.Number <> 0 Then
@@ -143,6 +147,17 @@ Function CopyNamedFiles(ByVal TheSourceFolder, ByVal TheDestinationFolder, ByVal
             End If
         End If
     Next
+End Function
+
+Function MakeFileWritable(FileName)
+    Const ReadOnly = 1
+    Dim fso
+    Dim f
+    Set fso = CreateObject("Scripting.FileSystemObject")
+    Set f = fso.GetFile(FileName)
+    If f.Attributes And ReadOnly Then
+       f.Attributes = f.Attributes XOR ReadOnly 
+    End If
 End Function
 
 Function ForceFolderToExist(TheFolderName)
