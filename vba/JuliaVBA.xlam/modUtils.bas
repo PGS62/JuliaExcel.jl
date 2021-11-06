@@ -1,7 +1,7 @@
 Attribute VB_Name = "modUtils"
 ' Copyright (c) 2021 - Philip Swannell
 ' License MIT (https://opensource.org/licenses/MIT)
-' Document: https://github.com/PGS62/VBAInterop.jl#readme
+' Document: https://github.com/PGS62/JuliaVBA.jl#readme
 Option Explicit
 Option Private Module
 
@@ -109,7 +109,7 @@ End Function
 ' -----------------------------------------------------------------------------------------------------------------------
 Function LocalTemp()
           Static res As String
-          Const FolderName = "VBAInterop"
+          Const FolderName = "JuliaVBA"
 1         On Error GoTo ErrHandler
 2         If res <> "" Then
 3             LocalTemp = res
@@ -143,7 +143,7 @@ Sub CleanLocalTemp()
 1         On Error GoTo ErrHandler
 2         Set Fld = FSO.GetFolder(LocalTemp)
 3         For Each F In Fld.Files
-4             If Left(F.Name, 10) = "VBAInterop" Then
+4             If Left(F.Name, 10) = "JuliaVBA" Then
 5                 If (Now() - F.DateLastAccessed) > DeleteFilesOlderThan Then
 6                     F.Delete
 7                 End If

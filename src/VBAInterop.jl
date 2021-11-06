@@ -1,4 +1,4 @@
-module VBAInterop
+module JuliaVBA
 export srv_xl
 
 using Dates
@@ -6,8 +6,8 @@ import StringEncodings
 using DataFrames
 
 function installme()
-    Sys.iswindows() || throw("VBAInterop can only be installed on Windows")
-    installscript = normpath(joinpath(@__DIR__,"..","vbscript","installvbinterop.vbs"))
+    Sys.iswindows() || throw("JuliaVBA can only be installed on Windows")
+    installscript = normpath(joinpath(@__DIR__,"..","installer","install.vbs"))
     exefile = "C:/Windows/System32/wscript.exe"
     isfile(exefile) || throw("Cannot find Windows Script Host at '$exefile'")
     isfile(installscript) || throw("Cannot find install script at '$installscript'")
@@ -16,10 +16,10 @@ function installme()
     nothing
 end
 
-localtemp() = joinpath(ENV["TEMP"], "VBAInterop")
-flagfile() = joinpath(localtemp(), "VBAInteropFlag_$(Main.xlpid).txt")
-resultfile() = joinpath(localtemp(), "VBAInteropResult_$(Main.xlpid).txt")
-expressionfile() = joinpath(localtemp(), "VBAInteropExpression_$(Main.xlpid).txt")
+localtemp() = joinpath(ENV["TEMP"], "JuliaVBA")
+flagfile() = joinpath(localtemp(), "JuliaVBAFlag_$(Main.xlpid).txt")
+resultfile() = joinpath(localtemp(), "JuliaVBAResult_$(Main.xlpid).txt")
+expressionfile() = joinpath(localtemp(), "JuliaVBAExpression_$(Main.xlpid).txt")
 
 # read a text file with UTF-16 encoding, little endian, with byte option mark
 # https://discourse.julialang.org/t/reading-a-utf-16-le-file/11687
@@ -126,25 +126,25 @@ When decoded (by VBA function modDecode.Decode), the type indicator characters a
  *   Array
 
   Examples:
-  julia> VBAInterop.encode_for_xl(1.0)
+  julia> JuliaVBA.encode_for_xl(1.0)
 "#1.0"
 
-julia> VBAInterop.encode_for_xl(1)
+julia> JuliaVBA.encode_for_xl(1)
 "&1"
 
-julia> VBAInterop.encode_for_xl("Hello")
+julia> JuliaVBA.encode_for_xl("Hello")
 "£Hello"
 
-julia> VBAInterop.encode_for_xl(true)
+julia> JuliaVBA.encode_for_xl(true)
 "T"
 
-julia> VBAInterop.encode_for_xl(false)
+julia> JuliaVBA.encode_for_xl(false)
 "F"
 
-julia> VBAInterop.encode_for_xl(Date(2021,3,11))
+julia> JuliaVBA.encode_for_xl(Date(2021,3,11))
 "D44266"
 
-julia> VBAInterop.encode_for_xl([1 2;true π;"Hello" "World"])
+julia> JuliaVBA.encode_for_xl([1 2;true π;"Hello" "World"])
 "*2,3,2;2,1,6,2,18,6,;&1T£Hello&2#3.141592653589793£World" =#
 
 # See also VBA method Decode which unserialises i.e. inverts this function

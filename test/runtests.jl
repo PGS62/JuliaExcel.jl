@@ -1,6 +1,6 @@
-using VBAInterop
+using JuliaVBA
 using Test
 
-@testset "VBAInterop.jl" begin
+@testset "JuliaVBA.jl" begin
     # Write your tests here.
 end

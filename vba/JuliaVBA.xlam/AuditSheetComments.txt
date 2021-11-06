@@ -1,4 +1,5 @@
 Version	Date	Time	Author	Comment
+26	06-Nov-2021	16:13	Philip Swannell	Rename JuliaInterop--> JuliaVBA
 25	06-Nov-2021	14:13	Philip Swannell	Refactoring.
 24	06-Nov-2021	12:33	Philip Swannell	Refactoring.
 23	05-Nov-2021	19:59	Philip Swannell	Int64 values from Julia now handled differently on 32bit and 64bit Excel.

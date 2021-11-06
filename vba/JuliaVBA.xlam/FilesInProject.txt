@@ -1,6 +1,6 @@
 AuditSheetComments.txt
+JuliaVBA.xlam
+modMain.bas
 modPostMessage.bas
 modSerialise.bas
 modUtils.bas
-modVBAInterop.bas
-VBAInterop.xlam

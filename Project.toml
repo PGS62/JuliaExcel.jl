@@ -1,4 +1,4 @@
-name = "VBAInterop"
+name = "JuliaVBA"
 uuid = "661490ff-676f-49f7-9f60-bdb0e4e6656a"
 authors = ["Philip Swannell"]
 version = "0.1.0"
