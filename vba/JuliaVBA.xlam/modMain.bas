@@ -305,19 +305,22 @@ Function JuliaCall(JuliaFunction As String, ParamArray Args())
           Dim Tmp() As String
 
 1         On Error GoTo ErrHandler
-2         ReDim Tmp(LBound(Args) To UBound(Args))
+2         If UBound(Args) >= LBound(Args) Then
+3             ReDim Tmp(LBound(Args) To UBound(Args))
 
-3         For i = LBound(Args) To UBound(Args)
-4             Tmp(i) = ToJuliaLiteral(Args(i))
-5         Next i
+4             For i = LBound(Args) To UBound(Args)
+5                 Tmp(i) = ToJuliaLiteral(Args(i))
+6             Next i
+7             Expression = JuliaFunction & "(" & VBA.Join$(Tmp, ",") & ")"
+8         Else
+9             Expression = JuliaFunction & "()"
+10        End If
 
-6         Expression = JuliaFunction & "(" & VBA.Join$(Tmp, ",") & ")"
+11        JuliaCall = JuliaEval(Expression)
 
-7         JuliaCall = JuliaEval(Expression)
-
-8         Exit Function
+12        Exit Function
 ErrHandler:
-9         JuliaCall = "#JuliaCall (line " & CStr(Erl) + "): " & Err.Description & "!"
+13        JuliaCall = "#JuliaCall (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
