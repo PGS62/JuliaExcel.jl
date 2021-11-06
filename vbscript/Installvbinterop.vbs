@@ -132,7 +132,7 @@ Function CopyNamedFiles(ByVal TheSourceFolder, ByVal TheDestinationFolder, ByVal
                 MsgBox ErrorMessage, vbOKOnly + vbExclamation, MsgBoxTitleBad
             End If
         Else
-            if FileExists TheDestinationFolder & FileNamesArray(i) Then
+            if FileExists(TheDestinationFolder & FileNamesArray(i)) Then
                 On Error Resume Next
                 MakeFileWritable TheDestinationFolder & FileNamesArray(i)
             End If
