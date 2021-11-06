@@ -8,6 +8,7 @@
 Option Explicit
 
 Const AddinName = "VBAInterop.xlam"
+Const website = "https://github.com/PGS62/VBAInterop.jl#readme"
 
 Dim gErrorsEncountered
 Dim myWS, AddinsDest, MsgBoxTitle, MsgBoxTitleBad, AltStartupPath, AltStartupAlreadyDefined
@@ -372,10 +373,14 @@ Else
     InstallExcelAddin AddinsDest & AddinName, True
 
     If gErrorsEncountered Then
-        Prompt = "The install script has finished, but errors were encountered, which may mean the software will not work correctly."
+        Prompt = "The install script has finished, but errors were encountered, " & _
+                 "which may mean the software will not work correctly." & vblf & vblf & _
+                 website
         MsgBox Prompt, vbOKOnly + vbCritical, MsgBoxTitleBad
     Else
-        Prompt = "VBAInterop is installed, and its functions such as JuliaEval and JuliaCall will be available the next time you start Excel."
+        Prompt = "VBAInterop is installed, and its functions such as JuliaEval and " & _
+                 "JuliaCall will be available the next time you start Excel." & vblf & vblf & _
+                 website
         MsgBox Prompt, vbOKOnly + vbInformation, MsgBoxTitle
     End If
 

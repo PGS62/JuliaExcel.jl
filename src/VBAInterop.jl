@@ -1,18 +1,19 @@
 module VBAInterop
-export install_vbainterop
 export srv_xl
 
 using Dates
 import StringEncodings
 using DataFrames
 
-function install_vbainterop()
+function installme()
     Sys.iswindows() || throw("VBAInterop can only be installed on Windows")
     installscript = normpath(joinpath(@__DIR__,"..","vbscript","installvbinterop.vbs"))
     exefile = "C:/Windows/System32/wscript.exe"
     isfile(exefile) || throw("Cannot find Windows Script Host at '$exefile'")
     isfile(installscript) || throw("Cannot find install script at '$installscript'")
     run(`$exefile $installscript`)
+    println("Installer script has been launched, please respond to the dialogs there.")
+    nothing
 end
 
 localtemp() = joinpath(ENV["TEMP"], "VBAInterop")
@@ -24,8 +25,6 @@ expressionfile() = joinpath(localtemp(), "VBAInteropExpression_$(Main.xlpid).txt
 # https://discourse.julialang.org/t/reading-a-utf-16-le-file/11687
 readutf16lebom(filename::String) = transcode(String, reinterpret(UInt16, read(filename)))[4:end]
 
-#= This function would be better named "serve_to_excel" or some such, but one-character
-function name is a time saving since we have to send the function's name via PostMessage =# 
 """
     srv_xl()
 Read the expression file created by Excel/VBA evaluate it and write the result to file.
@@ -57,7 +56,7 @@ end
 
 """
     setvar(name::String, arg)
-Set a variable in global scope.    
+Set a variable in global scope. Called by VBA function JuliaSetVar.    
 """
 function setvar(name::String, arg)
     if Base.isidentifier(name)
@@ -111,20 +110,20 @@ unserialise than csv.
   - Note that arrays are written in column-major order.
 
 When decoded (by VBA function modDecode.Decode), the type indicator characters are interpreted as follows:
-'# vbDouble
-'£ (pound sterling) vbString
-'T Boolean True
-'F Boolean False
-'D vbDate (D should be followed by the number that represents the date, Excel-style i.e,. Dates.value(x) - 693594)
-'E vbEmpty
-'N vbNull
-'% vbInteger
-'& vbLong
-'S vbSingle
-'C vbCurrency
-'! vbError (! should be followed by an Excel error number, e.g. 2042 for #N/A )
-'@ vbDecimal
-'* vbArray
+ #   vbDouble
+ £   String
+ T   Boolean True
+ F   Boolean False
+ D   Date (D should be followed by the number that represents the date, Excel-style i.e,. Dates.value(x) - 693594)
+ E   Empty
+ N   Null
+ %   Integer
+ &   Long
+ S   Single
+ C   Currency
+ !   Error (! should be followed by an Excel error number, e.g. 2042 for the Excel error value #N/A )
+ @   Decimal
+ *   Array
 
   Examples:
   julia> VBAInterop.encode_for_xl(1.0)
