@@ -1,6 +1,6 @@
 module VBAInterop
 export install_vbainterop
-export z
+export srv_xl
 
 using Dates
 import StringEncodings
@@ -27,10 +27,10 @@ readutf16lebom(filename::String) = transcode(String, reinterpret(UInt16, read(fi
 #= This function would be better named "serve_to_excel" or some such, but one-character
 function name is a time saving since we have to send the function's name via PostMessage =# 
 """
-    z()
+    srv_xl()
 Read the expression file created by Excel/VBA evaluate it and write the result to file.
 """
-function z()
+function srv_xl()
 
     expression = readutf16lebom(expressionfile())
 

@@ -1,4 +1,7 @@
 Attribute VB_Name = "modUtils"
+' Copyright (c) 2021 - Philip Swannell
+' License MIT (https://opensource.org/licenses/MIT)
+' Document: https://github.com/PGS62/VBAInterop.jl#readme
 Option Explicit
 Option Private Module
 
@@ -12,8 +15,6 @@ Private Declare Function QueryPerformanceCounter Lib "kernel32" (lpPerformanceCo
 
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure : ElapsedTime
-' Author    : Philip Swannell
-' Date      : 16-Jun-2013
 ' Purpose   : Retrieves the current value of the performance counter, which is a high resolution (<1us)
 '             time stamp that can be used for time-interval measurements.
 '
@@ -35,8 +36,6 @@ End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : FileExists
-' Author     : Philip Swannell
-' Date       : 21-Oct-2021
 ' Purpose    : Does a file exit?
 ' -----------------------------------------------------------------------------------------------------------------------
 Function FileExists(FileName As String) As Boolean
@@ -53,8 +52,6 @@ End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : FolderExists
-' Author     : Philip Swannell
-' Date       : 21-Oct-2021
 ' Purpose    : Does a folder exist?
 ' Parameters :
 '  FolderPath: full path to folder, may or may not be terminated with backslash
@@ -71,6 +68,11 @@ ErrHandler:
 6         FolderExists = False
 End Function
 
+' -----------------------------------------------------------------------------------------------------------------------
+' Procedure  : SaveTextFile
+' Purpose    : Save a text file to disk.
+'  Format  : TriStateTrue for UTF-16, TriStateFalse for ascii
+' -----------------------------------------------------------------------------------------------------------------------
 Function SaveTextFile(FileName As String, Contents As String, Format As TriState)
           Dim FSO As New Scripting.FileSystemObject
           Dim ts As Scripting.TextStream
@@ -84,30 +86,33 @@ ErrHandler:
 7         Throw "#SaveTextFile (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Function
 
-Function ReadAllFromTextFile(FileName As String, Format As TriState)
+' -----------------------------------------------------------------------------------------------------------------------
+' Procedure  : ReadTextFile
+' Purpose    : Returns the contents of a text file.
+'  Format  : TriStateTrue for UTF-16, TriStateFalse for ascii
+' -----------------------------------------------------------------------------------------------------------------------
+Function ReadTextFile(FileName As String, Format As TriState)
           Dim FSO As New Scripting.FileSystemObject
           Dim ts As Scripting.TextStream
 1         On Error GoTo ErrHandler
 2         Set ts = FSO.OpenTextFile(FileName, ForReading, , Format)
-3         ReadAllFromTextFile = ts.ReadAll
+3         ReadTextFile = ts.ReadAll
 4         ts.Close
 5         Exit Function
 ErrHandler:
-6         Throw "#ReadAllFromTextFile (line " & CStr(Erl) + "): " & Err.Description & "!"
+6         Throw "#ReadTextFile (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : LocalTemp
-' Author     : Philip Swannell
-' Date       : 14-Oct-2021
 ' Purpose    : Return a writable directory for saving results files to be communicated to Julia.
 ' -----------------------------------------------------------------------------------------------------------------------
 Function LocalTemp()
-          Static Res As String
+          Static res As String
           Const FolderName = "VBAInterop"
 1         On Error GoTo ErrHandler
-2         If Res <> "" Then
-3             LocalTemp = Res
+2         If res <> "" Then
+3             LocalTemp = res
 4             Exit Function
 5         End If
 
@@ -117,35 +122,16 @@ Function LocalTemp()
 7             Set F = FSO.GetFolder(Environ("TEMP"))
 8             F.SubFolders.Add FolderName
 9         End If
-10        Res = Environ("TEMP") & "\" & FolderName
+10        res = Environ("TEMP") & "\" & FolderName
 
-          'Arrgh Environ("Temp") still (2021) uses 8.3 convention if user name > 8 characters, patch up.
-11        If InStr(Res, "~") > 0 Then
-              Dim ThirdPart As String, Parts() As String
-12            Parts = VBA.Split(Res, "\")
-13            If UBound(Parts) > 2 Then
-14                ThirdPart = Parts(2)
-15                If InStr(ThirdPart, "~") > 0 Then
-16                    If UCase(Left(ThirdPart, 5)) = UCase(Left(Environ("username"), 5)) Then
-17                        Parts(2) = Environ("username")
-18                        If FolderExists(VBA.Join(Parts, "\")) Then
-19                            Res = VBA.Join(Parts, "\")
-20                        End If
-21                    End If
-22                End If
-23            End If
-24        End If
-
-25        LocalTemp = Res
-26        Exit Function
+11        LocalTemp = res
+12        Exit Function
 ErrHandler:
-27        Throw "#LocalTemp (line " & CStr(Erl) + "): " & Err.Description & "!"
+13        Throw "#LocalTemp (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : CleanLocalTemp
-' Author     : Philip Swannell
-' Date       : 20-Oct-2021
 ' Purpose    : Clean out files in the LocalTemp folder that have not been accessed for more than
 '              DeleteFilesOlderThan days.
 ' -----------------------------------------------------------------------------------------------------------------------
@@ -170,8 +156,6 @@ End Sub
 
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure : NumDimensions
-' Author    : Philip Swannell
-' Date      : 16-Jun-2013
 ' Purpose   : Returns the number of dimensions in an array variable, or 0 if the variable
 '             is not an array.
 ' -----------------------------------------------------------------------------------------------------------------------
@@ -203,8 +187,12 @@ Sub Throw(ByVal ErrorString As String)
 5         End If
 End Sub
 
-Sub MakeMeAnAddin()
-1         ThisWorkbook.IsAddin = True
+Sub MenuButton()
+1         On Error GoTo ErrHandler
+2         Application.Run "SolumAddin.xlam!AuditMenu"
+3         Exit Sub
+ErrHandler:
+4         MsgBox "#MenuButton (line " & CStr(Erl) + "): " & Err.Description & "!", vbCritical
 End Sub
 
 

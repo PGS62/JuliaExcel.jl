@@ -1,4 +1,8 @@
 Attribute VB_Name = "modVBAInterop"
+' Copyright (c) 2021 - Philip Swannell
+' License MIT (https://opensource.org/licenses/MIT)
+' Document: https://github.com/PGS62/VBAInterop.jl#readme
+
 Option Explicit
 #If VBA7 And Win64 Then
     Declare PtrSafe Function GetCurrentProcessId Lib "kernel32" () As Long
@@ -9,148 +13,6 @@ Option Explicit
     Public Declare Sub Sleep Lib "kernel32" (ByVal Milliseconds As Long)
     Public Declare Function IsWindow Lib "user32" (ByVal hwnd As Long) As Long
 #End If
-
-'02-Nov-2021 18:24:59
-'Expression = Fill("xxx", 1000, 1000)
-'Average time in JuliaEval    1.97846575998701
-'02-Nov-2021 18:26:03
-'Expression = Fill("xxx", 1000, 1000)
-'Average time in JuliaEval    2.36411444998812
-'02-Nov-2021 18:27:12
-'Expression = Fill("xxx", 1000, 1000)
-'Average time in JuliaEval    1.92937137000263
-'05-Nov-2021 16:18:37        DESKTOP-0VD2AF0
-'Expression = Fill("xxx", 1000, 1000)
-'Average time in JuliaEval    1.47189380999916
-
-Sub speedtest()
-
-          Const Expression As String = "fill(""xxx"",1000,1000)"
-          Dim t1 As Double, t2 As Double
-          Dim Res
-          Const NumCalls = 10
-          Dim i As Long
-
-1         JuliaLaunch
-2         t1 = ElapsedTime
-3         For i = 1 To NumCalls
-4             Res = JuliaEval(Expression)
-5         Next i
-6         t2 = ElapsedTime
-
-7         Debug.Print Format(Now(), "dd-mmm-yyyy hh:mm:ss"), Environ("ComputerName")
-8         Debug.Print "Expression = " & Expression
-9         Debug.Print "Average time in JuliaEval", (t2 - t1) / NumCalls
-
-End Sub
-
-' -----------------------------------------------------------------------------------------------------------------------
-' Procedure  : ConcatenateExpressions
-' Author     : Philip Swannell
-' Date       : 05-Nov-2021
-' Purpose    : It's convenient to be able to pass in a multi-line expression, which we first concatenate with semi-colon
-'              delimiter before passing to Julia for evaluation
-' -----------------------------------------------------------------------------------------------------------------------
-Private Function ConcatenateExpressions(JuliaExpression As Variant) As String
-          Dim i As Long
-          Dim NR As Long, NC As Long, Tmp() As String
-1         On Error GoTo ErrHandler
-2         If TypeName(JuliaExpression) = "Range" Then
-3             JuliaExpression = JuliaExpression.Value
-4         End If
-5         Select Case NumDimensions(JuliaExpression)
-              Case 0
-6                 ConcatenateExpressions = CStr(JuliaExpression)
-7             Case 1
-8                 ConcatenateExpressions = VBA.Join(JuliaExpression, ";")
-9             Case 2
-10                NC = UBound(JuliaExpression, 2) - LBound(JuliaExpression, 1) + 1
-11                If NC > 1 Then Throw "When passed as an array or a Range, JuliaExpression should have only one column, but got " + CStr(NC) + " columns"
-12                ReDim Tmp(LBound(JuliaExpression, 1) To UBound(JuliaExpression, 1))
-13                For i = LBound(Tmp) To UBound(Tmp)
-14                    Tmp(i) = JuliaExpression(i, LBound(JuliaExpression, 2))
-15                Next
-16                ConcatenateExpressions = VBA.Join(Tmp, ";")
-17            Case Else
-18                Throw "Too many dimensions in JuliaExpression"
-19        End Select
-20        Exit Function
-ErrHandler:
-21        Throw "#ConcatenateExpressions (line " & CStr(Erl) + "): " & Err.Description & "!"
-End Function
-
-' -----------------------------------------------------------------------------------------------------------------------
-' Procedure  : JuliaEval2
-' Author     : Philip Swannell
-' Date       : 05-Nov-2021
-' Purpose    : Offers control of calculation order
-' -----------------------------------------------------------------------------------------------------------------------
-Function JuliaEval2(JuliaExpression As Variant, EvaluateAfterThisCellIsCalculated As Range)
-1         JuliaEval2 = JuliaEval(JuliaExpression)
-End Function
-
-' -----------------------------------------------------------------------------------------------------------------------
-' Procedure  : JuliaEval
-' Author     : Philip Swannell
-' Date       : 18-Oct-2021
-' Purpose    : Evaluate some julia code, returning the result to VBA.
-' Parameters :
-'  JuliaExpression : Some julia code such as "1+1" or "collect(1:100)"
-' -----------------------------------------------------------------------------------------------------------------------
-Function JuliaEval(ByVal JuliaExpression As Variant)
-          
-          Dim ExpressionFile As String
-          Dim FlagFile As String
-          Dim ResultFile As String
-          Dim strJuliaExpression As String
-          Dim Tmp As String
-          Dim WindowTitle As String
-          Static HwndJulia As LongPtr
-          Static JuliaExe As String
-          Static PID As Long
-
-1         On Error GoTo ErrHandler
-
-2         strJuliaExpression = ConcatenateExpressions(JuliaExpression)
-
-3         If JuliaExe = "" Then
-4             JuliaExe = DefaultJuliaExe()
-5         End If
-6         If PID = 0 Then
-7             PID = GetCurrentProcessId
-8         End If
-            
-9         If HwndJulia = 0 Or IsWindow(HwndJulia) = 0 Then
-10            WindowTitle = "serving Excel PID " & CStr(PID)
-11            GetHandleFromPartialCaption HwndJulia, WindowTitle
-12        End If
-
-13        If HwndJulia = 0 Or IsWindow(HwndJulia) = 0 Then
-14            Throw "Cannot find instance of Julia serving this instance of Excel (PID " & CStr(PID) & "). Please call function JuliaLaunch"
-15        End If
-          
-16        Tmp = LocalTemp()
-          
-17        FlagFile = Tmp & "\VBAInteropFlag_" & CStr(PID) & ".txt"
-18        ResultFile = Tmp & "\VBAInteropResult_" & CStr(PID) & ".txt"
-19        ExpressionFile = Tmp & "\VBAInteropExpression_" & CStr(PID) & ".txt"
-
-20        SaveTextFile FlagFile, "", TristateTrue
-21        SaveTextFile ExpressionFile, strJuliaExpression, TristateTrue
-          
-22        SendMessageToJulia HwndJulia
-
-23        Do While FileExists(FlagFile)
-24            Sleep 1
-25            If IsWindow(HwndJulia) = 0 Then Throw "The expression evaluated caused Julia to shut down"
-26        Loop
-
-27        JuliaEval = ReadFileAndDecode(ResultFile)
-
-28        Exit Function
-ErrHandler:
-29        JuliaEval = "#JuliaEval (line " & CStr(Erl) + "): " & Err.Description & "!"
-End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : JuliaLaunch
@@ -168,14 +30,14 @@ Function JuliaLaunch(Optional MinimiseWindow As Boolean, Optional ByVal JuliaExe
           Dim HwndJulia As LongPtr
           Dim LoadFile As String
           Dim LoadFileContents As String
+          Dim PID As Long
           Dim WindowPartialTitle As String
           Dim WindowTitle As String
           Dim wsh As WshShell
-          Dim PID As Long
 
 1         On Error GoTo ErrHandler
 2         If JuliaExe = "" Then
-3             JuliaExe = DefaultJuliaExe()
+3             JuliaExe = JuliaLocation()
 4         Else
 5             If LCase(Right(JuliaExe, 10)) <> "\julia.exe" Then
 6                 Throw "Argument JuliaExe has been provided but is not the full path to a file with name julia.exe"
@@ -235,7 +97,7 @@ Function JuliaLaunch(Optional MinimiseWindow As Boolean, Optional ByVal JuliaExe
 34        Wend
 35        CleanLocalTemp
 36        If FileExists(ErrorFile) Then
-37            Throw "Julia launched but encountered an error when executing '" & LoadFile & "' the error was: " & ReadAllFromTextFile(ErrorFile, TristateFalse)
+37            Throw "Julia launched but encountered an error when executing '" & LoadFile & "' the error was: " & ReadTextFile(ErrorFile, TristateFalse)
 38        End If
           
 39        GetHandleFromPartialCaption HwndJulia, WindowPartialTitle
@@ -249,14 +111,14 @@ ErrHandler:
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
-' Procedure  : DefaultJuliaExe
+' Procedure  : JuliaLocation
 ' Author     : Philip Swannell
 ' Date       : 14-Oct-2021
 ' Purpose    : Returns the location of the Julia executable. First looks at the path, and if not found looks at the
-'              locations to which julia is (by default) installed. If more than one version is found then returns the
-'              most recently installed one.
+'              locations to which Julia is (by default) installed. If more than one version is found then returns the
+'              most recently installed.
 ' -----------------------------------------------------------------------------------------------------------------------
-Private Function DefaultJuliaExe()
+Private Function JuliaLocation()
 
           Dim ChildFolder As Scripting.Folder
           Dim ChosenExe As String
@@ -282,11 +144,13 @@ Private Function DefaultJuliaExe()
 6             If Right(Folder, 1) <> "\" Then Folder = Folder + "\"
 7             ExeFile = Folder + "julia.exe"
 8             If FileExists(ExeFile) Then
-9                 DefaultJuliaExe = ExeFile
+9                 JuliaLocation = ExeFile
 10                Exit Function
 11            End If
 12        Next i
-          'If not found on path, search in the locations to which the windows installer installs julia (if the user accepts defaults) and choose the most recently installed
+
+          'If not found on path, search in the locations to which the windows installer installs
+          'julia (if the user accepts defaults) and choose the most recently installed
 
 13        ParentFolderName = Environ("LOCALAPPDATA") & "\Programs"
 14        Set ParentFolder = FSO.GetFolder(ParentFolderName)
@@ -309,35 +173,133 @@ Private Function DefaultJuliaExe()
                   ParentFolderName + " which is the default location for Julia on Windows"
 29            Throw ErrString
 30        Else
-31            DefaultJuliaExe = ChosenExe
+31            JuliaLocation = ChosenExe
 32        End If
 
 33        Exit Function
 ErrHandler:
-34        Throw "#DefaultJuliaExe (line " & CStr(Erl) + "): " & Err.Description & "!"
+34        Throw "#JuliaLocation (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Function
 
-Function JuliaSetVar2(VariableName As String, RefersTo As Variant, SetAfterThisCellIsCalculated As Range)
-1         JuliaSetVar2 = JuliaSetVar(VariableName, RefersTo)
+' -----------------------------------------------------------------------------------------------------------------------
+' Procedure  : JuliaEval
+' Author     : Philip Swannell
+' Date       : 18-Oct-2021
+' Purpose    : Evaluate arbitrary Julia code, returning the result to VBA.
+' Parameters :
+'  JuliaExpression : Some Julia code such as "1+1" or "collect(1:100)", may be a one-column array for multi-line code.
+'  PrecedentCell   : Offers control of the calculation order when calling from worksheet. Pass in a cell which must be
+'                    calculated before the JuliaExpression is evaluated.
+' -----------------------------------------------------------------------------------------------------------------------
+Function JuliaEval(ByVal JuliaExpression As Variant, Optional PrecedentCell As Range)
+          
+          Dim ExpressionFile As String
+          Dim FlagFile As String
+          Dim ResultFile As String
+          Dim strJuliaExpression As String
+          Dim Tmp As String
+          Dim WindowTitle As String
+          Static HwndJulia As LongPtr
+          Static JuliaExe As String
+          Static PID As Long
+
+1         On Error GoTo ErrHandler
+
+2         strJuliaExpression = ConcatenateExpressions(JuliaExpression)
+
+3         If JuliaExe = "" Then
+4             JuliaExe = JuliaLocation()
+5         End If
+6         If PID = 0 Then
+7             PID = GetCurrentProcessId
+8         End If
+            
+9         If HwndJulia = 0 Or IsWindow(HwndJulia) = 0 Then
+10            WindowTitle = "serving Excel PID " & CStr(PID)
+11            GetHandleFromPartialCaption HwndJulia, WindowTitle
+12        End If
+
+13        If HwndJulia = 0 Or IsWindow(HwndJulia) = 0 Then
+14            Throw "Cannot find instance of Julia serving this instance of Excel (PID " & CStr(PID) & "). Please call function JuliaLaunch"
+15        End If
+          
+16        Tmp = LocalTemp()
+          
+17        FlagFile = Tmp & "\VBAInteropFlag_" & CStr(PID) & ".txt"
+18        ResultFile = Tmp & "\VBAInteropResult_" & CStr(PID) & ".txt"
+19        ExpressionFile = Tmp & "\VBAInteropExpression_" & CStr(PID) & ".txt"
+
+20        SaveTextFile FlagFile, "", TristateTrue
+21        SaveTextFile ExpressionFile, strJuliaExpression, TristateTrue
+          
+22        PostMessageToJulia HwndJulia
+
+23        Do While FileExists(FlagFile)
+24            Sleep 1
+25            If IsWindow(HwndJulia) = 0 Then Throw "The expression evaluated caused Julia to shut down"
+26        Loop
+
+27        JuliaEval = UnserialiseFromFile(ResultFile)
+
+28        Exit Function
+ErrHandler:
+29        JuliaEval = "#JuliaEval (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Function
 
-Function JuliaSetVar(VariableName As String, RefersTo As Variant)
+' -----------------------------------------------------------------------------------------------------------------------
+' Procedure  : ConcatenateExpressions
+' Author     : Philip Swannell
+' Date       : 05-Nov-2021
+' Purpose    : It's convenient to be able to pass in a multi-line expression, which we first concatenate with semi-colon
+'              delimiter before passing to Julia for evaluation
+' -----------------------------------------------------------------------------------------------------------------------
+Private Function ConcatenateExpressions(JuliaExpression As Variant) As String
+          Dim i As Long
+          Dim NC As Long
+          Dim Tmp() As String
+1         On Error GoTo ErrHandler
+2         If TypeName(JuliaExpression) = "Range" Then
+3             JuliaExpression = JuliaExpression.Value
+4         End If
+5         Select Case NumDimensions(JuliaExpression)
+              Case 0
+6                 ConcatenateExpressions = CStr(JuliaExpression)
+7             Case 1
+8                 ConcatenateExpressions = VBA.Join(JuliaExpression, ";")
+9             Case 2
+10                NC = UBound(JuliaExpression, 2) - LBound(JuliaExpression, 1) + 1
+11                If NC > 1 Then Throw "When passed as an array or a Range, JuliaExpression should have only one column, but got " + CStr(NC) + " columns"
+12                ReDim Tmp(LBound(JuliaExpression, 1) To UBound(JuliaExpression, 1))
+13                For i = LBound(Tmp) To UBound(Tmp)
+14                    Tmp(i) = JuliaExpression(i, LBound(JuliaExpression, 2))
+15                Next
+16                ConcatenateExpressions = VBA.Join(Tmp, ";")
+17            Case Else
+18                Throw "Too many dimensions in JuliaExpression"
+19        End Select
+20        Exit Function
+ErrHandler:
+21        Throw "#ConcatenateExpressions (line " & CStr(Erl) + "): " & Err.Description & "!"
+End Function
+
+' -----------------------------------------------------------------------------------------------------------------------
+' Procedure  : JuliaSetVar
+' Author     : Philip Swannell
+' Date       : 06-Nov-2021
+' Purpose    : Sets a variable with global scope in the Julia session.
+' Parameters :
+'  VariableName : The name of the variable in Julia. An error will result if this contains disallowed characters such as spaces.
+'  RefersTo     : A value to which the Julia variable will refer
+'  PrecedentCell: Optional and allows control of the calculation order when calling from a worksheet. Pass in a cell
+'                 which must be calculated prior to execution.
+' -----------------------------------------------------------------------------------------------------------------------
+Function JuliaSetVar(VariableName As String, RefersTo As Variant, Optional PrecedentCell As Range)
 1         On Error GoTo ErrHandler
 2         JuliaSetVar = JuliaCall("VBAInterop.setvar", VariableName, RefersTo)
 
 3         Exit Function
 ErrHandler:
 4         JuliaSetVar = "#JuliaSetVar (line " & CStr(Erl) + "): " & Err.Description & "!"
-End Function
-
-' -----------------------------------------------------------------------------------------------------------------------
-' Procedure  : JuliaCall2
-' Author     : Philip Swannell
-' Date       : 05-Nov-2021
-' Purpose    : Offers control of calculation order
-' -----------------------------------------------------------------------------------------------------------------------
-Function JuliaCall2(JuliaFunction As String, CallAfterThisCellIsCalculated As Range, ParamArray Args())
-1         JuliaCall2 = JuliaCall(JuliaFunction, Args)
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
@@ -371,6 +333,16 @@ ErrHandler:
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
+' Procedure  : JuliaCall2
+' Author     : Philip Swannell
+' Date       : 05-Nov-2021
+' Purpose    : JuliaCall, but with control of calculation order.
+' -----------------------------------------------------------------------------------------------------------------------
+Function JuliaCall2(JuliaFunction As String, PrecedentCell As Range, ParamArray Args())
+1         JuliaCall2 = JuliaCall(JuliaFunction, Args)
+End Function
+
+' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : ToJuliaLiteral
 ' Author     : Philip Swannell
 ' Date       : 19-Oct-2021
@@ -380,7 +352,7 @@ End Function
 ' ?ToJuliaLiteral(Array(1#, 2#, 3#))
 ' [1.0,2.0,3.0]
 '
-' In Julia REPL
+' In Julia REPL:
 ' julia> [1.0,2.0,3.0]
 ' 3-element Vector{Float64}:
 '  1.0
@@ -442,7 +414,7 @@ Private Function ToJuliaLiteral(ByVal x As Variant)
 39                    ToJuliaLiteral = "reshape(" & ToJuliaLiteral & "," & CStr(NR) & ",1)"
 40                End If
 41            Case Else
-42                Throw "case more than two dimensions not handled"
+42                Throw "case more than two dimensions not handled" 'In VBA there's no way to handle arrays with arbitrary number of dimensions. Easy in Julia!
 43        End Select
 
 44        Exit Function
@@ -457,38 +429,38 @@ End Function
 ' Purpose    : Convert a singleton into a string which julia will parse as the equivalent to the passed in x.
 ' -----------------------------------------------------------------------------------------------------------------------
 Private Function SingletonToJuliaLiteral(x As Variant)
-          Dim Res As String
+          Dim res As String
 
 1         On Error GoTo ErrHandler
 2         Select Case VarType(x)
 
               Case vbString
-3                 Res = x
+3                 res = x
 4                 If InStr(x, "\") > 0 Then
-5                     Res = Replace(Res, "\", "\\")
+5                     res = Replace(res, "\", "\\")
 6                 End If
 7                 If InStr(x, vbCr) > 0 Then
-8                     Res = Replace(Res, vbCr, "\r")
+8                     res = Replace(res, vbCr, "\r")
 9                 End If
 10                If InStr(x, vbLf) > 0 Then
-11                    Res = Replace(Res, vbLf, "\n")
+11                    res = Replace(res, vbLf, "\n")
 12                End If
 13                If InStr(x, "$") > 0 Then
-14                    Res = Replace(Res, "$", "\$")
+14                    res = Replace(res, "$", "\$")
 15                End If
 16                If InStr(x, """") > 0 Then
-17                    Res = Replace(Res, """", "\""")
+17                    res = Replace(res, """", "\""")
 18                End If
-19                SingletonToJuliaLiteral = """" & Res & """"
+19                SingletonToJuliaLiteral = """" & res & """"
 20                Exit Function
 21            Case vbDouble
-22                Res = CStr(x)
-23                If InStr(Res, ".") = 0 Then
-24                    If InStr(Res, "E") = 0 Then
-25                        Res = Res + ".0"
+22                res = CStr(x)
+23                If InStr(res, ".") = 0 Then
+24                    If InStr(res, "E") = 0 Then
+25                        res = res + ".0"
 26                    End If
 27                End If
-28                SingletonToJuliaLiteral = Res
+28                SingletonToJuliaLiteral = res
 29                Exit Function
 30            Case vbLong, vbInteger
 31                SingletonToJuliaLiteral = CStr(x)
@@ -515,7 +487,36 @@ ErrHandler:
 50        Throw "#SingletonToJuliaLiteral (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Function
 
-
 Function JuliaInclude(FileName As String)
 1         JuliaInclude = JuliaCall("VBAInterop.include", Replace(FileName, "\", "/"))
 End Function
+
+'05-Nov-2021 16:18:37        DESKTOP-0VD2AF0
+'Expression = Fill("xxx", 1000, 1000)
+'Average time in JuliaEval    1.47189380999916
+'06-Nov-2021 12:28:58        PHILIP-LAPTOP
+'Expression = Fill("xxx", 1000, 1000)
+'Average time in JuliaEval    1.9295860900078
+Private Sub SpeedTest()
+
+          Const Expression As String = "fill(""xxx"",1000,1000)"
+          Const NumCalls = 10
+          Dim i As Long
+          Dim res
+          Dim t1 As Double
+          Dim t2 As Double
+
+1         JuliaLaunch
+2         t1 = ElapsedTime
+3         For i = 1 To NumCalls
+4             res = JuliaEval(Expression)
+5         Next i
+6         t2 = ElapsedTime
+
+7         Debug.Print Format(Now(), "dd-mmm-yyyy hh:mm:ss"), Environ("ComputerName")
+8         Debug.Print "Expression = " & Expression
+9         Debug.Print "Average time in JuliaEval", (t2 - t1) / NumCalls
+
+End Sub
+
+
