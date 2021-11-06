@@ -16,8 +16,6 @@ Option Explicit
 
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : JuliaLaunch
-' Author     : Philip Swannell
-' Date       : 14-Oct-2021
 ' Purpose    : Launches Julia, ready to "serve" current instance of Excel.
 ' -----------------------------------------------------------------------------------------------------------------------
 Function JuliaLaunch(Optional MinimiseWindow As Boolean, Optional ByVal JuliaExe As String)
@@ -112,8 +110,6 @@ End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : JuliaLocation
-' Author     : Philip Swannell
-' Date       : 14-Oct-2021
 ' Purpose    : Returns the location of the Julia executable. First looks at the path, and if not found looks at the
 '              locations to which Julia is (by default) installed. If more than one version is found then returns the
 '              most recently installed.
@@ -183,8 +179,6 @@ End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : JuliaEval
-' Author     : Philip Swannell
-' Date       : 18-Oct-2021
 ' Purpose    : Evaluate arbitrary Julia code, returning the result to VBA.
 ' Parameters :
 '  JuliaExpression : Some Julia code such as "1+1" or "collect(1:100)", may be a one-column array for multi-line code.
@@ -248,8 +242,6 @@ End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : ConcatenateExpressions
-' Author     : Philip Swannell
-' Date       : 05-Nov-2021
 ' Purpose    : It's convenient to be able to pass in a multi-line expression, which we first concatenate with semi-colon
 '              delimiter before passing to Julia for evaluation
 ' -----------------------------------------------------------------------------------------------------------------------
@@ -284,8 +276,6 @@ End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : JuliaSetVar
-' Author     : Philip Swannell
-' Date       : 06-Nov-2021
 ' Purpose    : Sets a variable with global scope in the Julia session.
 ' Parameters :
 '  VariableName : The name of the variable in Julia. An error will result if this contains disallowed characters such as spaces.
@@ -304,8 +294,6 @@ End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : JuliaCall
-' Author     : Philip Swannell
-' Date       : 19-Oct-2021
 ' Purpose    : Call a Julia function.
 ' Parameters :
 '  JuliaFunction: The name of the julia function to call, can be suffixed with a dot for broadcasting behaviour.
@@ -334,8 +322,6 @@ End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : JuliaCall2
-' Author     : Philip Swannell
-' Date       : 05-Nov-2021
 ' Purpose    : JuliaCall, but with control of calculation order.
 ' -----------------------------------------------------------------------------------------------------------------------
 Function JuliaCall2(JuliaFunction As String, PrecedentCell As Range, ParamArray Args())
@@ -344,8 +330,6 @@ End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : ToJuliaLiteral
-' Author     : Philip Swannell
-' Date       : 19-Oct-2021
 ' Purpose    : Convert an array into a string which julia will parse as the equivalent to the passed in x. e.g:
 '
 ' In VBA immediate window:
@@ -424,8 +408,6 @@ End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : SingletonToJuliaLiteral
-' Author     : Philip Swannell
-' Date       : 20-Oct-2021
 ' Purpose    : Convert a singleton into a string which julia will parse as the equivalent to the passed in x.
 ' -----------------------------------------------------------------------------------------------------------------------
 Private Function SingletonToJuliaLiteral(x As Variant)

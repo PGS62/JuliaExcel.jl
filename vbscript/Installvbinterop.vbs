@@ -7,7 +7,7 @@
 
 Option Explicit
 
-Const AddInNames = "VBAInterop.xlam"
+Const AddinName = "VBAInterop.xlam"
 
 Dim gErrorsEncountered
 Dim myWS, AddinsDest, MsgBoxTitle, MsgBoxTitleBad, AltStartupPath, AltStartupAlreadyDefined
@@ -248,6 +248,40 @@ Function Environ(Expression)
 	Environ = WshShell.ExpandEnvironmentStrings("%" & Expression & "%")
 End Function
 
+Sub InstallExcelAddin(AddinFullName, WithSlashR)
+    Dim RegKeyBranch
+    Dim RegKeyLeaf
+    Dim i
+    Dim Found
+    Dim NumAddins
+    Dim RegValue
+
+    RegKeyBranch = "HKEY_CURRENT_USER\Software\Microsoft\Office\" & OfficeVersion(1) & "\Excel\Options\"
+    i = 0
+    Do
+        i = i + 1
+        RegKeyLeaf = "OPEN" & IIf(i > 1, CStr(i - 1), "")
+        If RegistryKeyExists(RegKeyBranch & RegKeyLeaf) Then
+            NumAddins = NumAddins + 1
+            RegValue = RegistryRead(RegKeyBranch & RegKeyLeaf, "")
+            Found = InStr(LCase(RegValue), LCase(AddinFullName)) > 0
+            If Found Then Exit Sub
+        Else
+            Exit Do
+        End If
+    Loop
+
+    RegKeyLeaf = "OPEN" & IIf(NumAddins > 0, CStr(NumAddins), "")
+    'I can't discover what is the significance of the /R that appears in the Registry for some addins but not for others...
+    If WithSlashR Then
+        RegValue = "/R """ & AddinFullName & """"
+    Else
+        RegValue = AddinFullName
+    End If
+    RegistryWrite RegKeyBranch + RegKeyLeaf, RegValue
+
+End Sub
+
 '***********************************************************************************************************************************************
 'Effective start of this VBScript. Note elevating to admin as per http://www.winhelponline.com/blog/vbscripts-and-uac-elevation/
 'although, by design we put files in places where admim shouldn't be required
@@ -280,7 +314,8 @@ Else
     'If the user already has an AltStartUp path set then we use that location...
     'AddinsDest = GetAltStartupPath() & "\"
 
-    AddinsDest = Environ("USERPROFILE") & "\AppData\Roaming\Microsoft\Excel\XLSTART"
+    'AddinsDest = Environ("USERPROFILE") & "\AppData\Roaming\Microsoft\Excel\XLSTART"
+     AddinsDest = Environ("USERPROFILE") & "\AppData\Roaming\Microsoft\Addins\"   
 
     Dim AddinsSource
     AddinsSource = WScript.ScriptFullName
@@ -306,7 +341,7 @@ Else
     Dim Prompt
     Prompt = "This will install VBAInterop.xlsm by copying it from " & vbLf & vblf & _
         AddinsSource & vbLf & vbLf & _
-        "To Excel's StartupPath at:" & vblf & vblf & _
+        "To Excel's Addins path at:" & vblf & vblf & _
         AddinsDest & vblf & vblf & _
         "Do you wish to continue?"
     Dim result
@@ -316,10 +351,10 @@ Else
 
     ForceFolderToExist AddinsDest
 
-    'Copy files
-    Dim fso
-    Set fso = CreateObject("Scripting.FileSystemObject")
-    CopyNamedFiles AddinsSource , AddinsDest, AddInNames,True
+    'Copy file
+    CopyNamedFiles AddinsSource, AddinsDest, AddinName, True
+    'Make Excel "see" the addin
+    InstallExcelAddin AddinsDest & AddinName, True
 
     If gErrorsEncountered Then
         Prompt = "The install script has finished, but errors were encountered, which may mean the software will not work correctly."

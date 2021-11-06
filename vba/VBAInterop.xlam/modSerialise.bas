@@ -55,8 +55,6 @@ Option Base 1
 
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : UnserialiseFromFile
-' Author     : Philip Swannell
-' Date       : 04-Nov-2021
 ' Purpose    : Read the file saved by the Julia code and unserialise its contents.
 ' -----------------------------------------------------------------------------------------------------------------------
 Function UnserialiseFromFile(FileName As String)
@@ -82,8 +80,6 @@ End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : Unserialise
-' Author     : Philip Swannell
-' Date       : 04-Nov-2021
 ' Purpose    : Unserialises the contents of the results file saved by JuliaInterop julia code.
 ' -----------------------------------------------------------------------------------------------------------------------
 Function Unserialise(Chars As String, AllowNesting As Boolean, Optional ByRef Depth As Long)
@@ -192,8 +188,6 @@ End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : SerialiseToFile
-' Author     : Philip Swannell
-' Date       : 06-Nov-2021
 ' Purpose    : Serialise Data and write to file, the inverse of UnserialiseFromFile. Currently this procedure is not used
 '              but might be useful for writing tests of UnserialiseFromFile.
 ' -----------------------------------------------------------------------------------------------------------------------
@@ -220,7 +214,6 @@ End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : Serialise
-' Author     : Philip Swannell
 ' Date       : 04-Nov-2021
 ' Purpose    : Equivalent to the julia function in VBAInterop.encode_for_xl and serialises to the same format, though this
 '              VBA version is not currently used.

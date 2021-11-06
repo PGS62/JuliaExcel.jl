@@ -29,8 +29,6 @@ Option Private Module
 
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : PostMessageToJulia
-' Author     : Philip Swannell
-' Date       : 19-Oct-2021
 ' Purpose    : Sends a command to a running Julia process. Faster and more robust than using Application.SendKeys
 ' Remarks    : Figuring out the correct lParam argument to pass to PostMessage is tricky, Spy++ is helpful, and is
 '              installed on my PC at:
@@ -79,7 +77,6 @@ End Sub
 
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : GetHandleFromPartialCaption
-' Author     : Philip Swannell
 ' Purpose    : Get a window handle for a window whose title contains the string sCaption
 ' Adapted from
 ' https://stackoverflow.com/questions/25098263/how-to-use-findwindow-to-find-a-visible-or-invisible-window-with-a-partial-name
