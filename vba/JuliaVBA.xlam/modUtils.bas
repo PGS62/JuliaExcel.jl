@@ -187,6 +187,7 @@ Sub Throw(ByVal ErrorString As String)
 5         End If
 End Sub
 
+'Called from "Menu..." button on sheet Audit.
 Sub MenuButton()
 1         On Error GoTo ErrHandler
 2         Application.Run "SolumAddin.xlam!AuditMenu"
