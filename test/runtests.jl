@@ -1,6 +1,6 @@
-using JuliaVBA
+using JuliaExcel
 using Test
 
-@testset "JuliaVBA.jl" begin
+@testset "JuliaExcel.jl" begin
     # Write your tests here.
 end

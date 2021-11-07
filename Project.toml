@@ -1,4 +1,4 @@
-name = "JuliaVBA"
+name = "JuliaExcel"
 uuid = "661490ff-676f-49f7-9f60-bdb0e4e6656a"
 authors = ["Philip Swannell"]
 version = "0.0.0"

@@ -1,7 +1,7 @@
 Attribute VB_Name = "modMain"
 ' Copyright (c) 2021 - Philip Swannell
 ' License MIT (https://opensource.org/licenses/MIT)
-' Document: https://github.com/PGS62/JuliaVBA.jl#readme
+' Document: https://github.com/PGS62/JuliaExcel.jl#readme
 
 Option Explicit
 #If VBA7 And Win64 Then
@@ -20,7 +20,7 @@ Option Explicit
 ' -----------------------------------------------------------------------------------------------------------------------
 Function JuliaLaunch(Optional MinimiseWindow As Boolean, Optional ByVal JuliaExe As String)
 
-          Const PackageName As String = "JuliaVBA"
+          Const PackageName As String = "JuliaExcel"
           Dim Command As String
           Dim ErrorCode As Long
           Dim ErrorFile As String
@@ -54,12 +54,12 @@ Function JuliaLaunch(Optional MinimiseWindow As Boolean, Optional ByVal JuliaExe
 17            Exit Function
 18        End If
 
-19        FlagFile = LocalTemp() & "\JuliaVBAFlag_" & CStr(GetCurrentProcessId()) & ".txt"
-20        ErrorFile = LocalTemp() & "\JuliaVBALoadError_" & CStr(GetCurrentProcessId()) & ".txt"
+19        FlagFile = LocalTemp() & "\JuliaExcelFlag_" & CStr(GetCurrentProcessId()) & ".txt"
+20        ErrorFile = LocalTemp() & "\JuliaExcelLoadError_" & CStr(GetCurrentProcessId()) & ".txt"
 21        If FileExists(ErrorFile) Then Kill ErrorFile
           
 22        SaveTextFile FlagFile, "", TristateFalse
-23        LoadFile = LocalTemp() & "\JuliaVBAStartUp_" & CStr(GetCurrentProcessId()) & ".jl"
+23        LoadFile = LocalTemp() & "\JuliaExcelStartUp_" & CStr(GetCurrentProcessId()) & ".jl"
               
 24        LoadFileContents = _
               "try" & vbLf & _
@@ -68,7 +68,7 @@ Function JuliaLaunch(Optional MinimiseWindow As Boolean, Optional ByVal JuliaExe
               "    using Dates" & vbLf & _
               "    global const xlpid = " & CStr(GetCurrentProcessId) & vbLf & _
               "    " & PackageName & ".settitle()" & vbLf & _
-              "    println(""Julia $VERSION, using JuliaVBA to serve Excel running as process ID " & CStr(GetCurrentProcessId) & """)" & vbLf & _
+              "    println(""Julia $VERSION, using JuliaExcel to serve Excel running as process ID " & CStr(GetCurrentProcessId) & """)" & vbLf & _
               "    rm(""" & Replace(FlagFile, "\", "/") & """)" & vbLf & _
               "catch e" & vbLf & _
               "    theerror = ""$e""" & vbLf & _
@@ -219,9 +219,9 @@ Function JuliaEval(ByVal JuliaExpression As Variant, Optional PrecedentCell As R
           
 16        Tmp = LocalTemp()
           
-17        FlagFile = Tmp & "\JuliaVBAFlag_" & CStr(PID) & ".txt"
-18        ResultFile = Tmp & "\JuliaVBAResult_" & CStr(PID) & ".txt"
-19        ExpressionFile = Tmp & "\JuliaVBAExpression_" & CStr(PID) & ".txt"
+17        FlagFile = Tmp & "\JuliaExcelFlag_" & CStr(PID) & ".txt"
+18        ResultFile = Tmp & "\JuliaExcelResult_" & CStr(PID) & ".txt"
+19        ExpressionFile = Tmp & "\JuliaExcelExpression_" & CStr(PID) & ".txt"
 
 20        SaveTextFile FlagFile, "", TristateTrue
 21        SaveTextFile ExpressionFile, strJuliaExpression, TristateTrue
@@ -285,7 +285,7 @@ End Function
 ' -----------------------------------------------------------------------------------------------------------------------
 Function JuliaSetVar(VariableName As String, RefersTo As Variant, Optional PrecedentCell As Range)
 1         On Error GoTo ErrHandler
-2         JuliaSetVar = JuliaCall("JuliaVBA.setvar", VariableName, RefersTo)
+2         JuliaSetVar = JuliaCall("JuliaExcel.setvar", VariableName, RefersTo)
 
 3         Exit Function
 ErrHandler:
@@ -473,7 +473,7 @@ ErrHandler:
 End Function
 
 Function JuliaInclude(FileName As String)
-1         JuliaInclude = JuliaCall("JuliaVBA.include", Replace(FileName, "\", "/"))
+1         JuliaInclude = JuliaCall("JuliaExcel.include", Replace(FileName, "\", "/"))
 End Function
 
 '05-Nov-2021 16:18:37        DESKTOP-0VD2AF0

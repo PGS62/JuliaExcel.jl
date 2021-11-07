@@ -1,4 +1,5 @@
 Version	Date	Time	Author	Comment
+29	07-Nov-2021	10:17	Philip Swannell	JuliaVBA -> JuliaExcel
 28	06-Nov-2021	17:43	Philip Swannell	Named the VBA project.
 27	06-Nov-2021	17:10	Philip Swannell	Various bug fixes.
 26	06-Nov-2021	16:13	Philip Swannell	Rename JuliaInterop--> JuliaVBA

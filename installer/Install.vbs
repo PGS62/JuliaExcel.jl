@@ -1,4 +1,4 @@
-' Installer for JuliaVBA.xlam
+' Installer for JuliaExcel.xlam
 ' Philip Swannell 4 Nov 2021
 
 'To Debug this file, install visual studio set up for debugging (https://www.codeproject.com/Tips/864659/How-to-Debug-Visual-Basic-Script-with-Visual-Studi)
@@ -7,8 +7,8 @@
 
 Option Explicit
 
-Const AddinName = "JuliaVBA.xlam"
-Const website = "https://github.com/PGS62/JuliaVBA.jl#readme"
+Const AddinName = "JuliaExcel.xlam"
+Const website = "https://github.com/PGS62/JuliaExcel.jl#readme"
 
 Dim gErrorsEncountered
 Dim myWS, AddinsDest, MsgBoxTitle, MsgBoxTitleBad, AltStartupPath, AltStartupAlreadyDefined
@@ -312,15 +312,15 @@ If WScript.Arguments.length = 0 Then
 Else
     Set myWS = CreateObject("WScript.Shell")
     
-    MsgBoxTitle = "Install JuliaVBA"
-    MsgBoxTitleBad = "Install JuliaVBA - Error Encountered"
+    MsgBoxTitle = "Install JuliaExcel"
+    MsgBoxTitleBad = "Install JuliaExcel - Error Encountered"
 
     gErrorsEncountered = False
     CheckProcess "Excel.exe"
 
     'Code to copy to AltStartup, but I think StartUpPath might be better. PGS 5/11/21
     'Need to test if using StartupPath leads to "Excel Link Hell" when sharing workbooks that call functions from the addin between users
-   ' AddinsDest = "C:\ProgramData\JuliaVBA\Addins\"
+   ' AddinsDest = "C:\ProgramData\JuliaExcel\Addins\"
    ' AltStartupPath = GetAltStartupPath()
    ' AltStartupAlreadyDefined = True
    ' If AltStartupPath = "" Or AltStartupPath = "Not found" Then
@@ -355,7 +355,7 @@ Else
     End If
 
     Dim Prompt
-    Prompt = "This will install JuliaVBA.xlsm by copying it from " & vbLf & vblf & _
+    Prompt = "This will install JuliaExcel.xlsm by copying it from " & vbLf & vblf & _
         AddinsSource & vbLf & vbLf & _
         "To Excel's Addins path at:" & vblf & vblf & _
         AddinsDest & vblf & vblf & _
@@ -378,7 +378,7 @@ Else
                  website
         MsgBox Prompt, vbOKOnly + vbCritical, MsgBoxTitleBad
     Else
-        Prompt = "JuliaVBA is installed, and its functions such as JuliaEval and " & _
+        Prompt = "JuliaExcel is installed, and its functions such as JuliaEval and " & _
                  "JuliaCall will be available the next time you start Excel." & vblf & vblf & _
                  website
         MsgBox Prompt, vbOKOnly + vbInformation, MsgBoxTitle

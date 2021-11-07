@@ -1,7 +1,7 @@
 Attribute VB_Name = "modPostMessage"
 ' Copyright (c) 2021 - Philip Swannell
 ' License MIT (https://opensource.org/licenses/MIT)
-' Document: https://github.com/PGS62/JuliaVBA.jl#readme
+' Document: https://github.com/PGS62/JuliaExcel.jl#readme
 Option Explicit
 Option Private Module
 

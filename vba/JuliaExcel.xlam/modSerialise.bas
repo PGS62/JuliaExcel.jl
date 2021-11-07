@@ -1,7 +1,7 @@
 Attribute VB_Name = "modSerialise"
 ' Copyright (c) 2021 - Philip Swannell
 ' License MIT (https://opensource.org/licenses/MIT)
-' Document: https://github.com/PGS62/JuliaVBA.jl#readme
+' Document: https://github.com/PGS62/JuliaExcel.jl#readme
 
 Option Explicit
 Option Private Module
@@ -80,7 +80,7 @@ End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : Unserialise
-' Purpose    : Unserialises the contents of the results file saved by JuliaVBA julia code.
+' Purpose    : Unserialises the contents of the results file saved by JuliaExcel julia code.
 ' -----------------------------------------------------------------------------------------------------------------------
 Function Unserialise(Chars As String, AllowNesting As Boolean, Optional ByRef Depth As Long)
 
@@ -215,7 +215,7 @@ End Function
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : Serialise
 ' Date       : 04-Nov-2021
-' Purpose    : Equivalent to the julia function in JuliaVBA.encode_for_xl and serialises to the same format, though this
+' Purpose    : Equivalent to the julia function in JuliaExcel.encode_for_xl and serialises to the same format, though this
 '              VBA version is not currently used.
 ' -----------------------------------------------------------------------------------------------------------------------
 Function Serialise(x As Variant) As String
