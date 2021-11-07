@@ -56,7 +56,7 @@ Sub CopyStringToClipboard(MyString As String)
 
           'Open the Clipboard to copy data to.
 9         If OpenClipboard(0&) = 0 Then
-10            Throw "Could not open the Clipboard. Copy aborted."
+10            Err.Raise vbObjectError + 1, , "Could not open the Clipboard. Copy aborted."
 11        End If
 
           'Clear the Clipboard.
@@ -70,8 +70,8 @@ OutOfHere2:
 15            ErrorMessage = "Could not close Clipboard."
 16        End If
 
-17        If ErrorMessage <> vbNullString Then Throw ErrorMessage
+17        If ErrorMessage <> vbNullString Then Err.Raise vbObjectError + 1, , ErrorMessage
 18        Exit Sub
 ErrHandler:
-19        Throw "#CopyStringToClipboard (line " & CStr(Erl) + "): " & Err.Description & "!"
+19        Err.Raise vbObjectError + 1, , "#CopyStringToClipboard (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Sub

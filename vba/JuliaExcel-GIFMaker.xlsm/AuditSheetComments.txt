@@ -1,3 +1,4 @@
 Version	Date	Time	Author	Comment
+3	07-Nov-2021	15:30	Philip Swannell	GIF2 now records a introductory demo.
 2	07-Nov-2021	11:35	Philip Swannell	GIF1 now records the install process.
 1	07-Nov-2021	10:31	Philip Swannell	Converted from equivalent workbook for VBA-CSV project
