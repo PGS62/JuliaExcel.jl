@@ -18,13 +18,13 @@ Call Julia from Excel spreadsheets and VBA.
 JuliaExcel makes the following functions available from Excel worksheets and from VBA:
 
 #### `JuliaLaunch`
-Enter `=JuliaLaunch()` into a cell to launch an instance of Julia which will "listen" to the current Excel instance.
+Enter `=JuliaLaunch()` into a cell to launch a JUlia process that "listens" to the current Excel process.
 
 #### `JuliaInclude`
 Load a Julia source file into the Julia process.
 
 #### `JuliaEval`
-Evaluate any Julia code, be it `1+1` or a call to a complex Julia function that you have loaded.
+Evaluate any Julia code, be it `1+1` or a call to any Julia function that you have loaded.
 
 #### `JuliaCall`
 Call a named Julia function, passing in arguments that reference ranges on the worksheet.
