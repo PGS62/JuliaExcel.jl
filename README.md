@@ -5,7 +5,7 @@ Call Julia from Excel spreadsheets and VBA.
 ## Installation
 
  * First ensure you have both [Julia](https://julialang.org/) and Microsoft Office installed. JuliaExcel works best with Office 365 or Office 2021, both of which support [dynamic array formulas](https://support.microsoft.com/en-us/office/dynamic-array-formulas-and-spilled-array-behavior-205c6b06-03ba-4151-89a1-87a7eb36e531).
- * Launch Julia and switch to the Package REPL with the `]` key.
+ * Make sure that Excel is not open on the PC, then launch Julia and switch to the Package REPL with the `]` key.
  * Type `add https://github.com/PGS62/JuliaExcel.jl` then the `Enter` key. This installs the Julia code and downloads an installer for the associated Excel addin.
  * Switch back to the REPL with the `Backspace` key.
  * `using JuliaExcel` then the `Enter` key.
