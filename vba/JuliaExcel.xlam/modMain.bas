@@ -325,10 +325,30 @@ End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : JuliaCall2
-' Purpose    : JuliaCall, but with control of calculation order.
+' Purpose    : JuliaCall, but with control of calculation order. Unpleasant repetition of the code of JuliaCall, but
+'              ParamArray is tricky to work with, and I couldn't figure out a way to have JuliaCall2 be a wrapper to JuliaCall
 ' -----------------------------------------------------------------------------------------------------------------------
 Function JuliaCall2(JuliaFunction As String, PrecedentCell As Range, ParamArray Args())
-1         JuliaCall2 = JuliaCall(JuliaFunction, Args)
+          Dim Expression As String
+          Dim i As Long
+          Dim Tmp() As String
+
+1         On Error GoTo ErrHandler
+2         If UBound(Args) >= LBound(Args) Then
+3             ReDim Tmp(LBound(Args) To UBound(Args))
+4             For i = LBound(Args) To UBound(Args)
+5                 Tmp(i) = ToJuliaLiteral(Args(i))
+6             Next i
+7             Expression = JuliaFunction & "(" & VBA.Join$(Tmp, ",") & ")"
+8         Else
+9             Expression = JuliaFunction & "()"
+10        End If
+
+11        JuliaCall2 = JuliaEval(Expression)
+
+12        Exit Function
+ErrHandler:
+13        JuliaCall2 = "#JuliaCall2 (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
