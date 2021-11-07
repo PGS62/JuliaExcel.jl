@@ -8,7 +8,7 @@ Call Julia from Excel spreadsheets and VBA.
  * Launch Julia and switch to the Package REPL with the `]` key.
  * Type `add https://github.com/PGS62/JuliaExcel.jl` followed by the `Enter` key.
  * Type `using JuliaExcel` followed by `Enter`.
- * Type `JuliaExcel.installme()` followed by the `Enter`.
+ * Type `JuliaExcel.installme()` followed by `Enter`.
  * Click through a couple of dialogs.
  * Launch Excel. Check that the JuliaExcel functions are available by typing `=Julia` into a worksheet cell and checking that the auto-complete offers `JuliaCall`, `JuliaEval`, `JuliaInclude` etc.
 
