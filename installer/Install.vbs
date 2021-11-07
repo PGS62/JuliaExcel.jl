@@ -12,6 +12,7 @@ Const website = "https://github.com/PGS62/JuliaExcel.jl#readme"
 
 Dim gErrorsEncountered
 Dim myWS, AddinsDest, MsgBoxTitle, MsgBoxTitleBad, AltStartupPath, AltStartupAlreadyDefined
+Dim GIFRecordingMode
 
 Function IsProcessRunning(strComputer, strProcess)
     Dim Process, strObject
@@ -314,40 +315,31 @@ Else
     
     MsgBoxTitle = "Install JuliaExcel"
     MsgBoxTitleBad = "Install JuliaExcel - Error Encountered"
+    'Hack to make it easy to record a GIF of the installation process without an installation actually happening
+    GIFRecordingMode = FileExists("C:\Temp\RecordingGIF.tmp")
 
     gErrorsEncountered = False
-    CheckProcess "Excel.exe"
+    if Not GIFRecordingMode Then
+        CheckProcess "Excel.exe"
+    End If
 
-    'Code to copy to AltStartup, but I think StartUpPath might be better. PGS 5/11/21
-    'Need to test if using StartupPath leads to "Excel Link Hell" when sharing workbooks that call functions from the addin between users
-   ' AddinsDest = "C:\ProgramData\JuliaExcel\Addins\"
-   ' AltStartupPath = GetAltStartupPath()
-   ' AltStartupAlreadyDefined = True
-   ' If AltStartupPath = "" Or AltStartupPath = "Not found" Then
-   '     AltStartupAlreadyDefined = False
-   '     SetAltStartupPath Left(AddinsDest, Len(AddinsDest) - 1)
-   ' End If
-    'If the user already has an AltStartUp path set then we use that location...
-    'AddinsDest = GetAltStartupPath() & "\"
+    if OfficeVersion(0) = "Office Not found" Then
+        MsgBox "Installation cannot proceed because no version of Microsoft Office has been detected on this PC. This script attempts to detect installed versions of office by looking in the Windows Registry for a key of the form 'HKEY_CURRENT_USER\Software\Microsoft\Office\<OFFICE_VERSION_NUMBER>\Excel\Options\', but no such key was found.",vbCritical,MsgBoxTitleBad
+        WScript.Quit
+    End If
 
-    'AddinsDest = Environ("USERPROFILE") & "\AppData\Roaming\Microsoft\Excel\XLSTART"
-     AddinsDest = Environ("USERPROFILE") & "\AppData\Roaming\Microsoft\Addins\"   
+    AddinsDest = Environ("USERPROFILE") & "\AppData\Roaming\Microsoft\Addins\"   
+
+    if Not FolderExists(AddinsDest) Then
+        MsgBox "Installation cannot proceed because the Excel StartupPath cannot be found. It was expected to be at '" & AddinsDest & "'.",vbCritical,MsgBoxTitleBad
+        WScript.Quit
+    End If
 
     Dim AddinsSource
     AddinsSource = WScript.ScriptFullName
     AddinsSource = Left(AddinsSource, InStrRev(AddinsSource, "\") - 1)
     AddinsSource = Left(AddinsSource, InStrRev(AddinsSource, "\"))
     AddinsSource = AddinsSource & "workbooks\"
-
-    if OfficeVersion(0) = "Office Not found" Then
-        MsgBox "Installation cannot proceed because no version of Microsoft Office has been detected opn this PC.",vbCritical,MsgBoxTitleBad
-        WScript.Quit
-    End If
-
-    if Not FolderExists(AddinsDest) Then
-        MsgBox "Installation cannot proceed because the Excel StartupPath cannot be found, it was expected to be at '" & AddinsDest & "'.",vbCritical,MsgBoxTitleBad
-        WScript.Quit
-    End If
 
     if Not FolderIsWritable(AddinsDest) Then
         MsgBox "Installation cannot proceed because the Excel StartupPath at '" & AddinsDest & "' is not writable.",vbCritical,MsgBoxTitleBad
@@ -365,12 +357,12 @@ Else
     result = MsgBox(Prompt, vbYesNo + vbQuestion, MsgBoxTitle)
     if result <> vbYes Then WScript.Quit
 
-    ForceFolderToExist AddinsDest
-
-    'Copy file
-    CopyNamedFiles AddinsSource, AddinsDest, AddinName, True
-    'Make Excel "see" the addin
-    InstallExcelAddin AddinsDest & AddinName, True
+    If not GIFRecordingMode Then
+        'Copy file
+        CopyNamedFiles AddinsSource, AddinsDest, AddinName, True
+        'Make Excel "see" the addin
+        InstallExcelAddin AddinsDest & AddinName, True
+    End If
 
     If gErrorsEncountered Then
         Prompt = "The install script has finished, but errors were encountered, " & _
