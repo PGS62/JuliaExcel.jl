@@ -13,7 +13,6 @@ Call Julia from Excel spreadsheets and VBA.
  * Click through a couple of dialogs.
  * Launch Excel. Check that the JuliaExcel functions are available by typing `=Julia` into a worksheet cell and checking that the auto-complete offers `JuliaCall`, `JuliaEval`, `JuliaInclude` etc.
 
-![installation](screenshots/installation.gif)
 
 ## Functions
 JuliaExcel makes the following functions available from Excel worksheets and from VBA:
