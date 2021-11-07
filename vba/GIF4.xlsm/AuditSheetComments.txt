@@ -1,0 +1,2 @@
+Version	Date	Time	Author	Comment
+1	07-Nov-2021	19:08	Philip Swannell	Added code in change event to illustrate the contents of formulas entered.
