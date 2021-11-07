@@ -33,8 +33,8 @@ Call a named Julia function, passing in arguments that reference ranges on the w
 #### `JuliaSetVar`
 Set a global variable in the Julia process to be equal to the contents of a range on the worksheet.
 
-## Examples
-
+## Demo
+![demo2](images/Demo4.gif)
 ## Alternatives
 
 ## How it works
