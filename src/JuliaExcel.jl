@@ -90,7 +90,7 @@ Abbreviate a string to show only 120 characters, the usual width of the REPL.
 """
 function truncate(x::String)
     if (length(x)) > 120
-        x[1:58] * " … " * x[end - 58:end]
+        first(x,58) * " … " * last(x,58)
     else
         x
     end
