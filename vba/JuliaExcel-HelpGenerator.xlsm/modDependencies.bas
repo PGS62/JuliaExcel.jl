@@ -146,6 +146,29 @@ Public Function sNRows(Optional TheArray) As Long
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
+' Procedure : sNCols
+' Purpose   : Number of columns in an array. Missing has zero rows, 1-dimensional arrays
+'             have one row and the number of columns returned by this function.
+' -----------------------------------------------------------------------------------------------------------------------
+Function sNCols(Optional TheArray) As Long
+1         If TypeName(TheArray) = "Range" Then
+2             sNCols = TheArray.Columns.Count
+3         ElseIf IsMissing(TheArray) Then
+4             sNCols = 0
+5         ElseIf VarType(TheArray) < vbArray Then
+6             sNCols = 1
+7         Else
+8             Select Case NumDimensions(TheArray)
+                  Case 1
+9                     sNCols = UBound(TheArray, 1) - LBound(TheArray, 1) + 1
+10                Case Else
+11                    sNCols = UBound(TheArray, 2) - LBound(TheArray, 2) + 1
+12            End Select
+13        End If
+End Function
+
+
+' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : Throw
 ' Purpose    : Simple error handling.
 ' -----------------------------------------------------------------------------------------------------------------------

@@ -108,11 +108,11 @@ End Function
 ' Purpose    : Return a writable directory for saving results files to be communicated to Julia.
 ' -----------------------------------------------------------------------------------------------------------------------
 Function LocalTemp()
-          Static res As String
+          Static Res As String
           Const FolderName = "JuliaExcel"
 1         On Error GoTo ErrHandler
-2         If res <> "" Then
-3             LocalTemp = res
+2         If Res <> "" Then
+3             LocalTemp = Res
 4             Exit Function
 5         End If
 
@@ -122,9 +122,9 @@ Function LocalTemp()
 7             Set F = FSO.GetFolder(Environ("TEMP"))
 8             F.SubFolders.Add FolderName
 9         End If
-10        res = Environ("TEMP") & "\" & FolderName
+10        Res = Environ("TEMP") & "\" & FolderName
 
-11        LocalTemp = res
+11        LocalTemp = Res
 12        Exit Function
 ErrHandler:
 13        Throw "#LocalTemp (line " & CStr(Erl) + "): " & Err.Description & "!"
@@ -186,6 +186,25 @@ Sub Throw(ByVal ErrorString As String)
 4             Err.Raise vbObjectError + 1, , Right$(ErrorString, 32000)
 5         End If
 End Sub
+
+' -----------------------------------------------------------------------------------------------------------------------
+' Procedure : ThrowIfError
+' Purpose   : In the event of an error, methods intended to be callable from spreadsheets
+'             return an error string (starts with "#", ends with "!"). ThrowIfError allows such
+'             methods to be used from VBA code while keeping error handling robust
+'             MyVariable = ThrowIfError(MyFunctionThatReturnsAStringIfAnErrorHappens(...))
+' -----------------------------------------------------------------------------------------------------------------------
+Function ThrowIfError(Data As Variant)
+1         ThrowIfError = Data
+2         If VarType(Data) = vbString Then
+3             If Left$(Data, 1) = "#" Then
+4                 If Right$(Data, 1) = "!" Then
+5                     Throw CStr(Data)
+6                 End If
+7             End If
+8         End If
+End Function
+
 
 'Called from "Menu..." button on sheet Audit.
 Sub MenuButton()

@@ -15,10 +15,19 @@ Option Explicit
 #End If
 
 ' -----------------------------------------------------------------------------------------------------------------------
-' Procedure  : JuliaLaunch
-' Purpose    : Launches Julia, ready to "serve" current instance of Excel.
+' Procedure : JuliaLaunch
+' Purpose   : Launches a local Julia session which "listens" to the current Excel session and
+'             responds to calls to JuliaEval etc..
+' Arguments
+' MinimiseWindow: If TRUE, then the Julia session window is minimised, if FALSE (the default) then the
+'             window is sized normally.
+' JuliaExe  : The location of julia.exe. If omitted, then the function searches for julia.exe, first on the
+'             path and then at the default locations for Julia installation on Windows, taking the most
+'             recently installed verison if more than one is available.
 ' -----------------------------------------------------------------------------------------------------------------------
 Function JuliaLaunch(Optional MinimiseWindow As Boolean, Optional ByVal JuliaExe As String)
+Attribute JuliaLaunch.VB_Description = "Launches a local Julia session which ""listens"" to the current Excel session and responds to calls to JuliaEval etc.."
+Attribute JuliaLaunch.VB_ProcData.VB_Invoke_Func = " \n14"
 
           Const PackageName As String = "JuliaExcel"
           Dim Command As String
@@ -178,14 +187,17 @@ ErrHandler:
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
-' Procedure  : JuliaEval
-' Purpose    : Evaluate arbitrary Julia code, returning the result to VBA.
-' Parameters :
-'  JuliaExpression : Some Julia code such as "1+1" or "collect(1:100)", may be a one-column array for multi-line code.
-'  PrecedentCell   : Offers control of the calculation order when calling from worksheet. Pass in a cell which must be
-'                    calculated before the JuliaExpression is evaluated.
+' Procedure : JuliaEval
+' Purpose   : Evaluate a Julia expression and return the result to Excel or VBA.
+' Arguments
+' JuliaExpression: Any valid Julia code, as a string. Can also be a one-column range to evaluate multiple
+'             Julia statements.
+' PrecedentCell: Provides control over worksheet calculation dependency. Enter a cell or range that must be
+'             calculated before JuliaEval is executed.
 ' -----------------------------------------------------------------------------------------------------------------------
 Function JuliaEval(ByVal JuliaExpression As Variant, Optional PrecedentCell As Range)
+Attribute JuliaEval.VB_Description = "Evaluate a Julia expression and return the result to Excel or VBA."
+Attribute JuliaEval.VB_ProcData.VB_Invoke_Func = " \n14"
           
           Dim ExpressionFile As String
           Dim FlagFile As String
@@ -275,15 +287,18 @@ ErrHandler:
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
-' Procedure  : JuliaSetVar
-' Purpose    : Sets a variable with global scope in the Julia session.
-' Parameters :
-'  VariableName : The name of the variable in Julia. An error will result if this contains disallowed characters such as spaces.
-'  RefersTo     : A value to which the Julia variable will refer
-'  PrecedentCell: Optional and allows control of the calculation order when calling from a worksheet. Pass in a cell
-'                 which must be calculated prior to execution.
+' Procedure : JuliaSetVar
+' Purpose   : Set a global variable in the Julia process.
+' Arguments
+' VariableName: The name of the variable to be set. Must follow Julia's rules for allowed variable names.
+' RefersTo  : An Excel range (from which the .Value2 property is read) or more generally a number, string,
+'             Boolean, Empty or array of such types. When called from VBA, nested arrays are supported.
+' PrecedentCell: Provides control over worksheet calculation dependency. Enter a cell or range that must be
+'             calculated before JuliaSetVar is executed.
 ' -----------------------------------------------------------------------------------------------------------------------
 Function JuliaSetVar(VariableName As String, RefersTo As Variant, Optional PrecedentCell As Range)
+Attribute JuliaSetVar.VB_Description = "Set a global variable in the Julia process."
+Attribute JuliaSetVar.VB_ProcData.VB_Invoke_Func = " \n14"
 1         On Error GoTo ErrHandler
 2         JuliaSetVar = JuliaCall("JuliaExcel.setvar", VariableName, RefersTo)
 
@@ -293,13 +308,16 @@ ErrHandler:
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
-' Procedure  : JuliaCall
-' Purpose    : Call a Julia function.
-' Parameters :
-'  JuliaFunction: The name of the julia function to call, can be suffixed with a dot for broadcasting behaviour.
-'  Args        : The arguments to the function
+' Procedure : JuliaCall
+' Purpose   : Call a named Julia function, passing in data from the worksheet or from VBA.
+' Arguments
+' JuliaFunction: The name of a Julia function that's defined in the Julia session, perhaps as a result of
+'             prior calls to JuliaInclude.
+' Args...   : Zero or more arguments, which may be Excel ranges or variables in VBA code.
 ' -----------------------------------------------------------------------------------------------------------------------
 Function JuliaCall(JuliaFunction As String, ParamArray Args())
+Attribute JuliaCall.VB_Description = "Call a named Julia function, passing in data from the worksheet or from VBA."
+Attribute JuliaCall.VB_ProcData.VB_Invoke_Func = " \n14"
           Dim Expression As String
           Dim i As Long
           Dim Tmp() As String
@@ -324,11 +342,21 @@ ErrHandler:
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
-' Procedure  : JuliaCall2
-' Purpose    : JuliaCall, but with control of calculation order. Unpleasant repetition of the code of JuliaCall, but
-'              ParamArray is tricky to work with, and I couldn't figure out a way to have JuliaCall2 be a wrapper to JuliaCall
+' Procedure : JuliaCall2
+' Purpose   : Call a named Julia function, passing in data from the worksheet or from VBA, with
+'             control of worksheet calculation dependency.
+' Arguments
+' JuliaFunction: The name of a Julia function that's available in the Main module of the running Julia
+'             session.
+' PrecedentCell: Provides control over worksheet calculation dependency. Enter a cell or range that must be
+'             calculated before JuliaCall2 is executed.
+'
+' Note the unpleasant repetition of the code of JuliaCall, but ParamArray is tricky to work with, and I couldn't figure
+' out a way to have JuliaCall2 be a wrapper to JuliaCall.
 ' -----------------------------------------------------------------------------------------------------------------------
 Function JuliaCall2(JuliaFunction As String, PrecedentCell As Range, ParamArray Args())
+Attribute JuliaCall2.VB_Description = "Call a named Julia function, passing in data from the worksheet or from VBA, with control of worksheet calculation dependency."
+Attribute JuliaCall2.VB_ProcData.VB_Invoke_Func = " \n14"
           Dim Expression As String
           Dim i As Long
           Dim Tmp() As String
@@ -434,38 +462,38 @@ End Function
 ' Purpose    : Convert a singleton into a string which julia will parse as the equivalent to the passed in x.
 ' -----------------------------------------------------------------------------------------------------------------------
 Private Function SingletonToJuliaLiteral(x As Variant)
-          Dim res As String
+          Dim Res As String
 
 1         On Error GoTo ErrHandler
 2         Select Case VarType(x)
 
               Case vbString
-3                 res = x
+3                 Res = x
 4                 If InStr(x, "\") > 0 Then
-5                     res = Replace(res, "\", "\\")
+5                     Res = Replace(Res, "\", "\\")
 6                 End If
 7                 If InStr(x, vbCr) > 0 Then
-8                     res = Replace(res, vbCr, "\r")
+8                     Res = Replace(Res, vbCr, "\r")
 9                 End If
 10                If InStr(x, vbLf) > 0 Then
-11                    res = Replace(res, vbLf, "\n")
+11                    Res = Replace(Res, vbLf, "\n")
 12                End If
 13                If InStr(x, "$") > 0 Then
-14                    res = Replace(res, "$", "\$")
+14                    Res = Replace(Res, "$", "\$")
 15                End If
 16                If InStr(x, """") > 0 Then
-17                    res = Replace(res, """", "\""")
+17                    Res = Replace(Res, """", "\""")
 18                End If
-19                SingletonToJuliaLiteral = """" & res & """"
+19                SingletonToJuliaLiteral = """" & Res & """"
 20                Exit Function
 21            Case vbDouble
-22                res = CStr(x)
-23                If InStr(res, ".") = 0 Then
-24                    If InStr(res, "E") = 0 Then
-25                        res = res + ".0"
+22                Res = CStr(x)
+23                If InStr(Res, ".") = 0 Then
+24                    If InStr(Res, "E") = 0 Then
+25                        Res = Res + ".0"
 26                    End If
 27                End If
-28                SingletonToJuliaLiteral = res
+28                SingletonToJuliaLiteral = Res
 29                Exit Function
 30            Case vbLong, vbInteger
 31                SingletonToJuliaLiteral = CStr(x)
@@ -492,7 +520,18 @@ ErrHandler:
 50        Throw "#SingletonToJuliaLiteral (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Function
 
-Function JuliaInclude(FileName As String)
+' -----------------------------------------------------------------------------------------------------------------------
+' Procedure : JuliaInclude
+' Purpose   : Load a Julia source file into the Julia process, to make additional functions available
+'             via JuliaEval and JuliaCall.
+' Arguments
+' FileName  : The full name of the file to be included.
+' PrecedentCell: Provides control over worksheet calculation dependency. Enter a cell or range that must be
+'             calculated before JuliaInclude is executed.
+' -----------------------------------------------------------------------------------------------------------------------
+Function JuliaInclude(FileName As String, Optional PrecedentCell As Range)
+Attribute JuliaInclude.VB_Description = "Load a Julia source file into the Julia process, with the likely intention of making additional functions available via JuliaEval and JuliaCall."
+Attribute JuliaInclude.VB_ProcData.VB_Invoke_Func = " \n14"
 1         JuliaInclude = JuliaCall("JuliaExcel.include", Replace(FileName, "\", "/"))
 End Function
 
@@ -507,14 +546,14 @@ Private Sub SpeedTest()
           Const Expression As String = "fill(""xxx"",1000,1000)"
           Const NumCalls = 10
           Dim i As Long
-          Dim res
+          Dim Res
           Dim t1 As Double
           Dim t2 As Double
 
 1         JuliaLaunch
 2         t1 = ElapsedTime
 3         For i = 1 To NumCalls
-4             res = JuliaEval(Expression)
+4             Res = JuliaEval(Expression)
 5         Next i
 6         t2 = ElapsedTime
 

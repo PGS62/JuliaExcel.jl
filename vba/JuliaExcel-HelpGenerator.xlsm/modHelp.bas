@@ -1,5 +1,33 @@
-Attribute VB_Name = "modCSVHelp"
+Attribute VB_Name = "modHelp"
 Option Explicit
+
+Function AddPipes(Data)
+          Dim Result() As String
+          Dim i As Long, j As Long, NR As Long, NC As Long
+1         If TypeName(Data) = "Range" Then Data = Data.value
+
+2         NR = sNRows(Data)
+3         NC = sNCols(Data)
+
+4         ReDim Result(1 To NR, 1 To 1)
+
+5         For i = 1 To NR
+6             Result(i, 1) = "|"
+7             For j = 1 To NC
+8                 If j = 1 Then
+9                     Result(i, 1) = Result(i, 1) + "[" + Data(i, j) + "](#" + LCase(Data(i, j)) + ")|"
+10                Else
+11                    Result(i, 1) = Result(i, 1) + Data(i, j) + "|"
+12                End If
+13            Next j
+14        Next i
+
+15        AddPipes = Result
+
+
+End Function
+
+
 
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : CodeToRegister
@@ -21,11 +49,11 @@ Function CodeToRegister(FunctionName, Description As String, ArgDescs)
           
 7         code = code & "' " & String(119, "-") & vbLf
 8         code = code & "' Procedure  : Register" & FunctionName & vbLf
-9         code = code & "' Purpose    : Register the function " & FunctionName & " with the Excel function wizard. Suggest this function is called from a" & vbLf
-10        code = code & "'              WorkBook_Open event." & vbLf
+9         code = code & "' Purpose    : Register the function " & FunctionName & " with the Excel function wizard, to be called from the WorkBook_Open" & vbLf
+10        code = code & "'              event." & vbLf
 11        code = code & "' " & String(119, "-") & vbLf
 
-12        code = code & "Public Sub Register" + FunctionName + "()" + vbLf
+12        code = code & "Private Sub Register" + FunctionName + "()" + vbLf
 13        code = code + "    Const Description As String = " + InsertBreaksInStringLiteral(DQ + Replace(Description, DQ, DQ + DQ) + DQ, 34) + vbLf
 14        code = code + "    Dim " + "ArgDescs() As String" + vbLf + vbLf
 15        code = code + "    On Error GoTo ErrHandler" + vbLf + vbLf
@@ -223,7 +251,7 @@ End Function
 ' Purpose    : Formats the help as a markdown table.
 ' -----------------------------------------------------------------------------------------------------------------------
 Function MarkdownHelp(SourceFile As String, FunctionName As String, ByVal FunctionDescription As String, _
-        ArgNames, ArgDescriptions, Optional Replacements)
+          ArgNames, ArgDescriptions, Optional Replacements)
 
           Dim SourceCode As String
           Dim Declaration As String
@@ -232,7 +260,6 @@ Function MarkdownHelp(SourceFile As String, FunctionName As String, ByVal Functi
           Dim i As Long, j As Long
           Dim ThisArgDescription As String
           Dim StringsToEncloseInBackTicks
-          
 
 1         On Error GoTo ErrHandler
 
@@ -255,58 +282,65 @@ Function MarkdownHelp(SourceFile As String, FunctionName As String, ByVal Functi
 
 15        Declaration = StringBetweenStrings(SourceCode, LeftString, ")", True, True)
 
-          'Bodge - get the "As VarType"
           Dim NextChars As String
           Dim matchPoint As Long
-16        matchPoint = InStr(SourceCode, Declaration)
-17        NextChars = Mid$(SourceCode, matchPoint + Len(Declaration), 100)
-18        If Left$(NextChars, 4) = " As " Then
-19            NextChars = StringBetweenStrings(NextChars, " As ", vbLf, True, False)
-20            NextChars = " " & Trim(NextChars)
-21            Declaration = Declaration & NextChars
-22        End If
 
-23        Hlp = "#### _" & FunctionName & "_" & vbLf
+          'Bodge ParamArray() confuses my cheap and chearful language parsing
+16        If Mid(Declaration, Len(Declaration) - 1) = "()" Then
+17            Declaration = StringBetweenStrings(SourceCode, Declaration, ")", True, True)
+18        End If
 
-24        StringsToEncloseInBackTicks = VStack(ArgNames, "JuliaLaunch", "JuliaEval", "JuliaCall", "JuliaInclude", "#", "!")
+          'Bodge - get the "As VarType"
+19        matchPoint = InStr(SourceCode, Declaration)
+20        NextChars = Mid$(SourceCode, matchPoint + Len(Declaration), 100)
+21        If Left$(NextChars, 4) = " As " Then
+22            NextChars = StringBetweenStrings(NextChars, " As ", vbLf, True, False)
+23            NextChars = " " & Trim(NextChars)
+24            Declaration = Declaration & NextChars
+25        End If
 
-25        For j = 1 To sNRows(StringsToEncloseInBackTicks)
-26            FunctionDescription = sRegExReplace(FunctionDescription, "\b" & StringsToEncloseInBackTicks(j, 1) & "\b", "`" & StringsToEncloseInBackTicks(j, 1) & "`", True)
-27        Next j
+26        Hlp = "#### _" & FunctionName & "_" & vbLf
 
-28        Hlp = Hlp & FunctionDescription & vbLf
+          'TODO Make this an argument
+27        StringsToEncloseInBackTicks = VStack(ArgNames, "JuliaLaunch", "JuliaInclude", "JuliaEval", "JuliaCall", "JuliaCall2", "JuliaSetVar")
+
+28        For j = 1 To sNRows(StringsToEncloseInBackTicks)
+29            FunctionDescription = sRegExReplace(FunctionDescription, "\b" & StringsToEncloseInBackTicks(j, 1) & "\b", "`" & StringsToEncloseInBackTicks(j, 1) & "`", True)
+30        Next j
+
+31        Hlp = Hlp & FunctionDescription & vbLf
           
-29        Hlp = Hlp & "```vba" & vbLf & _
+32        Hlp = Hlp & "```vba" & vbLf & _
               Declaration & vbLf & _
               "```" & vbLf & vbLf & _
               "|Argument|Description|" & vbLf & _
               "|:-------|:----------|"
           
-30        For i = 1 To sNRows(ArgNames)
-31            ThisArgDescription = ArgDescriptions(i, 1)
-32            For j = 1 To sNRows(StringsToEncloseInBackTicks)
-33                ThisArgDescription = sRegExReplace(ThisArgDescription, "\b" & StringsToEncloseInBackTicks(j, 1) & "\b", "`" & StringsToEncloseInBackTicks(j, 1) & "`", True)
-34            Next j
-35            ThisArgDescription = Replace(ThisArgDescription, vbCrLf, vbLf)
-36            ThisArgDescription = Replace(ThisArgDescription, vbCr, vbLf)
-37            ThisArgDescription = Replace(ThisArgDescription, vbLf, "<br/>")
-38            Hlp = Hlp & vbLf & "|`" & ArgNames(i, 1) & "`|" & ThisArgDescription & "|"
-39        Next i
+33        For i = 1 To sNRows(ArgNames)
+34            ThisArgDescription = ArgDescriptions(i, 1)
+35            For j = 1 To sNRows(StringsToEncloseInBackTicks)
+36                ThisArgDescription = sRegExReplace(ThisArgDescription, "\b" & StringsToEncloseInBackTicks(j, 1) & "\b", "`" & StringsToEncloseInBackTicks(j, 1) & "`", True)
+37            Next j
+38            ThisArgDescription = Replace(ThisArgDescription, vbCrLf, vbLf)
+39            ThisArgDescription = Replace(ThisArgDescription, vbCr, vbLf)
+40            ThisArgDescription = Replace(ThisArgDescription, vbLf, "<br/>")
+41            Hlp = Hlp & vbLf & "|`" & ArgNames(i, 1) & "`|" & ThisArgDescription & "|"
+42        Next i
 
-40        If Not IsMissing(Replacements) Then
-41            If TypeName(Replacements) = "Range" Then
-42                Replacements = Replacements.value
-43            End If
-44            For i = 1 To sNRows(Replacements)
-45                Hlp = Replace(Hlp, Replacements(i, 1), Replacements(i, 2))
-46            Next i
-47        End If
+43        If Not IsMissing(Replacements) Then
+44            If TypeName(Replacements) = "Range" Then
+45                Replacements = Replacements.value
+46            End If
+47            For i = 1 To sNRows(Replacements)
+48                Hlp = Replace(Hlp, Replacements(i, 1), Replacements(i, 2))
+49            Next i
+50        End If
 
-48        MarkdownHelp = Application.Transpose(VBA.Split(Hlp, vbLf))
+51        MarkdownHelp = Application.Transpose(VBA.Split(Hlp, vbLf))
 
-49        Exit Function
+52        Exit Function
 ErrHandler:
-50        MarkdownHelp = "#MarkdownHelp (line " & CStr(Erl) + "): " & Err.Description & "!"
+53        MarkdownHelp = "#MarkdownHelp (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Function
 
 

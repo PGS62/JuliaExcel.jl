@@ -1,6 +1,6 @@
 AuditSheetComments.txt
 JuliaExcel-HelpGenerator.xlsm
-modCSVHelp.bas
 modDependencies.bas
+modHelp.bas
 modIntellisense.bas
 Module1.bas

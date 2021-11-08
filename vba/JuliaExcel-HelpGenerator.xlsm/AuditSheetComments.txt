@@ -1,4 +1,5 @@
 Version	Date	Time	Author	Comment
+15	08-Nov-2021	14:37	Philip Swannell	Updates to documentation
 14	07-Nov-2021	10:22	Philip Swannell	Renamed to JuliaExcel
 13	15-Oct-2021	20:08	Philip Swannell	Create VBA-CSV-Intellisense.xlsx workbook
 12	13-Oct-2021	12:45	Philip Swannell	Tweaks to CSVWrite documentation.
