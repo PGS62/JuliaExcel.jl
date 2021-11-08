@@ -19,13 +19,12 @@ JuliaExcel makes the following functions available from Excel worksheets and fro
 
 |Name|Description|
 |----|-----------|
-|JuliaLaunch|Launches a local Julia session which "listens" to the current Excel session and responds to calls to JuliaEval etc..|
-|JuliaInclude|Load a Julia source file into the Julia process, to make additional functions available via JuliaEval and JuliaCall.|
-|JuliaEval|Evaluate a Julia expression and return the result to Excel or VBA.|
-|JuliaCall|Call a named Julia function, passing in data from the worksheet or from VBA.|
-|JuliaCall2|Call a named Julia function, passing in data from the worksheet or from VBA, with control of worksheet calculation dependency.|
-|JuliaSetVar|Set a global variable in the Julia process.|
-
+|[JuliaLaunch](#julialaunch)|Launches a local Julia session which "listens" to the current Excel session and responds to calls to JuliaEval etc..|
+|[JuliaInclude](#juliainclude)|Load a Julia source file into the Julia process, to make additional functions available via JuliaEval and JuliaCall.|
+|[JuliaEval](#juliaeval)|Evaluate a Julia expression and return the result to Excel or VBA.|
+|[JuliaCall](#juliacall)|Call a named Julia function, passing in data from the worksheet or from VBA.|
+|[JuliaCall2](#juliacall2)|Call a named Julia function, passing in data from the worksheet or from VBA, with control of worksheet calculation dependency.|
+|[JuliaSetVar](#juliasetvar)|Set a global variable in the Julia process.|
 
 ## Demo
 Here's a quick demonstration of the functions in action. Notice how the Julia session responds to the action over in Excel. The annotations in brown text ("Formula at...") are to make the what's happening in the demo clearer. They won't happen when you try JuliaExcel for yourself! Refresh your browser (F5) to restart.
