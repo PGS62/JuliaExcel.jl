@@ -2,6 +2,19 @@
 
 Call Julia from Excel spreadsheets and VBA.
 
+## Contents
+[Installation](#installation)  
+[Functions](#functions)  
+[Demo](#demo)  
+[Function Documentation](#function-documentation)  
+&nbsp;&nbsp;&nbsp;&nbsp;[JuliaLaunch](#julialaunch)  
+&nbsp;&nbsp;&nbsp;&nbsp;[JuliaEval](#juliaeval)  
+&nbsp;&nbsp;&nbsp;&nbsp;[JuliaCall](#juliacall)  
+&nbsp;&nbsp;&nbsp;&nbsp;[JuliaSetVar](#juliasetvar)  
+[Alternatives](#alternatives)  
+[How JuliaExcel works](#how-juliaexcel-works)  
+[Shortcomings](#shortcomings)  
+
 ## Installation
 
  * Both [Julia](https://julialang.org/) and Microsoft Office must be installed on your PC, with Excel not running.
