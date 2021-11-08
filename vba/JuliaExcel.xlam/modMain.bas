@@ -316,8 +316,6 @@ End Function
 ' Args...   : Zero or more arguments, which may be Excel ranges or variables in VBA code.
 ' -----------------------------------------------------------------------------------------------------------------------
 Function JuliaCall(JuliaFunction As String, ParamArray Args())
-Attribute JuliaCall.VB_Description = "Call a named Julia function, passing in data from the worksheet or from VBA."
-Attribute JuliaCall.VB_ProcData.VB_Invoke_Func = " \n14"
           Dim Expression As String
           Dim i As Long
           Dim Tmp() As String
@@ -327,18 +325,19 @@ Attribute JuliaCall.VB_ProcData.VB_Invoke_Func = " \n14"
 3             ReDim Tmp(LBound(Args) To UBound(Args))
 
 4             For i = LBound(Args) To UBound(Args)
-5                 Tmp(i) = ToJuliaLiteral(Args(i))
-6             Next i
-7             Expression = JuliaFunction & "(" & VBA.Join$(Tmp, ",") & ")"
-8         Else
-9             Expression = JuliaFunction & "()"
-10        End If
+5                 If TypeName(Args(i)) = "Range" Then Args(i) = Args(i).Value2
+6                 Tmp(i) = MakeJuliaLiteral(Args(i))
+7             Next i
+8             Expression = JuliaFunction & "(" & VBA.Join$(Tmp, ",") & ")"
+9         Else
+10            Expression = JuliaFunction & "()"
+11        End If
 
-11        JuliaCall = JuliaEval(Expression)
+12        JuliaCall = JuliaEval(Expression)
 
-12        Exit Function
+13        Exit Function
 ErrHandler:
-13        JuliaCall = "#JuliaCall (line " & CStr(Erl) + "): " & Err.Description & "!"
+14        JuliaCall = "#JuliaCall (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
@@ -365,159 +364,19 @@ Attribute JuliaCall2.VB_ProcData.VB_Invoke_Func = " \n14"
 2         If UBound(Args) >= LBound(Args) Then
 3             ReDim Tmp(LBound(Args) To UBound(Args))
 4             For i = LBound(Args) To UBound(Args)
-5                 Tmp(i) = ToJuliaLiteral(Args(i))
-6             Next i
-7             Expression = JuliaFunction & "(" & VBA.Join$(Tmp, ",") & ")"
-8         Else
-9             Expression = JuliaFunction & "()"
-10        End If
+5                 If TypeName(Args(i)) = "Range" Then Args(i) = Args(i).Value2
+6                 Tmp(i) = MakeJuliaLiteral(Args(i))
+7             Next i
+8             Expression = JuliaFunction & "(" & VBA.Join$(Tmp, ",") & ")"
+9         Else
+10            Expression = JuliaFunction & "()"
+11        End If
 
-11        JuliaCall2 = JuliaEval(Expression)
+12        JuliaCall2 = JuliaEval(Expression)
 
-12        Exit Function
+13        Exit Function
 ErrHandler:
-13        JuliaCall2 = "#JuliaCall2 (line " & CStr(Erl) + "): " & Err.Description & "!"
-End Function
-
-' -----------------------------------------------------------------------------------------------------------------------
-' Procedure  : ToJuliaLiteral
-' Purpose    : Convert an array into a string which julia will parse as the equivalent to the passed in x. e.g:
-'
-' In VBA immediate window:
-' ?ToJuliaLiteral(Array(1#, 2#, 3#))
-' [1.0,2.0,3.0]
-'
-' In Julia REPL:
-' julia> [1.0,2.0,3.0]
-' 3-element Vector{Float64}:
-'  1.0
-'  2.0
-'  3.0
-' -----------------------------------------------------------------------------------------------------------------------
-Private Function ToJuliaLiteral(ByVal x As Variant)
-          Dim AllSameType As Boolean
-          Dim FirstType As Long
-          Dim i As Long
-          Dim j As Long
-          Dim onerow() As String
-          Dim Tmp() As String
-          
-1         On Error GoTo ErrHandler
-2         If TypeName(x) = "Range" Then
-3             x = x.Value2
-4         End If
-
-5         Select Case NumDimensions(x)
-              Case 0
-6                 ToJuliaLiteral = SingletonToJuliaLiteral(x)
-7             Case 1
-8                 ReDim Tmp(LBound(x) To UBound(x))
-9                 FirstType = VarType(x(LBound(x)))
-10                AllSameType = True
-11                For i = LBound(x) To UBound(x)
-12                    Tmp(i) = SingletonToJuliaLiteral(x(i))
-13                    If AllSameType Then
-14                        If VarType(x(i)) <> FirstType Then
-15                            AllSameType = False
-16                        End If
-17                    End If
-18                Next i
-19                ToJuliaLiteral = IIf(AllSameType, "[", "Any[") & VBA.Join$(Tmp, ",") & "]"
-20            Case 2
-21                ReDim onerow(LBound(x, 2) To UBound(x, 2))
-22                ReDim Tmp(LBound(x, 1) To UBound(x, 1))
-23                FirstType = VarType(x(LBound(x, 1), LBound(x, 2)))
-24                AllSameType = True
-25                For i = LBound(x, 1) To UBound(x, 1)
-26                    For j = LBound(x, 2) To UBound(x, 2)
-27                        onerow(j) = SingletonToJuliaLiteral(x(i, j))
-28                        If AllSameType Then
-29                            If VarType(x(i, j)) <> FirstType Then
-30                                AllSameType = False
-31                            End If
-32                        End If
-33                    Next j
-34                    Tmp(i) = VBA.Join$(onerow, " ")
-35                Next i
-
-36                ToJuliaLiteral = IIf(AllSameType, "[", "Any[") & VBA.Join$(Tmp, ";") & "]"
-                  'One column case is tricky, could change this code when using Julia 1.7
-                  'https://discourse.julialang.org/t/show-versus-parse-and-arrays-with-2-dimensions-but-only-one-column/70142/2
-37                If UBound(x, 2) = LBound(x, 2) Then
-                      Dim NR As Long
-38                    NR = UBound(x, 1) - LBound(x, 1) + 1
-39                    ToJuliaLiteral = "reshape(" & ToJuliaLiteral & "," & CStr(NR) & ",1)"
-40                End If
-41            Case Else
-42                Throw "case more than two dimensions not handled" 'In VBA there's no way to handle arrays with arbitrary number of dimensions. Easy in Julia!
-43        End Select
-
-44        Exit Function
-ErrHandler:
-45        Throw "#ToJuliaLiteral (line " & CStr(Erl) + "): " & Err.Description & "!"
-End Function
-
-' -----------------------------------------------------------------------------------------------------------------------
-' Procedure  : SingletonToJuliaLiteral
-' Purpose    : Convert a singleton into a string which julia will parse as the equivalent to the passed in x.
-' -----------------------------------------------------------------------------------------------------------------------
-Private Function SingletonToJuliaLiteral(x As Variant)
-          Dim Res As String
-
-1         On Error GoTo ErrHandler
-2         Select Case VarType(x)
-
-              Case vbString
-3                 Res = x
-4                 If InStr(x, "\") > 0 Then
-5                     Res = Replace(Res, "\", "\\")
-6                 End If
-7                 If InStr(x, vbCr) > 0 Then
-8                     Res = Replace(Res, vbCr, "\r")
-9                 End If
-10                If InStr(x, vbLf) > 0 Then
-11                    Res = Replace(Res, vbLf, "\n")
-12                End If
-13                If InStr(x, "$") > 0 Then
-14                    Res = Replace(Res, "$", "\$")
-15                End If
-16                If InStr(x, """") > 0 Then
-17                    Res = Replace(Res, """", "\""")
-18                End If
-19                SingletonToJuliaLiteral = """" & Res & """"
-20                Exit Function
-21            Case vbDouble
-22                Res = CStr(x)
-23                If InStr(Res, ".") = 0 Then
-24                    If InStr(Res, "E") = 0 Then
-25                        Res = Res + ".0"
-26                    End If
-27                End If
-28                SingletonToJuliaLiteral = Res
-29                Exit Function
-30            Case vbLong, vbInteger
-31                SingletonToJuliaLiteral = CStr(x)
-32                Exit Function
-33            Case vbBoolean
-34                SingletonToJuliaLiteral = IIf(x, "true", "false")
-35                Exit Function
-36            Case vbEmpty
-37                SingletonToJuliaLiteral = "missing"
-38                Exit Function
-39            Case vbDate
-40                If CDbl(x) = CLng(x) Then
-41                    SingletonToJuliaLiteral = "Date(""" & Format(x, "yyyy-mm-dd") & """)"
-42                Else
-43                    SingletonToJuliaLiteral = "DateTime(""" & VBA.Format$(x, "yyyy-mm-ddThh:mm:ss.000") & """)"
-44                End If
-45                Exit Function
-46            Case Else
-47                Throw "Variable of type " + TypeName(x) + " is not handled"
-48        End Select
-
-49        Exit Function
-ErrHandler:
-50        Throw "#SingletonToJuliaLiteral (line " & CStr(Erl) + "): " & Err.Description & "!"
+14        JuliaCall2 = "#JuliaCall2 (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------

@@ -1,4 +1,5 @@
 Version	Date	Time	Author	Comment
+33	08-Nov-2021	18:59	Philip Swannell	Nested arrays now handled, though they cannot be returned to a worksheet.
 32	08-Nov-2021	14:46	Philip Swannell	Code comments
 31	08-Nov-2021	11:01	Philip Swannell	Handle strings > 32767 (by throwing error if being called from Excel worksheet).
 30	07-Nov-2021	19:43	Philip Swannell	Bug fix to JuliaCall2
