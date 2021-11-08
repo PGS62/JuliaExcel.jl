@@ -113,8 +113,9 @@ Function JuliaSetVar(VariableName As String, RefersTo As Variant, Optional Prece
 |`RefersTo`|An Excel range (from which the .Value2 property is read) or more generally a number, string, Boolean, Empty or array of such types. When called from VBA, nested arrays are supported.|
 |`PrecedentCell`|Provides control over worksheet calculation dependency. Enter a cell or range that must be calculated before `JuliaSetVar` is executed.|
 
-
 ## Alternatives
+
+## Compatibility
 
 ## How JuliaExcel works
 
