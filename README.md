@@ -62,7 +62,7 @@ Function JuliaEval(ByVal JuliaExpression As Variant, Optional PrecedentCell As R
 
 |Argument|Description|
 |:-------|:----------|
-|`JuliaExpression`|Any valid julia code, as a string. Can also be a one-column range to evaluate multiple julia statements.|
+|`JuliaExpression`|Any valid Julia code, as a string. Can also be a one-column range to evaluate multiple Julia statements.|
 |`PrecedentCell`|Provides control over worksheet calculation dependency. Enter a cell or range that must be calculated before `JuliaEval` is executed.|
 
 #### _JuliaCall_
