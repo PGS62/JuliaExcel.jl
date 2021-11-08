@@ -11,7 +11,7 @@ Const AddinName = "JuliaExcel.xlam"
 Const website = "https://github.com/PGS62/JuliaExcel.jl#readme"
 
 Dim gErrorsEncountered
-Dim myWS, AddinsDest, MsgBoxTitle, MsgBoxTitleBad, AltStartupPath, AltStartupAlreadyDefined
+Dim myWS, AddinsDest, MsgBoxTitle, MsgBoxTitleBad
 Dim GIFRecordingMode
 
 Function IsProcessRunning(strComputer, strProcess)
@@ -258,7 +258,7 @@ Function IIf( expr, truepart, falsepart )
    If expr Then IIf = truepart
 End Function
 
-'It appears that VBSCript does not have the Environ funciton that VBA has. Sigh, roll my own.
+		'It appears that VBSCript does not have the Environ function that VBA has. Sigh, roll my own.
 Function Environ(Expression)
 	Dim WshShell
 	Set WshShell = CreateObject("WScript.Shell")
