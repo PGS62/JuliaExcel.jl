@@ -28,6 +28,7 @@ JuliaExcel makes the following functions available from Excel worksheets and fro
 
 
 ## Demo
+Here's a quick demonstration of the functions in action. Notice how the Julia session responds to the action over in Excel. Refresh your browser (F5) to restart.
 ![demo2](images/Demo4.gif)
 ## Alternatives
 
