@@ -40,7 +40,7 @@ JuliaExcel makes the following functions available from Excel worksheets and fro
 |[JuliaSetVar](#juliasetvar)|Set a global variable in the Julia process.|
 
 ## Demo
-Here's a quick demonstration of the functions in action. Notice how the Julia session responds to the action over in Excel. The annotations in brown text ("Formula at...") are to make the what's happening in the demo clearer. They won't appear when you try JuliaExcel for yourself! Refresh your browser (F5) to restart.
+Here's a quick demonstration of the functions in action. Notice how the Julia session responds to the action over in Excel. The annotations in brown text ("Formula at...") are to make the what's happening in the demo clearer. They won't appear when you try JuliaExcel for yourself! Refresh your browser (F5) to replay the GIF.
 ![demo2](images/Demo4.gif)
 
 ## Function Documentation
@@ -54,7 +54,7 @@ Function JuliaLaunch(Optional MinimiseWindow As Boolean, Optional ByVal JuliaExe
 |Argument|Description|
 |:-------|:----------|
 |`MinimiseWindow`|If TRUE, then the Julia session window is minimised, if FALSE (the default) then the window is sized normally.|
-|`JuliaExe`|The location of julia.exe. If omitted, then the function searches for julia.exe, first on the path and then at the default locations for Julia installation on Windows, taking the most recently installed verison if more than one is available.|
+|`JuliaExe`|The location of julia.exe. If omitted, then the function searches for julia.exe, first on the path and then at the default locations for Julia installation on Windows, taking the most recently installed version if more than one is available.|
 
 ### _JuliaInclude_
 Load a Julia source file into the Julia process, to make additional functions available via `JuliaEval` and `JuliaCall`.
