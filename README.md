@@ -9,7 +9,7 @@ Call Julia from Excel spreadsheets and VBA.
 [Function Documentation](#function-documentation)  
 &nbsp;&nbsp;&nbsp;&nbsp;[JuliaLaunch](#julialaunch)  
 &nbsp;&nbsp;&nbsp;&nbsp;[JuliaEval](#juliaeval)  
-&nbsp;&nbsp;&nbsp;&nbsp;[JuliaCall](#juliacall)  
+&nbsp;&nbsp;&nbsp;&nbsp;[JuliaCall and JuliaCall2](#juliacall)  
 &nbsp;&nbsp;&nbsp;&nbsp;[JuliaSetVar](#juliasetvar)  
 [Alternatives](#alternatives)  
 [How JuliaExcel works](#how-juliaexcel-works)  
