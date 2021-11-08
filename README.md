@@ -28,7 +28,7 @@ JuliaExcel makes the following functions available from Excel worksheets and fro
 
 
 ## Demo
-Here's a quick demonstration of the functions in action. Notice how the Julia session responds to the action over in Excel. Refresh your browser (F5) to restart.
+Here's a quick demonstration of the functions in action. Notice how the Julia session responds to the action over in Excel. The annotations in brown text ("Formula at...") are to make the what's happening in the demo clearer. They won't happen when you try JuliaExcel for yourself! Refresh your browser (F5) to restart.
 ![demo2](images/Demo4.gif)
 
 ## Function Documentation
