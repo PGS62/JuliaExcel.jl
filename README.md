@@ -5,7 +5,8 @@ Call Julia functions from Microsoft Excel worksheets and from VBA.
 ## Contents
 [Installation](#installation)  
 [Functions](#functions)  
-[Demo from Excel](#demo-from-excel)  
+[Demo](#demo-from-worksheet)  
+[Example VBA](#example-vba)  
 [Function Documentation](#function-documentation)  
 &nbsp;&nbsp;&nbsp;&nbsp;[JuliaLaunch](#julialaunch)  
 &nbsp;&nbsp;&nbsp;&nbsp;[JuliaEval](#juliaeval)  
@@ -39,12 +40,33 @@ JuliaExcel makes the following functions available from Excel worksheets and fro
 |[JuliaCall2](#juliacall2)|Call a named Julia function, passing in data from the worksheet or from VBA, with control of worksheet calculation dependency.|
 |[JuliaSetVar](#juliasetvar)|Set a global variable in the Julia process.|
 
-## Demo from Excel
+## Demo from Worksheet
 Here's a quick demonstration of the functions in action. Here are a few things to note:
  * See how the Julia session on the left responds to the action in Excel on the right.
  * The annotations in brown text ("Formula at...") are to make the what's happening in the demo clearer. They won't appear when you try JuliaExcel for yourself!
  * You can replay the GIF by hitting F5.
 ![demo2](images/Demo4.gif)
+
+## Example VBA
+The VBA code below makes a call to `JuliaLaunch` and `JuliaEval` and then pastes the result to range A1:J10 in a new worksheet. To run it, make sure that the project has a reference to JuliaExcel (VBA editor, Tools menu -> References).
+
+```vba
+Sub DemoCallFromVBA()
+
+    Dim ResultFromJulia As Variant, PasteHere As Range
+    
+    JuliaLaunch
+    
+    ResultFromJulia = JuliaEval("(1:10).^(1:10)'")
+
+    Set PasteHere = Application.Workbooks.Add.Worksheets(1) _
+        .Cells(1, 1).Resize(UBound(ResultFromJulia, 1), _
+        UBound(ResultFromJulia, 2))
+    
+    PasteHere.Value = ResultFromJulia
+
+End Sub
+```
 
 ## Function Documentation
 
@@ -127,4 +149,4 @@ Function JuliaSetVar(VariableName As String, RefersTo As Variant, Optional Prece
 
 
 Philip Swannell
-6 November 2021
+9 November 2021
