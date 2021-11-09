@@ -1,11 +1,11 @@
 # JuliaExcel
 
-Call Julia from Excel spreadsheets and VBA.
+Call Julia functions from Microsoft Excel worksheets and from VBA.
 
 ## Contents
 [Installation](#installation)  
 [Functions](#functions)  
-[Demo](#demo)  
+[Demo from Excel](#demo-from-excel)  
 [Function Documentation](#function-documentation)  
 &nbsp;&nbsp;&nbsp;&nbsp;[JuliaLaunch](#julialaunch)  
 &nbsp;&nbsp;&nbsp;&nbsp;[JuliaEval](#juliaeval)  
@@ -39,8 +39,11 @@ JuliaExcel makes the following functions available from Excel worksheets and fro
 |[JuliaCall2](#juliacall2)|Call a named Julia function, passing in data from the worksheet or from VBA, with control of worksheet calculation dependency.|
 |[JuliaSetVar](#juliasetvar)|Set a global variable in the Julia process.|
 
-## Demo
-Here's a quick demonstration of the functions in action. Notice how the Julia session responds to the action over in Excel. The annotations in brown text ("Formula at...") are to make the what's happening in the demo clearer. They won't appear when you try JuliaExcel for yourself! Refresh your browser (F5) to replay the GIF.
+## Demo from Excel
+Here's a quick demonstration of the functions in action. Here are a few things to note:
+ * See how the Julia session on the left responds to the action in Excel on the right.
+ * The annotations in brown text ("Formula at...") are to make the what's happening in the demo clearer. They won't appear when you try JuliaExcel for yourself!
+ * You can replay the GIF by hitting F5.
 ![demo2](images/Demo4.gif)
 
 ## Function Documentation
