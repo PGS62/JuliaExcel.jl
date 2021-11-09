@@ -258,7 +258,7 @@ Function IIf( expr, truepart, falsepart )
    If expr Then IIf = truepart
 End Function
 
-		'It appears that VBSCript does not have the Environ function that VBA has. Sigh, roll my own.
+'It appears that VBSCript does not have the Environ function that VBA has. Sigh, roll my own.
 Function Environ(Expression)
 	Dim WshShell
 	Set WshShell = CreateObject("WScript.Shell")
@@ -328,23 +328,19 @@ Else
         WScript.Quit
     End If
 
-    AddinsDest = Environ("USERPROFILE") & "\AppData\Roaming\Microsoft\Addins\"   
-
-    if Not FolderExists(AddinsDest) Then
-        MsgBox "Installation cannot proceed because the Excel StartupPath cannot be found. It was expected to be at '" & AddinsDest & "'.",vbCritical,MsgBoxTitleBad
-        WScript.Quit
-    End If
-
+    'The first option below is the "AddinsFolder" however using it as the addin location is causes "Link Hell":
+    'User A (who has the addin) writes a spreadsheet that uses the add in and then sends the spreadsheet to User B.
+    'User B (who also has the addin) finds the spreadsheet won't work until they grapple with the dreaded "change links dialog"
+    'FirstOption, no longer used:
+    'AddinsDest = Environ("USERPROFILE") & "\AppData\Roaming\Microsoft\Addins\"
+    'Better option: (PGS 9 Nov 2021)
+    AddinsDest = "C:\ProgramData\JuliaExcel\"
+    
     Dim AddinsSource
     AddinsSource = WScript.ScriptFullName
     AddinsSource = Left(AddinsSource, InStrRev(AddinsSource, "\") - 1)
     AddinsSource = Left(AddinsSource, InStrRev(AddinsSource, "\"))
     AddinsSource = AddinsSource & "workbooks\"
-
-    if Not FolderIsWritable(AddinsDest) Then
-        MsgBox "Installation cannot proceed because the Excel StartupPath at '" & AddinsDest & "' is not writable.",vbCritical,MsgBoxTitleBad
-        WScript.Quit
-    End If
 
     Dim Prompt
     Prompt = "This will install JuliaExcel.xlsm by copying it from " & vbLf & vblf & _
@@ -356,6 +352,8 @@ Else
 
     result = MsgBox(Prompt, vbYesNo + vbQuestion, MsgBoxTitle)
     if result <> vbYes Then WScript.Quit
+
+    ForceFolderToExist AddinsDest
 
     If not GIFRecordingMode Then
         'Copy file
