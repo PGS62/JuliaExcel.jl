@@ -21,9 +21,12 @@ flagfile() = joinpath(localtemp(), "JuliaExcelFlag_$(Main.xlpid).txt")
 resultfile() = joinpath(localtemp(), "JuliaExcelResult_$(Main.xlpid).txt")
 expressionfile() = joinpath(localtemp(), "JuliaExcelExpression_$(Main.xlpid).txt")
 
-# read a text file with UTF-16 encoding, little endian, with byte option mark
-# https://discourse.julialang.org/t/reading-a-utf-16-le-file/11687
-readutf16lebom(filename::String) = transcode(String, reinterpret(UInt16, read(filename)))[4:end]
+"""
+    read_utf16(filename::String)
+Returns the contents of a UTF-16 encoded text file that has a byte option mark.
+See https://discourse.julialang.org/t/reading-a-utf-16-le-file/11687
+"""
+read_utf16(filename::String) = transcode(String, reinterpret(UInt16, read(filename)))[4:end]
 
 """
     srv_xl()
@@ -31,7 +34,7 @@ Read the expression file created by Excel/VBA evaluate it and write the result t
 """
 function srv_xl()
 
-    expression = readutf16lebom(expressionfile())
+    expression = read_utf16(expressionfile())
 
     result = try
         Main.eval(Meta.parse(expression))
