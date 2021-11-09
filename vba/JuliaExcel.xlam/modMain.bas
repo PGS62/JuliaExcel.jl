@@ -77,7 +77,7 @@ Attribute JuliaLaunch.VB_ProcData.VB_Invoke_Func = " \n14"
               "    using Dates" & vbLf & _
               "    global const xlpid = " & CStr(GetCurrentProcessId) & vbLf & _
               "    " & PackageName & ".settitle()" & vbLf & _
-              "    println(""Julia $VERSION, using JuliaExcel to serve Excel running as process ID " & CStr(GetCurrentProcessId) & """)" & vbLf & _
+              "    println(""Julia $VERSION, using JuliaExcel to serve Excel running as process ID " & CStr(GetCurrentProcessId) & "."")" & vbLf & _
               "    rm(""" & Replace(FlagFile, "\", "/") & """)" & vbLf & _
               "catch e" & vbLf & _
               "    theerror = ""$e""" & vbLf & _

@@ -1,4 +1,5 @@
 Version	Date	Time	Author	Comment
+39	09-Nov-2021	14:10	Philip Swannell	Refactoring.
 38	09-Nov-2021	11:44	Philip Swannell	Workbook_Open changes.
 37	09-Nov-2021	11:33	Philip Swannell	Improved other error messages.
 36	09-Nov-2021	10:21	Philip Swannell	Improved error messages from JuliaEval.
