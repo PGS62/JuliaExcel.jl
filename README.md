@@ -41,7 +41,7 @@ JuliaExcel makes the following functions available from Excel worksheets and fro
 |[JuliaSetVar](#juliasetvar)|Set a global variable in the Julia process.|
 
 ## Demo from Worksheet
-Here's a quick demonstration of the functions in action. Here are a few things to note:
+Here's a quick demonstration of the functions in action.
  * See how the Julia session on the left responds to the action in Excel on the right.
  * The annotations in brown text ("Formula at...") are to make the what's happening in the demo clearer. They won't appear when you try JuliaExcel for yourself!
  * You can replay the GIF by hitting F5.
