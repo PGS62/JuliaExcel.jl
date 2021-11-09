@@ -1,6 +1,6 @@
 # JuliaExcel
 
-Call Julia from Excel spreadsheets and VBA.
+Call Julia functions from Microsoft Excel worksheets and from VBA.
 
 ## Contents
 [Installation](#installation)  
