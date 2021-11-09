@@ -187,25 +187,6 @@ Sub Throw(ByVal ErrorString As String)
 5         End If
 End Sub
 
-' -----------------------------------------------------------------------------------------------------------------------
-' Procedure : ThrowIfError
-' Purpose   : In the event of an error, methods intended to be callable from spreadsheets
-'             return an error string (starts with "#", ends with "!"). ThrowIfError allows such
-'             methods to be used from VBA code while keeping error handling robust
-'             MyVariable = ThrowIfError(MyFunctionThatReturnsAStringIfAnErrorHappens(...))
-' -----------------------------------------------------------------------------------------------------------------------
-Function ThrowIfError(Data As Variant)
-1         ThrowIfError = Data
-2         If VarType(Data) = vbString Then
-3             If Left$(Data, 1) = "#" Then
-4                 If Right$(Data, 1) = "!" Then
-5                     Throw CStr(Data)
-6                 End If
-7             End If
-8         End If
-End Function
-
-
 'Called from "Menu..." button on sheet Audit.
 Sub MenuButton()
 1         On Error GoTo ErrHandler
