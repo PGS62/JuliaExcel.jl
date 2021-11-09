@@ -1,6 +1,5 @@
 AuditSheetComments.txt
 JuliaExcel.xlam
-modAdHoc.bas
 modJuliaLiteral.bas
 modMain.bas
 modPostMessage.bas
