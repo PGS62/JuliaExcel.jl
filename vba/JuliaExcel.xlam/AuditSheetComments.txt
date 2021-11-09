@@ -1,4 +1,9 @@
 Version	Date	Time	Author	Comment
+38	09-Nov-2021	11:44	Philip Swannell	Workbook_Open changes.
+37	09-Nov-2021	11:33	Philip Swannell	Improved other error messages.
+36	09-Nov-2021	10:21	Philip Swannell	Improved error messages from JuliaEval.
+35	09-Nov-2021	09:43	Philip Swannell	Fixes to function registration, take 2.
+34	09-Nov-2021	09:40	Philip Swannell	Fixes to function registration.
 33	08-Nov-2021	18:59	Philip Swannell	Nested arrays now handled, though they cannot be returned to a worksheet.
 32	08-Nov-2021	14:46	Philip Swannell	Code comments
 31	08-Nov-2021	11:01	Philip Swannell	Handle strings > 32767 (by throwing error if being called from Excel worksheet).

@@ -5,8 +5,10 @@ using Test
 @testset "JuliaExcel.jl" begin
    @test JuliaExcel.encode_for_xl(1) == "&1"
    @test JuliaExcel.encode_for_xl(1.0) == "#1.0"
+   @test JuliaExcel.encode_for_xl(Int8(1)) == "S1" 
+   @test JuliaExcel.encode_for_xl(Int16(1)) == "S1" 
    @test JuliaExcel.encode_for_xl(Int32(1)) == "&1"
-   @test JuliaExcel.encode_for_xl(Int16(1)) == "S1"
+   @test JuliaExcel.encode_for_xl(Int64(1)) == "&1"
    @test JuliaExcel.encode_for_xl(true) == "T"
    @test JuliaExcel.encode_for_xl(false) == "F"
    @test JuliaExcel.encode_for_xl("foo") == "£foo"

@@ -4,6 +4,7 @@ modAdHoc.bas
 modJuliaLiteral.bas
 modMain.bas
 modPostMessage.bas
+modRegister.bas
 modSerialise.bas
 modUtils.bas
 ThisWorkbook.cls

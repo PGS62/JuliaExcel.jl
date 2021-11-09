@@ -39,10 +39,12 @@ function srv_xl()
         "#($e)!"
     end
 
+    canencode = true
     encodedresult = try
         encode_for_xl(result)
     catch e
-        encode_for_xl("\$Expression evaluated in Julia to a variable of type $(typeof(result)) but there was a failure when encoding for return to Excel: ($e)!")
+        canencode = false
+        encode_for_xl("#Expression evaluated to a variable of type $(typeof(result)), but then there was an error: $(e)!")
     end
 
     io = open(resultfile(), "w")
@@ -51,6 +53,7 @@ function srv_xl()
     
     isfile(flagfile()) && rm(flagfile())
     println(truncate(expression))
+    canencode || @error "Cannot encode for return to Excel"
     result
 end
 
@@ -150,10 +153,12 @@ julia> JuliaExcel.encode_for_xl([1 2;true π;"Hello" "World"])
 # See also VBA method Decode which unserialises i.e. inverts this function
 encode_for_xl(x::String) = "£" * x         # String in VBA/Excel
 encode_for_xl(x::Char) = "£" * x           # String in VBA/Excel
-encode_for_xl(x::Int64) = string("&", x)   # Long in VBA 64-bit
-encode_for_xl(x::Int32) = string("&", x)   # Long in VBA 64-bit, no native 32-bit integer type exists on 64 bit Excel
+encode_for_xl(x::Int8) = string("S", x)   # Integer in VBA
 encode_for_xl(x::Int16) = string("S", x)   # Integer in VBA
-encode_for_xl(x::Irrational) = string("#", Float64(x))
+encode_for_xl(x::Int32) = string("&", x)   # Long in VBA 64-bit, no native 32-bit integer type exists on 64 bit Excel
+encode_for_xl(x::Int64) = string("&", x)   # Long in VBA 64-bit
+encode_for_xl(x::Int128) = string("#", Float64(x))   # Double in VBA
+encode_for_xl(x::Irrational) = string("#", Float64(x)) #Double in VBA
 encode_for_xl(x::Missing) = "E"            # Empty in VBA
 encode_for_xl(x::Nothing) = "E"            # Empty in VBA
 encode_for_xl(x::Bool) = x ? "T" : "F"     # Boolean in VBA/Excel
@@ -164,7 +169,7 @@ encode_for_xl(x::VersionNumber) = encode_for_xl("$x")
 encode_for_xl(x::Tuple) = encode_for_xl([x[i] for i in eachindex(x)])
 encode_for_xl(x::T) where T <: Function = wrapshow(x)
 encode_for_xl(x::Symbol) = wrapshow(x)
-encode_for_xl(x::Any) = throw("No method exists to encode a variable of type $(typeof(x)) for return to Excel")
+encode_for_xl(x::Any) = throw("Cannot encode variable of type $(typeof(x))")
 
 function wrapshow(x)
     io = IOBuffer()
@@ -181,10 +186,9 @@ function encode_for_xl(x::Float64)
         string("#", x)# Double in VBA/Excel
     end
 end
-    
-function encode_for_xl(x::Float32)
+ 
+function encode_for_xl(x::Union{Float16,Float32})
     if isinf(x)
-        #"#$(prevfloat(x, x > 0 ? 1 : -1))"
         "!2036" # #NUM! in Excel
     elseif isnan(x)
         "!2042" # #N/A in Excel
