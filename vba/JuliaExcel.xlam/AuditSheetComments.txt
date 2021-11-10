@@ -1,4 +1,6 @@
 Version	Date	Time	Author	Comment
+44	10-Nov-2021	12:22	Philip Swannell	Reform to handling of 1-dimensional arrays. Added new function JuliaCall3
+43	10-Nov-2021	10:23	Philip Swannell	Change to RegisterAll - avoid "Do you want to save?" dialog when exiting Excel.
 42	09-Nov-2021	17:45	Philip Swannell	VBA now password protected to prevent accidental changes. The password will be public and is JuliaExcel.
 41	09-Nov-2021	17:40	Philip Swannell	ThrowIfError now Public.
 40	09-Nov-2021	15:08	Philip Swannell	Added link to github

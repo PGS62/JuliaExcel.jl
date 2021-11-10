@@ -2,16 +2,32 @@ Attribute VB_Name = "modRegister"
 Option Explicit
 Option Private Module
 
+' -----------------------------------------------------------------------------------------------------------------------
+' Procedure  : RegisterAll
+' Purpose    : Register the functions with the Excel Function Wizard. Would prefer to also hook into ExcelDNA.Intellisense
+'              https://github.com/Excel-DNA/IntelliSense
+' -----------------------------------------------------------------------------------------------------------------------
 Sub RegisterAll()
+    Dim OldSaveStatus As Boolean
+    On Error GoTo ErrHandler
+    OldSaveStatus = ThisWorkbook.Saved
     Application.ScreenUpdating = False
-    'Without setting .IsAddin to False, I get errors: "Cannot edit a macro on a hidden workbook. Unhide the workbook using the Unhide command."
+    'Without setting .IsAddin to False, I see errors:
+    '"Cannot edit a macro on a hidden workbook. Unhide the workbook using the Unhide command."
+    'Not ideal, setting IsAddin to False causes screen flicker.
     ThisWorkbook.IsAddin = False
+    
     RegisterJuliaInclude
     RegisterJuliaEval
     RegisterJuliaCall
     RegisterJuliaCall2
     RegisterJuliaSetVar
+    
     ThisWorkbook.IsAddin = True
+    ThisWorkbook.Saved = OldSaveStatus
+    Exit Sub
+ErrHandler:
+    ' do nothing, failure to register will have printed to the immediate window
 End Sub
 
 ' -----------------------------------------------------------------------------------------------------------------------
@@ -153,6 +169,3 @@ Private Sub RegisterJuliaSetVar()
 ErrHandler:
     Debug.Print "Warning: Registration of function JuliaSetVar failed with error: " + Err.Description
 End Sub
-
-
-

@@ -57,8 +57,8 @@ Option Base 1
 ' Procedure  : UnserialiseFromFile
 ' Purpose    : Read the file saved by the Julia code and unserialise its contents.
 ' -----------------------------------------------------------------------------------------------------------------------
-Function UnserialiseFromFile(FileName As String)
-          Dim AllowNesting As Boolean
+Function UnserialiseFromFile(FileName As String, WorksheetMode As Boolean)
+          Dim AllowNested As Boolean
           Dim Contents As String
           Dim ErrMsg As String
           Dim FSO As New Scripting.FileSystemObject
@@ -70,14 +70,14 @@ Function UnserialiseFromFile(FileName As String)
 3         Contents = ts.ReadAll
 4         ts.Close
 5         Set ts = Nothing
-6         If TypeName(Application.Caller) = "Range" Then
-7             AllowNesting = False
+6         If Not WorksheetMode Then
 8             StringLengthLimit = GetStringLengthLimit()
+              AllowNested = False
 9         Else
 10            StringLengthLimit = 0 'i.e. no limit
 11        End If
 
-12        UnserialiseFromFile = Unserialise(Contents, AllowNesting, 0, StringLengthLimit)
+12        UnserialiseFromFile = Unserialise(Contents, AllowNested, 0, StringLengthLimit)
 13        Exit Function
 ErrHandler:
 14        ErrMsg = "#UnserialiseFromFile (line " & CStr(Erl) + "): " & Err.Description & "!"

@@ -1,9 +1,29 @@
 module JuliaExcel
-export srv_xl
+export srv_xl, setxlpid
 
 using Dates
 import StringEncodings
 using DataFrames
+global const xlpid = Ref(0)
+
+"""
+    setxlpid(pid::Int64)
+Set the process id of the instance of Excel that the current Julia process is serving.
+"""
+function setxlpid(pid::Int64)
+  xlpid[] = pid
+  settitle()
+  println("xlpid set to $pid")
+  nothing
+end
+
+"""
+    getxlpid()
+Returns the process id of the instance of Excel that the current Julia process is serving.
+"""
+function getxlpid()
+    xlpid[]
+end
 
 function installme()
     Sys.iswindows() || throw("JuliaExcel can only be installed on Windows")
@@ -17,9 +37,10 @@ function installme()
 end
 
 localtemp() = joinpath(ENV["TEMP"], "JuliaExcel")
-flagfile() = joinpath(localtemp(), "JuliaExcelFlag_$(Main.xlpid).txt")
-resultfile() = joinpath(localtemp(), "JuliaExcelResult_$(Main.xlpid).txt")
-expressionfile() = joinpath(localtemp(), "JuliaExcelExpression_$(Main.xlpid).txt")
+flagfile() = joinpath(localtemp(), "JuliaExcelFlag_$(getxlpid()).txt")
+resultfile() = joinpath(localtemp(), "JuliaExcelResult_$(getxlpid()).txt")
+expressionfile() = joinpath(localtemp(), "JuliaExcelExpression_$(getxlpid()).txt")
+
 
 """
     read_utf16(filename::String)
@@ -30,7 +51,8 @@ read_utf16(filename::String) = transcode(String, reinterpret(UInt16, read(filena
 
 """
     srv_xl()
-Read the expression file created by Excel/VBA evaluate it and write the result to file.
+Read the expression file created by JuliaExcel.xlam, evaluate it and write the result to
+file.
 """
 function srv_xl()
 
@@ -47,7 +69,8 @@ function srv_xl()
         encode_for_xl(result)
     catch e
         canencode = false
-        encode_for_xl("#Expression evaluated to a variable of type $(typeof(result)), but then there was an error: $(e)!")
+        encode_for_xl("#Expression evaluated to a variable of type $(typeof(result))," *
+                      " which cannot be returned to Excel because: $(e)!")
     end
 
     io = open(resultfile(), "w")
@@ -57,7 +80,8 @@ function srv_xl()
     isfile(flagfile()) && rm(flagfile())
     println(truncate(expression))
     display(result)
-    canencode || (println("");@error "Result of type $(typeof(result)) could not be encoded for return to Excel.")
+    canencode || (println("");@error "Result of type $(typeof(result)) could not be " *
+                                     "encoded for return to Excel.")
     nothing
 end
 
@@ -68,7 +92,8 @@ Set a variable in global scope. Called by VBA function JuliaSetVar.
 function setvar(name::String, arg)
     if Base.isidentifier(name)
         Main.eval(Main.eval(Meta.parse(":(global $name = $arg)")))
-        "Set global variable `$name` to a value with type $(typeof(Main.eval(Meta.parse(name))))"
+        "Set global variable `$name` to a value of type " * 
+        "$(typeof(Main.eval(Meta.parse(name))))"
     else
         "#`$name` is not an allowed variable name in Julia!"
     end
@@ -88,7 +113,7 @@ end
 
 # https://docs.microsoft.com/en-us/windows/terminal/tutorials/tab-title
 function settitle()
-    print("\033]0;Julia $VERSION PID $(getpid()) serving Excel PID $(Main.xlpid)\a")
+    print("\033]0;Julia $VERSION PID $(getpid()) serving Excel PID $(getxlpid())\a")
 end
 
 """
@@ -116,19 +141,22 @@ unserialise than csv.
   Third section gives the encodings, concatenated with no delimiter.
   - Note that arrays are written in column-major order.
 
-When decoded (by VBA function modDecode.Decode), the type indicator characters are interpreted as follows:
+When decoded (by VBA function modDecode.Decode), the type indicator characters are 
+interpreted as follows:
  #   vbDouble
  £   String
  T   Boolean True
  F   Boolean False
- D   Date (D should be followed by the number that represents the date, Excel-style i.e,. Dates.value(x) - 693594)
+ D   Date (D should be followed by the number that represents the date, Excel-style
+           i.e. Dates.value(x) - 693594)
  E   Empty
  N   Null
  %   Integer
  &   Long
  S   Single
  C   Currency
- !   Error (! should be followed by an Excel error number, e.g. 2042 for the Excel error value #N/A )
+ !   Error (! should be followed by an Excel error number, e.g. 
+              2042 for the Excel error value #N/A )
  @   Decimal
  *   Array
 
@@ -159,14 +187,15 @@ encode_for_xl(x::String) = "£" * x         # String in VBA/Excel
 encode_for_xl(x::Char) = "£" * x           # String in VBA/Excel
 encode_for_xl(x::Int8) = string("S", x)   # Integer in VBA
 encode_for_xl(x::Int16) = string("S", x)   # Integer in VBA
-encode_for_xl(x::Int32) = string("&", x)   # Long in VBA 64-bit, no native 32-bit integer type exists on 64 bit Excel
+encode_for_xl(x::Int32) = string("&", x)   # Long in VBA 64-bit, no native 32-bit integer
+                                           # type exists on 64 bit Excel
 encode_for_xl(x::Int64) = string("&", x)   # Long in VBA 64-bit
 encode_for_xl(x::Int128) = string("#", Float64(x))   # Double in VBA
 encode_for_xl(x::Irrational) = string("#", Float64(x)) #Double in VBA
 encode_for_xl(x::Missing) = "E"            # Empty in VBA
 encode_for_xl(x::Nothing) = "E"            # Empty in VBA
 encode_for_xl(x::Bool) = x ? "T" : "F"     # Boolean in VBA/Excel
-encode_for_xl(x::Date) = string("D", Dates.value(x) - 693594)      # Date in VBA/Excel
+encode_for_xl(x::Date) = string("D", Dates.value(x) - 693594) # Date in VBA/Excel
 encode_for_xl(x::DateTime) = string("D", Dates.value(x)/86_400_000 - 693594)  # VBA has no separate DateTime type
 encode_for_xl(x::DataType) = wrapshow(x)
 encode_for_xl(x::VersionNumber) = encode_for_xl("$x")

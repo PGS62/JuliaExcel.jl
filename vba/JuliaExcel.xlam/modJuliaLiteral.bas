@@ -5,10 +5,35 @@ Option Private Module
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : MakeJuliaLiteral
 ' Purpose    : Convert an array into a string which julia will parse as x:
+' Parameters :
+'  x         : The variable in Excel or VBA.
+'  OneDtoTwoD: If TRUE, then if x is a one-dimensional array, the return will be a string that will be parsed by Julia
+'              to a two-dimensional array with one row. Otherwise, if FALSE, the return will be a string that will be
+'              parsed to a one-dimensional array.
 '
+'              Unfortunately, the "best, most natural" value for OneDtoTwoD is different when calling from the worksheet
+'              versus when calling from VBA:
+'
+'           1) From the worksheet: Excel treats 1-dimensional arrays as as if they were 2-dimensional arrays with a single
+'              row, in the following senses:
+'           a) If you call a VBA UDF from a worksheet formula, and the UDF returns a 1-d array then the formula spills
+'              to a range with a single row.
+'           b) If you pass a 2-d array with a single row to a VBA UDF then the variable appears in VBA as a 1-dimensional
+'              array. This holds for string literals such as {1,2,3,4} or a call to (say) SEQUENCE(1,3) or to a reference
+'              to a range with only one row.
+'
+'              But we almost certainly want a 2-d array with one row (or range with one row) in Excel to "arrive in Julia"
+'              as two dimensional. That means that, in the context of worksheet formulas, one-dimensional value for the
+'              argument x must result in a string that Julia will parse to a two-dimensional array with a single row. And
+'              that's easy to arrange - just use space character as the delimiter, Julia parses [1 2 3] as 2-d with one row.
+
+'              By contrast, VBA supports 1-d arrays "properly" so when calling into Julia from VBA we would expect 1-d arrays to
+'              "arrive in Julia" with one dimension
+'
+' Examples:
 ' In VBA immediate window:
-' ?MakeJuliaLiteral(Array(1#, 2#, 3#))
-' [1.0,2.0,3.0]
+' ?MakeJuliaLiteral(Array(1#, 2#, 3#),False)
+' [1.0 2.0 3.0]
 '
 ' In Julia REPL:
 ' julia> [1.0,2.0,3.0]
@@ -17,11 +42,21 @@ Option Private Module
 '  2.0
 '  3.0
 
+' In VBA immediate window:
+' ?MakeJuliaLiteral(Array(1#, 2#, 3#),True)
+' [1.0,2.0,3.0]
+'
+' In Julia REPL:
+'julia> [1.0 2.0 3.0]
+'1×3 Matrix{Float64}:
+' 1.0  2.0  3.0
+
+
 'Handles nested arrays:
-' ?Print MakeJuliaLiteral(Array(1#, 2#, Array(3#, 4#)))
+' ?Print MakeJuliaLiteral(Array(1#, 2#, Array(3#, 4#)),False)
 ' Any[1.0,2.0,[3.0,4.0]]
 ' -----------------------------------------------------------------------------------------------------------------------
-Function MakeJuliaLiteral(x As Variant)
+Function MakeJuliaLiteral(x As Variant, OneDtoTwoD As Boolean)
           Dim Res As String
 
 1         On Error GoTo ErrHandler
@@ -90,14 +125,14 @@ Function MakeJuliaLiteral(x As Variant)
 53                        FirstType = VarType(x(LBound(x)))
 54                        AllSameType = True
 55                        For i = LBound(x) To UBound(x)
-56                            Tmp(i) = MakeJuliaLiteral(x(i))
+56                            Tmp(i) = MakeJuliaLiteral(x(i), OneDtoTwoD)
 57                            If AllSameType Then
 58                                If VarType(x(i)) <> FirstType Then
 59                                    AllSameType = False
 60                                End If
 61                            End If
 62                        Next i
-63                        MakeJuliaLiteral = IIf(AllSameType, "[", "Any[") & VBA.Join$(Tmp, ",") & "]"
+63                        MakeJuliaLiteral = IIf(AllSameType, "[", "Any[") & VBA.Join$(Tmp, IIf(OneDtoTwoD, " ", ",")) & "]"
 64                    Case 2
 65                        ReDim onerow(LBound(x, 2) To UBound(x, 2))
 66                        ReDim Tmp(LBound(x, 1) To UBound(x, 1))
@@ -105,7 +140,7 @@ Function MakeJuliaLiteral(x As Variant)
 68                        AllSameType = True
 69                        For i = LBound(x, 1) To UBound(x, 1)
 70                            For j = LBound(x, 2) To UBound(x, 2)
-71                                onerow(j) = MakeJuliaLiteral(x(i, j))
+71                                onerow(j) = MakeJuliaLiteral(x(i, j), OneDtoTwoD)
 72                                If AllSameType Then
 73                                    If VarType(x(i, j)) <> FirstType Then
 74                                        AllSameType = False

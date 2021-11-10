@@ -88,14 +88,15 @@ Attribute JuliaLaunch.VB_ProcData.VB_Invoke_Func = " \n14"
 22        SaveTextFile FlagFile, "", TristateFalse
 23        LoadFile = LocalTemp() & "\JuliaExcelStartUp_" & CStr(GetCurrentProcessId()) & ".jl"
               
+              '"    " & PackageName & ".settitle()" & vbLf & _
+
 24        LoadFileContents = _
               "try" & vbLf & _
               "    #println(""Executing $(@__FILE__)"")" & vbLf & _
               "    using " & PackageName & vbLf & _
               "    using Dates" & vbLf & _
-              "    global const xlpid = " & CStr(GetCurrentProcessId) & vbLf & _
-              "    " & PackageName & ".settitle()" & vbLf & _
-              "    println(""Julia $VERSION, using JuliaExcel to serve Excel running as process ID " & CStr(GetCurrentProcessId) & "."")" & vbLf & _
+              "    setxlpid(" & CStr(GetCurrentProcessId) & ")" & vbLf & _
+              "    println(""Julia $VERSION, using JuliaExcel to serve Excel running as process ID " & GetCurrentProcessId() & "."")" & vbLf & _
               "    rm(""" & Replace(FlagFile, "\", "/") & """)" & vbLf & _
               "catch e" & vbLf & _
               "    theerror = ""$e""" & vbLf & _
@@ -213,7 +214,7 @@ End Function
 ' PrecedentCell: Provides control over worksheet calculation dependency. Enter a cell or range that must be
 '             calculated before JuliaEval is executed.
 ' -----------------------------------------------------------------------------------------------------------------------
-Function JuliaEval(ByVal JuliaExpression As Variant, Optional PrecedentCell As Range)
+Function JuliaEval(ByVal JuliaExpression As Variant, Optional PrecedentCell As Range, Optional WorksheetMode As Boolean = True)
 Attribute JuliaEval.VB_Description = "Evaluate a Julia expression and return the result to Excel or VBA."
 Attribute JuliaEval.VB_ProcData.VB_Invoke_Func = " \n33"
           
@@ -262,12 +263,12 @@ Attribute JuliaEval.VB_ProcData.VB_Invoke_Func = " \n33"
 24        Do While FileExists(FlagFile)
 25            Sleep 1
 26            If IsWindow(HwndJulia) = 0 Then
-27                JuliaEval = "#The expression evaluated caused Julia to shut down!"
+27                JuliaEval = "#Julia shut down while evaluating the expression!"
 28                Exit Function
 29            End If
 30        Loop
 
-31        JuliaEval = UnserialiseFromFile(ResultFile)
+31        JuliaEval = UnserialiseFromFile(ResultFile, WorksheetMode)
 
 32        Exit Function
 ErrHandler:
@@ -331,7 +332,7 @@ End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure : JuliaCall
-' Purpose   : Call a named Julia function, passing in data from the worksheet or from VBA.
+' Purpose   : Call a named Julia function, passing in data from the worksheet.
 ' Arguments
 ' JuliaFunction: The name of a Julia function that's defined in the Julia session, perhaps as a result of
 '             prior calls to JuliaInclude.
@@ -350,14 +351,14 @@ Attribute JuliaCall.VB_ProcData.VB_Invoke_Func = " \n33"
 
 4             For i = LBound(Args) To UBound(Args)
 5                 If TypeName(Args(i)) = "Range" Then Args(i) = Args(i).Value2
-6                 Tmp(i) = MakeJuliaLiteral(Args(i))
+6                 Tmp(i) = MakeJuliaLiteral(Args(i), True)
 7             Next i
 8             Expression = JuliaFunction & "(" & VBA.Join$(Tmp, ",") & ")"
 9         Else
 10            Expression = JuliaFunction & "()"
 11        End If
 
-12        JuliaCall = JuliaEval(Expression)
+12        JuliaCall = JuliaEval(Expression, , True)
 
 13        Exit Function
 ErrHandler:
@@ -389,7 +390,7 @@ Attribute JuliaCall2.VB_ProcData.VB_Invoke_Func = " \n33"
 3             ReDim Tmp(LBound(Args) To UBound(Args))
 4             For i = LBound(Args) To UBound(Args)
 5                 If TypeName(Args(i)) = "Range" Then Args(i) = Args(i).Value2
-6                 Tmp(i) = MakeJuliaLiteral(Args(i))
+6                 Tmp(i) = MakeJuliaLiteral(Args(i), True)
 7             Next i
 8             Expression = JuliaFunction & "(" & VBA.Join$(Tmp, ",") & ")"
 9         Else
@@ -401,6 +402,33 @@ Attribute JuliaCall2.VB_ProcData.VB_Invoke_Func = " \n33"
 13        Exit Function
 ErrHandler:
 14        JuliaCall2 = "#JuliaCall2 (line " & CStr(Erl) + "): " & Err.Description & "!"
+End Function
+
+'Version optimised for use from VBA:
+'a) Arguments and return can be nested arrays, i.e. arrays with elements that are themselves arrays. Worksheets can't support that but both Julia and VBA can.
+'b) Arguments that are 1-dimensional arrays appear appear in Julia as one-dimensional arrays. By contrast 1-dimensional array arguments to JuliaCall and JuliaCall2 appear in Julia as two dimensional arrays with a single row
+Function JuliaCall3(JuliaFunction As String, ParamArray Args())
+          Dim Expression As String
+          Dim i As Long
+          Dim Tmp() As String
+
+1         On Error GoTo ErrHandler
+2         If UBound(Args) >= LBound(Args) Then
+3             ReDim Tmp(LBound(Args) To UBound(Args))
+4             For i = LBound(Args) To UBound(Args)
+5                 If TypeName(Args(i)) = "Range" Then Args(i) = Args(i).Value2
+6                 Tmp(i) = MakeJuliaLiteral(Args(i), False)
+7             Next i
+8             Expression = JuliaFunction & "(" & VBA.Join$(Tmp, ",") & ")"
+9         Else
+10            Expression = JuliaFunction & "()"
+11        End If
+
+12        JuliaCall3 = JuliaEval(Expression, , False)
+
+13        Exit Function
+ErrHandler:
+14        JuliaCall3 = "#JuliaCall3 (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
