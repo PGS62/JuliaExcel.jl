@@ -1,14 +1,15 @@
 ' Installer for JuliaExcel.xlam
 ' Philip Swannell 4 Nov 2021
 
-'To Debug this file, install visual studio set up for debugging (https://www.codeproject.com/Tips/864659/How-to-Debug-Visual-Basic-Script-with-Visual-Studi)
+'To Debug this file, install visual studio set up for debugging 
 'Then run from a command prompt (in the appropriate folder)
 'cscript.exe /x Install.vbs
+'https://www.codeproject.com/Tips/864659/How-to-Debug-Visual-Basic-Script-with-Visual-Studi
 
 Option Explicit
 
 Const AddinName = "JuliaExcel.xlam"
-Const website = "https://github.com/PGS62/JuliaExcel.jl#readme"
+Const website = "https://github.com/PGS62/JuliaExcel.jl"
 
 Dim gErrorsEncountered
 Dim myWS, AddinsDest, MsgBoxTitle, MsgBoxTitleBad
@@ -30,12 +31,16 @@ Function CheckProcess(TheProcessName)
     Dim exc, result
     exc = IsProcessRunning(".", TheProcessName)
     If (exc = True) Then
-        result = MsgBox(TheProcessName & " is running. Please close it and then click OK to continue.", vbOKOnly + vbExclamation, MsgBoxTitle)
+        result = MsgBox(TheProcessName & _
+        " is running. Please close it and then click OK to continue.", _
+        vbOKOnly + vbExclamation, MsgBoxTitle)
         exc = IsProcessRunning(".", TheProcessName)
         If (exc = True) Then
-            result = MsgBox(TheProcessName & " is still running. Please close the program and restart the installation." + vbLf + vbLf + _
-                "Can't see " & TheProcessName & "?" & vbLf & "Use Windows Task Manager to check for a ""ghost"" process.", vbOKOnly + vbExclamation, MsgBoxTitle)
-
+            result = MsgBox(TheProcessName & " is still running. Please close the " & _
+                    "program and restart the installation." + vbLf + vbLf + _
+                    "Can't see " & TheProcessName & "?" & vbLf & "Use Windows Task " & _
+                    "Manager to check for a ""ghost"" process.", _
+                    vbOKOnly + vbExclamation, MsgBoxTitle)
             WScript.Quit
         End If
     End If
@@ -78,7 +83,6 @@ Function FolderIsWritable(FolderPath)
 
 End Function
 
-
 Function DeleteFolder(TheFolderName)
     Dim fso, f
     Set fso = CreateObject("Scripting.FileSystemObject")
@@ -114,7 +118,8 @@ Function FileExists(FileName)
 End Function
 
 'Pass FileNames as a string, comma-delimited for multiple files
-Function CopyNamedFiles(ByVal TheSourceFolder, ByVal TheDestinationFolder, ByVal FileNames, ThrowErrorIfNoSourceFile)
+Function CopyNamedFiles(ByVal TheSourceFolder, ByVal TheDestinationFolder, _
+                        ByVal FileNames, ThrowErrorIfNoSourceFile)
     Dim fso
     Dim FileNamesArray, i, ErrorMessage
     Set fso = CreateObject("Scripting.FileSystemObject")
@@ -139,10 +144,12 @@ Function CopyNamedFiles(ByVal TheSourceFolder, ByVal TheDestinationFolder, ByVal
                 MakeFileWritable TheDestinationFolder & FileNamesArray(i)
             End If
             On Error Resume Next
-            fso.CopyFile TheSourceFolder & FileNamesArray(i), TheDestinationFolder & FileNamesArray(i), True
+            fso.CopyFile TheSourceFolder & FileNamesArray(i), _
+                         TheDestinationFolder & FileNamesArray(i), True
             If Err.Number <> 0 Then
                 gErrorsEncountered = True
-                ErrorMessage = "Failed to copy from: " & TheSourceFolder & FileNamesArray(i) & vbLf & _
+                ErrorMessage = "Failed to copy from: " & _
+                    TheSourceFolder & FileNamesArray(i) & vbLf & _
                     "to: " & TheDestinationFolder & FileNamesArray(i) & vbLf & _
                     "Error: " & Err.Description
                 MsgBox ErrorMessage, vbOKOnly + vbExclamation, MsgBoxTitleBad
@@ -177,20 +184,24 @@ End Function
 ' Purpose   : Gets the AltStartupPath, by looking in the Registry
 '             There is some chance that this returns the wrong result - e.g. on a PC
 '             where Office 16.0 was previously installed (leaving data in the Registry)
-'             but the version of Office used is Office 15.0 - For example the "Bloomberg PC" in Solum's offices
+'             but the version of Office used is Office 15.0 - For example the "Bloomberg PC"
+'             in Solum's offices
 '---------------------------------------------------------------------------------------
 Function GetAltStartupPath() 'App)
-    GetAltStartupPath = RegistryRead("HKEY_CURRENT_USER\Software\Microsoft\Office\" & OfficeVersion(1) & "\Excel\Options\AltStartup", "Not found")
+    GetAltStartupPath = RegistryRead("HKEY_CURRENT_USER\Software\Microsoft\Office\" & _
+    OfficeVersion(1) & "\Excel\Options\AltStartup", "Not found")
 End Function
 
 '---------------------------------------------------------------------------------------
 ' Procedure : SetAltStartupPath
 ' Author    : Philip Swannell
 ' Date      : Nov-2017
-' Purpose   : Sets the AltStartupPath, by looking in the Registry. See caution for GetAltStartupPath
+' Purpose   : Sets the AltStartupPath, by looking in the Registry. See caution for 
+'             GetAltStartupPath
 '---------------------------------------------------------------------------------------
 Function SetAltStartupPath(Path) '(App,Path)
-    RegistryWrite "HKEY_CURRENT_USER\Software\Microsoft\Office\" & OfficeVersion(1) & "\Excel\Options\AltStartup", Path
+    RegistryWrite "HKEY_CURRENT_USER\Software\Microsoft\Office\" & OfficeVersion(1) & _
+    "\Excel\Options\AltStartup", Path
 End Function
 
 '---------------------------------------------------------------------------------------
@@ -198,12 +209,13 @@ End Function
 ' Author    : Philip Swannell
 ' Date      : 30-Nov-2017
 ' Purpose   : Read a value from the Registry
+' https://msdn.microsoft.com/en-us/library/x05fawxd(v=vs.84).aspx
 '---------------------------------------------------------------------------------------
 Function RegistryRead(RegKey, DefaultValue)
     RegistryRead = DefaultValue
     Set myWS = CreateObject("WScript.Shell")
     On Error Resume Next
-    RegistryRead = myWS.RegRead(RegKey)        ' See https://msdn.microsoft.com/en-us/library/x05fawxd(v=vs.84).aspx
+    RegistryRead = myWS.RegRead(RegKey) 
     Exit Function
 End Function
 
@@ -212,11 +224,12 @@ End Function
 ' Author    : Philip Swannell
 ' Date      : 30-Nov-2017
 ' Purpose   : Write to the Registry
+' https://msdn.microsoft.com/en-us/library/yfdfhz1b(v=vs.84).aspx
 '---------------------------------------------------------------------------------------
 Function RegistryWrite(RegKey, NewValue)
     Dim myWS
     Set myWS = CreateObject("WScript.Shell")
-    myWS.RegWrite RegKey, NewValue, "REG_SZ"        'See https://msdn.microsoft.com/en-us/library/yfdfhz1b(v=vs.84).aspx
+    myWS.RegWrite RegKey, NewValue, "REG_SZ"
 End Function
 
 '---------------------------------------------------------------------------------------
@@ -243,7 +256,8 @@ End Function
 Function OfficeVersion(NumDecimalsAfterPoint)
     Dim i, RegKey
     For i = 20 To 11 Step -1
-        RegKey = "HKEY_CURRENT_USER\Software\Microsoft\Office\" & FormatNumber(i, 1) & "\Excel\"
+        RegKey = "HKEY_CURRENT_USER\Software\Microsoft\Office\" & FormatNumber(i, 1) & _
+        "\Excel\"
         If RegistryKeyExists(RegKey) Then
             OfficeVersion = FormatNumber(i, NumDecimalsAfterPoint)
             Exit Function
@@ -252,13 +266,11 @@ Function OfficeVersion(NumDecimalsAfterPoint)
     OfficeVersion = "Office Not found"
 End Function
 
-'Apparently VBScript has no in-line if. So create one.
 Function IIf( expr, truepart, falsepart )
    IIf = falsepart
    If expr Then IIf = truepart
 End Function
 
-'It appears that VBSCript does not have the Environ function that VBA has. Sigh, roll my own.
 Function Environ(Expression)
 	Dim WshShell
 	Set WshShell = CreateObject("WScript.Shell")
@@ -273,7 +285,8 @@ Sub InstallExcelAddin(AddinFullName, WithSlashR)
     Dim NumAddins
     Dim RegValue
 
-    RegKeyBranch = "HKEY_CURRENT_USER\Software\Microsoft\Office\" & OfficeVersion(1) & "\Excel\Options\"
+    RegKeyBranch = "HKEY_CURRENT_USER\Software\Microsoft\Office\" & _
+                    OfficeVersion(1) & "\Excel\Options\"
     i = 0
     Do
         i = i + 1
@@ -289,7 +302,8 @@ Sub InstallExcelAddin(AddinFullName, WithSlashR)
     Loop
 
     RegKeyLeaf = "OPEN" & IIf(NumAddins > 0, CStr(NumAddins), "")
-    'I can't discover what is the significance of the /R that appears in the Registry for some addins but not for others...
+    'I can't discover what is the significance of the /R that appears in the Registry for
+    'some addins but not for others...
     If WithSlashR Then
         RegValue = "/R """ & AddinFullName & """"
     Else
@@ -299,10 +313,12 @@ Sub InstallExcelAddin(AddinFullName, WithSlashR)
 
 End Sub
 
-'***********************************************************************************************************************************************
-'Effective start of this VBScript. Note elevating to admin as per http://www.winhelponline.com/blog/vbscripts-and-uac-elevation/
-'although, by design we put files in places where admim shouldn't be required
-'***********************************************************************************************************************************************
+'*******************************************************************************************
+'Effective start of this VBScript. Note elevating to admin as per 
+'http://www.winhelponline.com/blog/vbscripts-and-uac-elevation/
+'We install to C:\ProgramData see
+'https://stackoverflow.com/questions/22107812/privileges-owner-issue-when-writing-in-c-programdata
+'*******************************************************************************************
 If WScript.Arguments.length = 0 Then
    Dim objShell, ThisFileName
    Set objShell = CreateObject("Shell.Application")
@@ -315,8 +331,10 @@ Else
     
     MsgBoxTitle = "Install JuliaExcel"
     MsgBoxTitleBad = "Install JuliaExcel - Error Encountered"
-    'Hack to make it easy to record a GIF of the installation process without an installation actually happening
-    GIFRecordingMode = FileExists("C:\Temp\RecordingGIF.tmp")
+    'Hack to make it easy to record a GIF of the installation process without an 
+    'installation actually happening
+   ' GIFRecordingMode = FileExists("C:\Temp\RecordingGIF.tmp")
+    GIFRecordingMode = False
 
     gErrorsEncountered = False
     if Not GIFRecordingMode Then
@@ -324,16 +342,24 @@ Else
     End If
 
     if OfficeVersion(0) = "Office Not found" Then
-        MsgBox "Installation cannot proceed because no version of Microsoft Office has been detected on this PC. This script attempts to detect installed versions of office by looking in the Windows Registry for a key of the form 'HKEY_CURRENT_USER\Software\Microsoft\Office\<OFFICE_VERSION_NUMBER>\Excel\Options\', but no such key was found.",vbCritical,MsgBoxTitleBad
+        MsgBox "Installation cannot proceed because no version of Microsoft Office has " & _
+               "been detected on this PC." & vblf  & vblf & _
+               "The script attempts to detect installed versions of Office by looking " & _
+               "in the Windows Registry for a key " & _ 
+               "'HKEY_CURRENT_USER\Software\Microsoft\Office\<OFFICE_VERSION_NUMBER>\Excel\Options\'," & _
+               " but no such key was found.",vbCritical,MsgBoxTitleBad
         WScript.Quit
     End If
 
-    'The first option below is the "AddinsFolder" however using it as the addin location is causes "Link Hell":
-    'User A (who has the addin) writes a spreadsheet that uses the add in and then sends the spreadsheet to User B.
-    'User B (who also has the addin) finds the spreadsheet won't work until they grapple with the dreaded "change links dialog"
-    'FirstOption, no longer used:
-    'AddinsDest = Environ("USERPROFILE") & "\AppData\Roaming\Microsoft\Addins\"
-    'Better option: (PGS 9 Nov 2021)
+    ' Putting the add-in in the same folder for all users has both advantages and 
+    ' disadvantages:
+    ' Advantage: Avoid "Excel Link Hell" caused by the fact that workbooks store the 
+    '     absolute address of files to which they link (unless the file is in the same 
+    '     folder). Causes endless problems when two users share a workbook.
+    ' Disadvantage: Two different users of the same PC would share copy of the add-in and 
+    '     thus be forced to use the same version of the add-in, though they don't both have 
+    '     to have the addin installed since that's controlled via the registry, which _is_ 
+    '     user specific.
     AddinsDest = "C:\ProgramData\JuliaExcel\"
     
     Dim AddinsSource
@@ -343,10 +369,12 @@ Else
     AddinsSource = AddinsSource & "workbooks\"
 
     Dim Prompt
-    Prompt = "This will install JuliaExcel.xlsm by copying it from " & vbLf & vblf & _
+    Prompt = "This will copy JuliaExcel.xlsm from " & vbLf & vblf & _
         AddinsSource & vbLf & vbLf & _
-        "To Excel's Addins path at:" & vblf & vblf & _
+        "to:" & vblf & vblf & _
         AddinsDest & vblf & vblf & _
+        "and install it as an Excel add-in," & vblf & _
+        "via Excel > File > Options > Add-ins > Excel Add-ins." & vblf & vblf & _
         "Do you wish to continue?"
     Dim result
 
@@ -356,9 +384,9 @@ Else
     ForceFolderToExist AddinsDest
 
     If not GIFRecordingMode Then
-        'Copy file
+        'Copy it.
         CopyNamedFiles AddinsSource, AddinsDest, AddinName, True
-        'Make Excel "see" the addin
+        'Make Excel "see" it.
         InstallExcelAddin AddinsDest & AddinName, True
     End If
 
@@ -369,8 +397,8 @@ Else
         MsgBox Prompt, vbOKOnly + vbCritical, MsgBoxTitleBad
     Else
         Prompt = "JuliaExcel is installed, and its functions such as JuliaEval and " & _
-                 "JuliaCall will be available the next time you start Excel." & vblf & vblf & _
-                 website
+                 "JuliaCall will be available the next time you start Excel." & vblf & _
+                 vblf & website
         MsgBox Prompt, vbOKOnly + vbInformation, MsgBoxTitle
     End If
 
