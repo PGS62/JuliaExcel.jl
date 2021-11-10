@@ -22,6 +22,7 @@ Sub RegisterAll()
     RegisterJuliaCall
     RegisterJuliaCall2
     RegisterJuliaSetVar
+    RegisterJuliaLaunch
     
     ThisWorkbook.IsAddin = True
     ThisWorkbook.Saved = OldSaveStatus

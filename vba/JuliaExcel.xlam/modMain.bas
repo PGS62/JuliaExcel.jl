@@ -45,7 +45,7 @@ End Function
 ' -----------------------------------------------------------------------------------------------------------------------
 Function JuliaLaunch(Optional MinimiseWindow As Boolean, Optional ByVal JuliaExe As String)
 Attribute JuliaLaunch.VB_Description = "Launches a local Julia session which ""listens"" to the current Excel session and responds to calls to JuliaEval etc.."
-Attribute JuliaLaunch.VB_ProcData.VB_Invoke_Func = " \n14"
+Attribute JuliaLaunch.VB_ProcData.VB_Invoke_Func = " \n33"
 
           Const PackageName As String = "JuliaExcel"
           Dim Command As String

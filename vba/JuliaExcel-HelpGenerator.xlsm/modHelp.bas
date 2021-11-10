@@ -4,7 +4,7 @@ Option Explicit
 Function AddPipes(Data)
           Dim Result() As String
           Dim i As Long, j As Long, NR As Long, NC As Long
-1         If TypeName(Data) = "Range" Then Data = Data.value
+1         If TypeName(Data) = "Range" Then Data = Data.Value
 
 2         NR = sNRows(Data)
 3         NC = sNCols(Data)
@@ -29,6 +29,111 @@ End Function
 
 
 
+
+Sub GrabArgsFromTable(FunctionName As String, IntellisenseTable As Range, ByRef Description As String, ByRef ArgNames() As Variant, ByRef ArgDescs() As Variant)
+
+          Dim TheTable As Range
+          Dim FunctionNameCell As Range
+          Dim c As Range
+          Dim i As Long
+
+1         On Error GoTo ErrHandler
+2         Set TheTable = IntellisenseTable.CurrentRegion
+
+3         For Each c In TheTable.Columns(1).Cells
+4             If c.Value = FunctionName Then
+5                 Set FunctionNameCell = c
+6                 Description = c.Offset(0, 1).Value
+7                 Exit For
+8             End If
+9         Next
+
+10        ReDim ArgDescs(1 To 1, 1 To 1)
+          
+11        ArgDescs(1, 1) = FunctionNameCell.Offset(0, 4).Value
+          
+12        For i = 6 To 100 Step 2
+13            If Not IsEmpty(FunctionNameCell.Offset(0, i).Value) Then
+14                ReDim Preserve ArgDescs(1 To 1, 1 To UBound(ArgDescs, 2) + 1)
+15                ArgDescs(1, UBound(ArgDescs, 2)) = FunctionNameCell.Offset(0, i).Value
+16            Else
+17                Exit For
+18            End If
+19        Next i
+20        ArgDescs = Application.WorksheetFunction.Transpose(ArgDescs)
+
+21        ReDim ArgNames(1 To 1, 1 To 1)
+          
+22        ArgNames(1, 1) = FunctionNameCell.Offset(0, 3).Value
+          
+23        For i = 5 To 101 Step 2
+24            If Not IsEmpty(FunctionNameCell.Offset(0, i).Value) Then
+25                ReDim Preserve ArgNames(1 To 1, 1 To UBound(ArgNames, 2) + 1)
+26                ArgNames(1, UBound(ArgNames, 2)) = FunctionNameCell.Offset(0, i).Value
+27            Else
+28                Exit For
+29            End If
+30        Next i
+31        ArgNames = Application.WorksheetFunction.Transpose(ArgNames)
+
+
+
+32        Exit Sub
+ErrHandler:
+33        Throw "#GrabArgsFromTable (line " & CStr(Erl) + "): " & Err.Description & "!"
+End Sub
+
+Function CodeToRegister2(FunctionName As String, IntellisenseTable As Range)
+Dim Description As String
+Dim ArgNames() As Variant
+Dim ArgDescs() As Variant
+
+    On Error GoTo ErrHandler
+    GrabArgsFromTable FunctionName, IntellisenseTable, Description, ArgNames, ArgDescs
+
+CodeToRegister2 = CodeToRegister(FunctionName, Description, ArgDescs)
+    
+    Exit Function
+ErrHandler:
+    CodeToRegister2 = "#CodeToRegister2 (line " & CStr(Erl) + "): " & Err.Description & "!"
+End Function
+
+Function HelpForVBE2(FunctionName As String, IntellisenseTable As Range, Optional ExtraHelp As String, Optional Author As String, Optional DateWritten As Long)
+
+          Dim Description As String
+          Dim ArgNames() As Variant
+          Dim ArgDescs() As Variant
+
+1         On Error GoTo ErrHandler
+2         GrabArgsFromTable FunctionName, IntellisenseTable, Description, ArgNames, ArgDescs
+
+3         HelpForVBE2 = HelpForVBE(FunctionName, Description, ArgNames, ArgDescs, ExtraHelp, Author, DateWritten)
+          
+4         Exit Function
+ErrHandler:
+5         HelpForVBE2 = "#HelpForVBE2 (line " & CStr(Erl) + "): " & Err.Description & "!"
+End Function
+
+Function MarkdownHelp2(SourceFile As String, FunctionName As String, IntellisenseTable As Range, Optional Replacements)
+
+          Dim Description As String
+          Dim ArgNames() As Variant
+          Dim ArgDescs() As Variant
+
+1         On Error GoTo ErrHandler
+2         GrabArgsFromTable FunctionName, IntellisenseTable, Description, ArgNames, ArgDescs
+
+3         MarkdownHelp2 = MarkdownHelp(SourceFile, FunctionName, Description, ArgNames, ArgDescs, Replacements)
+          
+4         Exit Function
+ErrHandler:
+5         MarkdownHelp2 = "#MarkdownHelp2 (line " & CStr(Erl) + "): " & Err.Description & "!"
+End Function
+
+
+
+
+
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : CodeToRegister
 ' Purpose    : Generate VBA code to register a function.
@@ -40,7 +145,7 @@ Function CodeToRegister(FunctionName, Description As String, ArgDescs)
           Dim i As Long
           
 1         On Error GoTo ErrHandler
-2         If TypeName(ArgDescs) = "Range" Then ArgDescs = ArgDescs.value
+2         If TypeName(ArgDescs) = "Range" Then ArgDescs = ArgDescs.Value
 3         If VarType(ArgDescs) < vbArray Then
 4             ReDim Temp(1 To 1, 1 To 1): Temp(1, 1) = ArgDescs: ArgDescs = Temp
 5         End If
@@ -160,7 +265,7 @@ Function HelpForVBE(FunctionName As String, FunctionDescription As String, ArgNa
 13        Hlp = Hlp & "' Purpose   :" & InsertBreaks(FunctionDescription, Len("Len(ArgNames(i, 1))")) & vbLf
 14        Hlp = Hlp & "' Arguments" & vbLf
 
-15        If TypeName(ArgNames) = "Range" Then ArgNames = ArgNames.value
+15        If TypeName(ArgNames) = "Range" Then ArgNames = ArgNames.Value
 
 16        NumArgs = UBound(ArgNames, 1) - LBound(ArgNames, 1) + 1
 17        For i = 1 To NumArgs
@@ -283,7 +388,7 @@ Function MarkdownHelp(SourceFile As String, FunctionName As String, ByVal Functi
 15        Declaration = StringBetweenStrings(SourceCode, LeftString, ")", True, True)
 
           Dim NextChars As String
-          Dim matchPoint As Long
+          Dim MatchPoint As Long
 
           'Bodge ParamArray() confuses my cheap and chearful language parsing
 16        If Mid(Declaration, Len(Declaration) - 1) = "()" Then
@@ -291,8 +396,8 @@ Function MarkdownHelp(SourceFile As String, FunctionName As String, ByVal Functi
 18        End If
 
           'Bodge - get the "As VarType"
-19        matchPoint = InStr(SourceCode, Declaration)
-20        NextChars = Mid$(SourceCode, matchPoint + Len(Declaration), 100)
+19        MatchPoint = InStr(SourceCode, Declaration)
+20        NextChars = Mid$(SourceCode, MatchPoint + Len(Declaration), 100)
 21        If Left$(NextChars, 4) = " As " Then
 22            NextChars = StringBetweenStrings(NextChars, " As ", vbLf, True, False)
 23            NextChars = " " & Trim(NextChars)
@@ -329,7 +434,7 @@ Function MarkdownHelp(SourceFile As String, FunctionName As String, ByVal Functi
 
 43        If Not IsMissing(Replacements) Then
 44            If TypeName(Replacements) = "Range" Then
-45                Replacements = Replacements.value
+45                Replacements = Replacements.Value
 46            End If
 47            For i = 1 To sNRows(Replacements)
 48                Hlp = Replace(Hlp, Replacements(i, 1), Replacements(i, 2))

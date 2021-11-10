@@ -28,7 +28,7 @@ Public Function VStack(ParamArray ArraysToStack())
         If IsEmpty(NA) Then NA = CVErr(xlErrNA)
 
         For i = LBound(ArraysToStack) To UBound(ArraysToStack)
-            If TypeName(ArraysToStack(i)) = "Range" Then ArraysToStack(i) = ArraysToStack(i).value
+            If TypeName(ArraysToStack(i)) = "Range" Then ArraysToStack(i) = ArraysToStack(i).Value
             If IsMissing(ArraysToStack(i)) Then
                 R = 0: c = 0
             Else

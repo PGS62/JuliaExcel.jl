@@ -16,17 +16,17 @@ Sub CreateIntellisenseWorkbook()
 
 4         targetsheet.Name = "_Intellisense_"
 
-5         targetsheet.Cells(1, 1).value = "FunctionInfo"
-6         targetsheet.Cells(1, 2).value = "'1.0"
+5         targetsheet.Cells(1, 1).Value = "FunctionInfo"
+6         targetsheet.Cells(1, 2).Value = "'1.0"
 
 7         For i = 1 To 2
 8             FnName = Choose(i, "CSVRead", "CSVWrite")
 9             Set SourceRange = ThisWorkbook.Worksheets("Help").Range(FnName & "Args")
 10            targetsheet.Cells(1 + i, 1) = FnName
-11            targetsheet.Cells(1 + i, 2) = SourceRange.Cells(1, 1).Offset(-2, 1).value
+11            targetsheet.Cells(1 + i, 2) = SourceRange.Cells(1, 1).Offset(-2, 1).Value
 12            For j = 1 To SourceRange.Rows.Count
-13                targetsheet.Cells(1 + i, 2 * (1 + j)).value = SourceRange.Cells(j, 1).value
-14                targetsheet.Cells(1 + i, 1 + 2 * (1 + j)).value = SourceRange.Cells(j, 2).value
+13                targetsheet.Cells(1 + i, 2 * (1 + j)).Value = SourceRange.Cells(j, 1).Value
+14                targetsheet.Cells(1 + i, 1 + 2 * (1 + j)).Value = SourceRange.Cells(j, 2).Value
 15            Next j
 16        Next i
 
