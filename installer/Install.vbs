@@ -169,6 +169,17 @@ Function MakeFileWritable(FileName)
     End If
 End Function
 
+Function MakeFileReadOnly(FileName)
+    Const ReadOnly = 1
+    Dim fso
+    Dim f
+    Set fso = CreateObject("Scripting.FileSystemObject")
+    Set f = fso.GetFile(FileName)
+    If Not (f.Attributes And ReadOnly) Then
+       f.Attributes = f.Attributes XOR ReadOnly 
+    End If
+End Function
+
 Function ForceFolderToExist(TheFolderName)
     If FolderExists(TheFolderName) = False Then
         Dim fso
@@ -386,6 +397,9 @@ Else
     If not GIFRecordingMode Then
         'Copy it.
         CopyNamedFiles AddinsSource, AddinsDest, AddinName, True
+        'Make it readonly - avoid dialog "Want to Save JuliaExcel.xlsm" every time the user
+        'Exits Excel
+        MakeFileReadOnly AddinsDest & AddinName
         'Make Excel "see" it.
         InstallExcelAddin AddinsDest & AddinName, True
     End If
