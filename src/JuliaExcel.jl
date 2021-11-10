@@ -56,7 +56,7 @@ function srv_xl()
     
     isfile(flagfile()) && rm(flagfile())
     println(truncate(expression))
-    show(result)
+    display(result)
     canencode || (println("");@error "Result of type $(typeof(result)) could not be encoded for return to Excel.")
     nothing
 end
