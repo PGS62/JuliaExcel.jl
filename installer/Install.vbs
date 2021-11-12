@@ -39,7 +39,8 @@ Function CheckProcess(TheProcessName)
             result = MsgBox(TheProcessName & " is still running. Please close the " & _
                     "program and restart the installation." + vbLf + vbLf + _
                     "Can't see " & TheProcessName & "?" & vbLf & "Use Windows Task " & _
-                    "Manager to check for a ""ghost"" process.", _
+                    "Manager to check for a ""ghost"" process." & vblf & vbLf & _
+                    "Also check that no other user of this PC is logged in and using Excel.", _
                     vbOKOnly + vbExclamation, MsgBoxTitle)
             WScript.Quit
         End If
