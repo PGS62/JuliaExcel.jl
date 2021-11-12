@@ -152,6 +152,12 @@ Function CopyNamedFiles(ByVal TheSourceFolder, ByVal TheDestinationFolder, _
                     TheSourceFolder & FileNamesArray(i) & vbLf & _
                     "to: " & TheDestinationFolder & FileNamesArray(i) & vbLf & _
                     "Error: " & Err.Description
+                    If FileExists(TheSourceFolder & FileNamesArray(i)) Then
+                        If FileExists(TheDestinationFolder & FileNamesArray(i)) Then
+                            ErrorMessage = ErrorMessage & vblf & vbLf & _
+                                "Does another user of this PC have the file open in Excel? Check that no other users of the PC are logged in"
+                        End If
+                    End If
                 MsgBox ErrorMessage, vbOKOnly + vbExclamation, MsgBoxTitleBad
             End If
         End If
@@ -412,7 +418,7 @@ Sub DeleteExcelAddinFromRegistry(AddinName)
 End Sub
 
 Dim ElevateToAdmin
-ElevateToAdmin = False
+ElevateToAdmin = False 'No longer need to elevate to admin since writing to c:\Users\Public
 
 '*******************************************************************************************
 'Effective start of this VBScript. Note elevating to admin as per 
@@ -447,7 +453,10 @@ Else
                "The script attempts to detect installed versions of Office by looking " & _
                "in the Windows Registry for a key " & _ 
                "'HKEY_CURRENT_USER\Software\Microsoft\Office\<OFFICE_VERSION_NUMBER>\Excel\Options\'," & _
-               " but no such key was found.",vbCritical,MsgBoxTitleBad
+               " but no such key was found." & vblf & vbLf _
+               "On possible cause of this problem is that you have just installed " & _
+               "Office, but not used it yet under the current user account.", _
+               ,vbCritical,MsgBoxTitleBad
         WScript.Quit
     End If
 
