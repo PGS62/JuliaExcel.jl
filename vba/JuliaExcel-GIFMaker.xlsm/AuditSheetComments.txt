@@ -1,4 +1,5 @@
 Version	Date	Time	Author	Comment
+5	12-Nov-2021	15:48	Philip Swannell	Re-recorded installation.
 4	07-Nov-2021	18:29	Philip Swannell	GIF4 now used in the repo README file.
 3	07-Nov-2021	15:30	Philip Swannell	GIF2 now records a introductory demo.
 2	07-Nov-2021	11:35	Philip Swannell	GIF1 now records the install process.

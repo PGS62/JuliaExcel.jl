@@ -411,6 +411,8 @@ Sub DeleteExcelAddinFromRegistry(AddinName)
     Next
 End Sub
 
+Dim ElevateToAdmin
+ElevateToAdmin = False
 
 '*******************************************************************************************
 'Effective start of this VBScript. Note elevating to admin as per 
@@ -418,7 +420,7 @@ End Sub
 'We install to C:\ProgramData see
 'https://stackoverflow.com/questions/22107812/privileges-owner-issue-when-writing-in-c-programdata
 '*******************************************************************************************
-If WScript.Arguments.length = 0 Then
+If (WScript.Arguments.length = 0) And ElevateToAdmin Then
    Dim objShell, ThisFileName
    Set objShell = CreateObject("Shell.Application")
    'Pass a bogus argument, say [ uac]
@@ -460,6 +462,7 @@ Else
     '     user specific.
 
     AddinsDest = "C:\ProgramData\JuliaExcel\"
+    AddinsDest = "C:\Users\Public\JuliaExcel\"
     
     Dim AddinsSource
     AddinsSource = WScript.ScriptFullName
@@ -510,6 +513,7 @@ Else
         'Exits Excel
         MakeFileReadOnly AddinsDest & AddinName
         'Make Excel "see" it.
+        DeleteExcelAddinFromRegistry AddinName
         InstallExcelAddin AddinsDest & AddinName, True
 
         If InstallIntellisense Then
