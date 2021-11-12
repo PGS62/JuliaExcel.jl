@@ -453,9 +453,9 @@ Else
                "The script attempts to detect installed versions of Office by looking " & _
                "in the Windows Registry for a key " & _ 
                "'HKEY_CURRENT_USER\Software\Microsoft\Office\<OFFICE_VERSION_NUMBER>\Excel\Options\'," & _
-               " but no such key was found." & vblf & vbLf _
-               "On possible cause of this problem is that you have just installed " & _
-               "Office, but not used it yet under the current user account.", _
+               " but no such key was found." & vblf & vbLf & _
+               "One possible cause of this problem is that you have just installed " & _
+               "Office, but not used Excel yet under the current user account.", _
                ,vbCritical,MsgBoxTitleBad
         WScript.Quit
     End If
