@@ -324,6 +324,94 @@ Sub InstallExcelAddin(AddinFullName, WithSlashR)
 
 End Sub
 
+
+' -----------------------------------------------------------------------------------------------------------------------
+' Procedure  : OfficeBitness
+' Author     : Philip Swannell
+' Date       : 24-Jan-2019
+' Purpose    : Stackoverflow has a long discussion on determining the bitness of office via the registry, with 27(!) answers
+'             This function is based on the solution suggested by stackoverflow user uflrob
+'              See https://stackoverflow.com/questions/2203980/detect-whether-office-is-32bit-or-64bit-via-the-registry
+' -----------------------------------------------------------------------------------------------------------------------
+Function OfficeBitness()
+	Dim ExcelPath
+	ExcelPath = RegistryRead("HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\excel.exe\Path","Not found")
+	if ExcelPath = "Not found" Then
+		OfficeBitness = 0
+		gErrorsEncountered = True
+		MsgBox "Cannot determine if Microsoft Excel is 64 bit or 32 bit",vbOKOnly + vbExclamation, MsgBoxTitleBad
+		Exit function
+	Else
+		OfficeBitness = 32
+		If Environ("PROCESSOR_ARCHITECTURE") = "AMD64" Then
+			If Instr(ExcelPath,"x86")= 0 Then
+				OfficeBitness = 64
+			End If
+		End If
+	End If
+End Function
+
+' -----------------------------------------------------------------------------------------------------------------------
+' Procedure  : DeleteExcelAddinFromRegistry
+' Author     : Philip Swannell
+' Date       : 24-Jan-2019
+' Purpose    : Edits the Windows Registry to ensure that excel does not load a particular addin. Will not work if the addin
+'              is located in the AltStartUp path
+' Parameters :
+'  AddinName:  The file name of the addin e.g. "ExcelDna.IntelliSense64.xll" can include the path if we want to remove an
+'              addin only if it's currently being loaded from the "wrong" location.
+' -----------------------------------------------------------------------------------------------------------------------
+Sub DeleteExcelAddinFromRegistry(AddinName)
+    Dim RegKey
+    Dim AllKeys()
+    Dim i, j
+    Dim RegKeyLeaf
+    Dim NumAddins
+    Dim Found
+
+    RegKey = "HKEY_CURRENT_USER\Software\Microsoft\Office\" & OfficeVersion(1) & "\Excel\Options\"
+    i = 0
+    Do
+        i = i + 1
+        RegKeyLeaf = "OPEN" & IIf(i > 1, CStr(i - 1), "")
+        If RegistryKeyExists(RegKey & RegKeyLeaf) Then
+            NumAddins = NumAddins + 1
+        Else
+            Exit Do
+        End If
+    Loop
+
+    Found = False
+    
+    ReDim AllKeys(NumAddins - 1, 1) 'VBScript has base 0 so that's two columns
+    For i = 0 To NumAddins - 1
+        RegKeyLeaf = "OPEN" & IIf(i > 0, CStr(i), "")
+        AllKeys(i, 0) = RegKeyLeaf
+        AllKeys(i, 1) = RegistryRead(RegKey & RegKeyLeaf, "")
+        If InStr(LCase(AllKeys(i, 1)), LCase(AddinName)) > 0 Then
+            Found = True
+        End If
+    Next
+
+    If Not Found Then Exit Sub
+
+    For i = 0 To NumAddins - 1
+        RegistryDelete RegKey & AllKeys(i, 0)
+        'Debug.Print "Deleting " + RegKey & AllKeys(i, 0) + " with value " + AllKeys(i, 1)
+    Next
+
+    j = 0
+    For i = 0 To NumAddins - 1
+        If InStr(LCase(AllKeys(i, 1)), LCase(AddinName)) = 0 Then
+            j = j + 1
+            RegKeyLeaf = "OPEN" & IIf(j > 1, CStr(j - 1), "")
+            RegistryWrite RegKey & RegKeyLeaf, AllKeys(i, 1)
+            'Debug.Print "Writing " + RegKey & RegKeyLeaf + " with value " + AllKeys(i, 1)
+        End If
+    Next
+End Sub
+
+
 '*******************************************************************************************
 'Effective start of this VBScript. Note elevating to admin as per 
 'http://www.winhelponline.com/blog/vbscripts-and-uac-elevation/
@@ -344,8 +432,7 @@ Else
     MsgBoxTitleBad = "Install JuliaExcel - Error Encountered"
     'Hack to make it easy to record a GIF of the installation process without an 
     'installation actually happening
-   ' GIFRecordingMode = FileExists("C:\Temp\RecordingGIF.tmp")
-    GIFRecordingMode = False
+    GIFRecordingMode = FileExists("C:\Temp\RecordingGIF.tmp")
 
     gErrorsEncountered = False
     if Not GIFRecordingMode Then
@@ -371,6 +458,7 @@ Else
     '     thus be forced to use the same version of the add-in, though they don't both have 
     '     to have the addin installed since that's controlled via the registry, which _is_ 
     '     user specific.
+
     AddinsDest = "C:\ProgramData\JuliaExcel\"
     
     Dim AddinsSource
@@ -379,14 +467,35 @@ Else
     AddinsSource = Left(AddinsSource, InStrRev(AddinsSource, "\"))
     AddinsSource = AddinsSource & "workbooks\"
 
+    Dim IntellisenseSource, IntellisenseName, InstallIntellisense
+    IntellisenseSource = WScript.ScriptFullName
+    IntellisenseSource = Left(IntellisenseSource, InStrRev(IntellisenseSource, "\") - 1)
+    IntellisenseSource = Left(IntellisenseSource, InStrRev(IntellisenseSource, "\"))
+    IntellisenseSource = IntellisenseSource & "ExcelDNA\"
+
+        Select Case OfficeBitness()
+        Case 32
+            IntellisenseName = "ExcelDna.IntelliSense.xll"
+            InstallIntellisense = True
+        Case 64
+            IntellisenseName = "ExcelDna.IntelliSense64.xll"
+            InstallIntellisense = True
+        Case Else
+            InstallIntellisense = False
+        End Select
+
     Dim Prompt
-    Prompt = "This will copy JuliaExcel.xlsm from " & vbLf & vblf & _
-        AddinsSource & vbLf & vbLf & _
+    Prompt = "This will install JuliaExcel by copying two files from: " & vbLf & vblf & _
+        AddinsSource & AddinName  & vbLf & _
+        IntellisenseSource & IntellisenseName & vbLf & vbLf & _
         "to:" & vblf & vblf & _
-        AddinsDest & vblf & vblf & _
-        "and install it as an Excel add-in," & vblf & _
+        AddinsDest & AddinName & vblf & _ 
+        AddinsDest & IntellisenseName & vbLf & vbLf & _
+        "and making them both be Excel add-ins," & vblf & _
         "via Excel > File > Options > Add-ins > Excel Add-ins." & vblf & vblf & _
-        "Do you wish to continue?"
+        "Do you wish to continue?" & vblf  & vblf & _
+        "More information at:" & vblf & _
+        website
     Dim result
 
     result = MsgBox(Prompt, vbYesNo + vbQuestion, MsgBoxTitle)
@@ -402,6 +511,13 @@ Else
         MakeFileReadOnly AddinsDest & AddinName
         'Make Excel "see" it.
         InstallExcelAddin AddinsDest & AddinName, True
+
+        If InstallIntellisense Then
+                CopyNamedFiles IntellisenseSource, AddinsDest, IntellisenseName, True
+                DeleteExcelAddinFromRegistry IntellisenseName
+                InstallExcelAddin AddinsDest & IntellisenseName, True
+        End If
+
     End If
 
     If gErrorsEncountered Then

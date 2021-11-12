@@ -257,7 +257,8 @@ Attribute JuliaEval.VB_ProcData.VB_Invoke_Func = " \n33"
 
 21        SaveTextFile FlagFile, "", TristateTrue
 22        SaveTextFile ExpressionFile, strJuliaExpression, TristateTrue
-          
+
+          'Line below tells Julia to "do the work" by pasting "srv_xl()" to the REPL
 23        PostMessageToJulia HwndJulia
 
 24        Do While FileExists(FlagFile)

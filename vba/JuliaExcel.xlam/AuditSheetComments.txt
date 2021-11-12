@@ -1,4 +1,5 @@
 Version	Date	Time	Author	Comment
+47	12-Nov-2021	11:37	Philip Swannell	Changed method PostMessageToJulia to make Julia exit Package mode if it's in it.
 46	10-Nov-2021	19:16	Philip Swannell	Added worksheet _IntelliSense_ Plan is to hook into Excel.DNA intellisense.
 45	10-Nov-2021	16:18	Philip Swannell	JuliaLaunch was not registered, fixed.
 44	10-Nov-2021	12:22	Philip Swannell	Reform to handling of 1-dimensional arrays. Added new function JuliaCall3

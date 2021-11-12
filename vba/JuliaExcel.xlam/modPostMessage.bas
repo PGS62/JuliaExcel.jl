@@ -53,26 +53,28 @@ Sub PostMessageToJulia(HwndJulia As LongPtr)
 2             PostMessage HwndJulia, WM_CHAR, ByVal 27, ByVal &H10001
 3             PostMessage HwndJulia, WM_CHAR, ByVal 8, ByVal &H10001
 4         Next i
+          'One more {BACKSPACE} should be enough to switch Julia out of Package REPL mode if it's in it.
+5         PostMessage HwndJulia, WM_CHAR, ByVal 8, ByVal &H10001
 
           'Send "srv_xl". In this block the lParam arg is not as per Spy++, but I _
-          think it's enough that the first bit is set to 1 to indicate that the _
-          key should be repeated only once. _
-          https://docs.microsoft.com/en-gb/windows/win32/inputdev/wm-char?redirectedfrom=MSDN
-5         PostMessage HwndJulia, WM_CHAR, ByVal Asc("s"), ByVal &H1
-6         PostMessage HwndJulia, WM_CHAR, ByVal Asc("r"), ByVal &H1
-7         PostMessage HwndJulia, WM_CHAR, ByVal Asc("v"), ByVal &H1
-8         PostMessage HwndJulia, WM_CHAR, ByVal Asc("_"), ByVal &H1
-9         PostMessage HwndJulia, WM_CHAR, ByVal Asc("x"), ByVal &H1
-10        PostMessage HwndJulia, WM_CHAR, ByVal Asc("l"), ByVal &H1
+           think it's enough that the first bit is set to 1 to indicate that the _
+           key should be repeated only once. _
+           https://docs.microsoft.com/en-gb/windows/win32/inputdev/wm-char?redirectedfrom=MSDN
+6         PostMessage HwndJulia, WM_CHAR, ByVal Asc("s"), ByVal &H1
+7         PostMessage HwndJulia, WM_CHAR, ByVal Asc("r"), ByVal &H1
+8         PostMessage HwndJulia, WM_CHAR, ByVal Asc("v"), ByVal &H1
+9         PostMessage HwndJulia, WM_CHAR, ByVal Asc("_"), ByVal &H1
+10        PostMessage HwndJulia, WM_CHAR, ByVal Asc("x"), ByVal &H1
+11        PostMessage HwndJulia, WM_CHAR, ByVal Asc("l"), ByVal &H1
 
           'Send "(){Enter}"
-11        PostMessage HwndJulia, WM_CHAR, ByVal Asc("("), ByVal &HA0001
-12        PostMessage HwndJulia, WM_CHAR, ByVal Asc(")"), ByVal &HB0001
-13        PostMessage HwndJulia, WM_CHAR, ByVal Asc(vbLf), ByVal &H1C0001
+12        PostMessage HwndJulia, WM_CHAR, ByVal Asc("("), ByVal &HA0001
+13        PostMessage HwndJulia, WM_CHAR, ByVal Asc(")"), ByVal &HB0001
+14        PostMessage HwndJulia, WM_CHAR, ByVal Asc(vbLf), ByVal &H1C0001
 
-14        Exit Sub
+15        Exit Sub
 ErrHandler:
-15        Throw "#PostMessageToJulia (line " & CStr(Erl) + "): " & Err.Description & "!"
+16        Throw "#PostMessageToJulia (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Sub
 
 ' -----------------------------------------------------------------------------------------------------------------------
