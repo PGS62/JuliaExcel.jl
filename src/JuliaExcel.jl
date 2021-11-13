@@ -1,9 +1,8 @@
 module JuliaExcel
 export srv_xl, setxlpid
 
-using Dates
+using Dates, DataFrames
 import StringEncodings
-using DataFrames
 global const xlpid = Ref(0)
 
 """
@@ -31,7 +30,7 @@ function installme()
     exefile = "C:/Windows/System32/wscript.exe"
     isfile(exefile) || throw("Cannot find Windows Script Host at '$exefile'")
     isfile(installscript) || throw("Cannot find install script at '$installscript'")
-    run(`$exefile $installscript`)
+    run(`$exefile $installscript`,wait = false)
     println("Installer script has been launched, please respond to the dialogs there.")
     nothing
 end
@@ -40,7 +39,6 @@ localtemp() = joinpath(ENV["TEMP"], "JuliaExcel")
 flagfile() = joinpath(localtemp(), "Flag_$(getxlpid()).txt")
 resultfile() = joinpath(localtemp(), "Result_$(getxlpid()).txt")
 expressionfile() = joinpath(localtemp(), "Expression_$(getxlpid()).txt")
-
 
 """
     read_utf16(filename::String)
@@ -52,7 +50,8 @@ read_utf16(filename::String) = transcode(String, reinterpret(UInt16, read(filena
 """
     srv_xl()
 Read the expression file created by JuliaExcel.xlam, evaluate it and write the result to
-file, which will then be unserialised by code in JuliaExcel.xlam
+file, to be unserialised by JuliaExcel.xlam. Files are written to the `JuliaExcel` 
+sub-folder of the TEMP folder.
 """
 function srv_xl()
 
