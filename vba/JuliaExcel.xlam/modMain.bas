@@ -14,6 +14,8 @@ Option Explicit
     Public Declare Function IsWindow Lib "user32" (ByVal hwnd As Long) As Long
 #End If
 
+Public Const gPackageName As String = "JuliaExcel"
+
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure : ThrowIfError
 ' Purpose   : In the event of an error, methods intended to be callable from spreadsheets
@@ -47,7 +49,7 @@ Function JuliaLaunch(Optional MinimiseWindow As Boolean, Optional ByVal JuliaExe
 Attribute JuliaLaunch.VB_Description = "Launches a local Julia session which ""listens"" to the current Excel session and responds to calls to JuliaEval etc.."
 Attribute JuliaLaunch.VB_ProcData.VB_Invoke_Func = " \n33"
 
-          Const PackageName As String = "JuliaExcel"
+          
           Dim Command As String
           Dim ErrorCode As Long
           Dim ErrorFile As String
@@ -81,22 +83,20 @@ Attribute JuliaLaunch.VB_ProcData.VB_Invoke_Func = " \n33"
 17            Exit Function
 18        End If
 
-19        FlagFile = LocalTemp() & "\JuliaExcelFlag_" & CStr(GetCurrentProcessId()) & ".txt"
-20        ErrorFile = LocalTemp() & "\JuliaExcelLoadError_" & CStr(GetCurrentProcessId()) & ".txt"
+19        FlagFile = LocalTemp() & "\Flag_" & CStr(GetCurrentProcessId()) & ".txt"
+20        ErrorFile = LocalTemp() & "\LoadError_" & CStr(GetCurrentProcessId()) & ".txt"
 21        If FileExists(ErrorFile) Then Kill ErrorFile
           
 22        SaveTextFile FlagFile, "", TristateFalse
-23        LoadFile = LocalTemp() & "\JuliaExcelStartUp_" & CStr(GetCurrentProcessId()) & ".jl"
+23        LoadFile = LocalTemp() & "\StartUp_" & CStr(GetCurrentProcessId()) & ".jl"
               
-              '"    " & PackageName & ".settitle()" & vbLf & _
-
 24        LoadFileContents = _
               "try" & vbLf & _
               "    #println(""Executing $(@__FILE__)"")" & vbLf & _
-              "    using " & PackageName & vbLf & _
+              "    using " & gPackageName & vbLf & _
               "    using Dates" & vbLf & _
               "    setxlpid(" & CStr(GetCurrentProcessId) & ")" & vbLf & _
-              "    println(""Julia $VERSION, using JuliaExcel to serve Excel running as process ID " & GetCurrentProcessId() & "."")" & vbLf & _
+              "    println(""Julia $VERSION, using " & gPackageName & " to serve Excel running as process ID " & GetCurrentProcessId() & "."")" & vbLf & _
               "    rm(""" & Replace(FlagFile, "\", "/") & """)" & vbLf & _
               "catch e" & vbLf & _
               "    theerror = ""$e""" & vbLf & _
@@ -251,9 +251,9 @@ Attribute JuliaEval.VB_ProcData.VB_Invoke_Func = " \n33"
           
 17        Tmp = LocalTemp()
           
-18        FlagFile = Tmp & "\JuliaExcelFlag_" & CStr(PID) & ".txt"
-19        ResultFile = Tmp & "\JuliaExcelResult_" & CStr(PID) & ".txt"
-20        ExpressionFile = Tmp & "\JuliaExcelExpression_" & CStr(PID) & ".txt"
+18        FlagFile = Tmp & "\Flag_" & CStr(PID) & ".txt"
+19        ResultFile = Tmp & "\Result_" & CStr(PID) & ".txt"
+20        ExpressionFile = Tmp & "\Expression_" & CStr(PID) & ".txt"
 
 21        SaveTextFile FlagFile, "", TristateTrue
 22        SaveTextFile ExpressionFile, strJuliaExpression, TristateTrue
@@ -324,7 +324,7 @@ Function JuliaSetVar(VariableName As String, RefersTo As Variant, Optional Prece
 Attribute JuliaSetVar.VB_Description = "Set a global variable in the Julia process."
 Attribute JuliaSetVar.VB_ProcData.VB_Invoke_Func = " \n33"
 1         On Error GoTo ErrHandler
-2         JuliaSetVar = JuliaCall("JuliaExcel.setvar", VariableName, RefersTo)
+2         JuliaSetVar = JuliaCall(gPackageName & ".setvar", VariableName, RefersTo)
 
 3         Exit Function
 ErrHandler:
@@ -444,7 +444,7 @@ End Function
 Function JuliaInclude(FileName As String, Optional PrecedentCell As Range)
 Attribute JuliaInclude.VB_Description = "Load a Julia source file into the Julia process, with the likely intention of making additional functions available via JuliaEval and JuliaCall."
 Attribute JuliaInclude.VB_ProcData.VB_Invoke_Func = " \n33"
-1         JuliaInclude = JuliaCall("JuliaExcel.include", Replace(FileName, "\", "/"))
+1         JuliaInclude = JuliaCall(gPackageName & ".include", Replace(FileName, "\", "/"))
 End Function
 
 '05-Nov-2021 16:18:37        DESKTOP-0VD2AF0

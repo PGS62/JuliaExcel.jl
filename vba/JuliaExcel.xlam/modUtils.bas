@@ -2,6 +2,7 @@ Attribute VB_Name = "modUtils"
 ' Copyright (c) 2021 - Philip Swannell
 ' License MIT (https://opensource.org/licenses/MIT)
 ' Document: https://github.com/PGS62/JuliaExcel.jl#readme
+
 Option Explicit
 Option Private Module
 
@@ -17,7 +18,6 @@ Private Declare Function QueryPerformanceCounter Lib "kernel32" (lpPerformanceCo
 ' Procedure : ElapsedTime
 ' Purpose   : Retrieves the current value of the performance counter, which is a high resolution (<1us)
 '             time stamp that can be used for time-interval measurements.
-'
 '             See http://msdn.microsoft.com/en-us/library/windows/desktop/ms644904(v=vs.85).aspx
 ' -----------------------------------------------------------------------------------------------------------------------
 Function ElapsedTime() As Double
@@ -36,7 +36,7 @@ End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : FileExists
-' Purpose    : Does a file exit?
+' Purpose    : Does a file exist?
 ' -----------------------------------------------------------------------------------------------------------------------
 Function FileExists(FileName As String) As Boolean
           Dim F As Scripting.File
@@ -109,20 +109,19 @@ End Function
 ' -----------------------------------------------------------------------------------------------------------------------
 Function LocalTemp()
           Static Res As String
-          Const FolderName = "JuliaExcel"
 1         On Error GoTo ErrHandler
 2         If Res <> "" Then
 3             LocalTemp = Res
 4             Exit Function
 5         End If
 
-6         If Not FolderExists(Environ("TEMP") & "\" & FolderName) Then
+6         If Not FolderExists(Environ("TEMP") & "\" & gPackageName) Then
               Dim F As Scripting.Folder
               Dim FSO As New FileSystemObject
 7             Set F = FSO.GetFolder(Environ("TEMP"))
-8             F.SubFolders.Add FolderName
+8             F.SubFolders.Add gPackageName
 9         End If
-10        Res = Environ("TEMP") & "\" & FolderName
+10        Res = Environ("TEMP") & "\" & gPackageName
 
 11        LocalTemp = Res
 12        Exit Function
@@ -143,7 +142,7 @@ Sub CleanLocalTemp()
 1         On Error GoTo ErrHandler
 2         Set Fld = FSO.GetFolder(LocalTemp)
 3         For Each F In Fld.Files
-4             If Left(F.Name, 10) = "JuliaExcel" Then
+4             If Left(F.Name, 10) = gPackageName Then
 5                 If (Now() - F.DateLastAccessed) > DeleteFilesOlderThan Then
 6                     F.Delete
 7                 End If

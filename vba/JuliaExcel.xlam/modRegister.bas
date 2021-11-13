@@ -49,7 +49,7 @@ Private Sub RegisterJuliaLaunch()
     ArgDescs(2) = "The location of julia.exe. If omitted, then the function searches for julia.exe, first on the " & _
                   "path and then at the default locations for Julia installation on Windows, taking the most " & _
                   "recently installed version if more than one is available."
-    Application.MacroOptions "JuliaLaunch", Description, , , , , "JuliaExcel", , , , ArgDescs
+    Application.MacroOptions "JuliaLaunch", Description, , , , , gPackageName, , , , ArgDescs
     Exit Sub
 
 ErrHandler:
@@ -72,7 +72,7 @@ Private Sub RegisterJuliaInclude()
     ArgDescs(1) = "The full name of the file to be included."
     ArgDescs(2) = "Provides control over worksheet calculation dependency. Enter a cell or range that must be " & _
                   "calculated before JuliaInclude is executed."
-    Application.MacroOptions "JuliaInclude", Description, , , , , "JuliaExcel", , , , ArgDescs
+    Application.MacroOptions "JuliaInclude", Description, , , , , gPackageName, , , , ArgDescs
     Exit Sub
 
 ErrHandler:
@@ -94,7 +94,7 @@ Private Sub RegisterJuliaEval()
                   "statements."
     ArgDescs(2) = "Provides control over worksheet calculation dependency. Enter a cell or range that must be " & _
                   "calculated before JuliaEval is executed."
-    Application.MacroOptions "JuliaEval", Description, , , , , "JuliaExcel", , , , ArgDescs
+    Application.MacroOptions "JuliaEval", Description, , , , , gPackageName, , , , ArgDescs
     Exit Sub
 
 ErrHandler:
@@ -116,7 +116,7 @@ Private Sub RegisterJuliaCall()
     ArgDescs(1) = "The name of a Julia function that's defined in the Julia session, perhaps as a result of prior " & _
                   "calls to JuliaInclude."
     ArgDescs(2) = "Zero or more arguments, which may be Excel ranges or variables in VBA code."
-    Application.MacroOptions "JuliaCall", Description, , , , , "JuliaExcel", , , , ArgDescs
+    Application.MacroOptions "JuliaCall", Description, , , , , gPackageName, , , , ArgDescs
     Exit Sub
 
 ErrHandler:
@@ -140,7 +140,7 @@ Private Sub RegisterJuliaCall2()
     ArgDescs(2) = "Provides control over worksheet calculation dependency. Enter a cell or range that must be " & _
                   "calculated before JuliaCall2 is executed."
     ArgDescs(3) = "Zero or more arguments, such as Excel ranges or nested formulas."
-    Application.MacroOptions "JuliaCall2", Description, , , , , "JuliaExcel", , , , ArgDescs
+    Application.MacroOptions "JuliaCall2", Description, , , , , gPackageName, , , , ArgDescs
     Exit Sub
 
 ErrHandler:
@@ -164,7 +164,7 @@ Private Sub RegisterJuliaSetVar()
                   "Boolean, Empty or array of such types. When called from VBA, nested arrays are supported."
     ArgDescs(3) = "Provides control over worksheet calculation dependency. Enter a cell or range that must be " & _
                   "calculated before JuliaSetVar is executed."
-    Application.MacroOptions "JuliaSetVar", Description, , , , , "JuliaExcel", , , , ArgDescs
+    Application.MacroOptions "JuliaSetVar", Description, , , , , gPackageName, , , , ArgDescs
     Exit Sub
 
 ErrHandler:

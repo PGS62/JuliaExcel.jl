@@ -1,4 +1,5 @@
 Version	Date	Time	Author	Comment
+48	13-Nov-2021	14:51	Philip Swannell	Change names of the Flag, Request and Result files.
 47	12-Nov-2021	11:37	Philip Swannell	Changed method PostMessageToJulia to make Julia exit Package mode if it's in it.
 46	10-Nov-2021	19:16	Philip Swannell	Added worksheet _IntelliSense_ Plan is to hook into Excel.DNA intellisense.
 45	10-Nov-2021	16:18	Philip Swannell	JuliaLaunch was not registered, fixed.

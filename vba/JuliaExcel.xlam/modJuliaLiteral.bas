@@ -4,7 +4,7 @@ Option Private Module
 
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : MakeJuliaLiteral
-' Purpose    : Convert an array into a string which julia will parse as x:
+' Purpose    : Convert an array into a string which Julia will parse as x.
 ' Parameters :
 '  x         : The variable in Excel or VBA.
 '  OneDtoTwoD: If TRUE, then if x is a one-dimensional array, the return will be a string that will be parsed by Julia
