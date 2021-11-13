@@ -37,9 +37,9 @@ function installme()
 end
 
 localtemp() = joinpath(ENV["TEMP"], "JuliaExcel")
-flagfile() = joinpath(localtemp(), "JuliaExcelFlag_$(getxlpid()).txt")
-resultfile() = joinpath(localtemp(), "JuliaExcelResult_$(getxlpid()).txt")
-expressionfile() = joinpath(localtemp(), "JuliaExcelExpression_$(getxlpid()).txt")
+flagfile() = joinpath(localtemp(), "Flag_$(getxlpid()).txt")
+resultfile() = joinpath(localtemp(), "Result_$(getxlpid()).txt")
+expressionfile() = joinpath(localtemp(), "Expression_$(getxlpid()).txt")
 
 
 """
@@ -52,7 +52,7 @@ read_utf16(filename::String) = transcode(String, reinterpret(UInt16, read(filena
 """
     srv_xl()
 Read the expression file created by JuliaExcel.xlam, evaluate it and write the result to
-file.
+file, which will then be unserialised by code in JuliaExcel.xlam
 """
 function srv_xl()
 

@@ -471,8 +471,8 @@ Else
     '     to have the addin installed since that's controlled via the registry, which _is_ 
     '     user specific.
 
-    AddinsDest = "C:\ProgramData\JuliaExcel\"
-    AddinsDest = "C:\Users\Public\JuliaExcel\"
+    AddinsDest = "C:\ProgramData\JuliaExcel\"  ' Would need Admin rights to write to
+    AddinsDest = "C:\Users\Public\JuliaExcel\" ' Does not need admin rights
     
     Dim AddinsSource
     AddinsSource = WScript.ScriptFullName
