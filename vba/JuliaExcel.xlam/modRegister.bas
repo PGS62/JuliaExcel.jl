@@ -4,169 +4,67 @@ Option Private Module
 
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : RegisterAll
-' Purpose    : Register the functions with the Excel Function Wizard. Would prefer to also hook into ExcelDNA.Intellisense
-'              https://github.com/Excel-DNA/IntelliSense
+' Purpose    : Register functions with the Excel function wizard, taking the information form the Intellisense sheet
+'              that is also parsed by Excel.DNA Intellisense add-in.
 ' -----------------------------------------------------------------------------------------------------------------------
 Sub RegisterAll()
-    Dim OldSaveStatus As Boolean
-    On Error GoTo ErrHandler
-    OldSaveStatus = ThisWorkbook.Saved
-    Application.ScreenUpdating = False
-    'Without setting .IsAddin to False, I see errors:
-    '"Cannot edit a macro on a hidden workbook. Unhide the workbook using the Unhide command."
-    'Not ideal, setting IsAddin to False causes screen flicker.
-    ThisWorkbook.IsAddin = False
-    
-    RegisterJuliaInclude
-    RegisterJuliaEval
-    RegisterJuliaCall
-    RegisterJuliaCall2
-    RegisterJuliaSetVar
-    RegisterJuliaLaunch
-    
-    ThisWorkbook.IsAddin = True
-    ThisWorkbook.Saved = OldSaveStatus
-    Exit Sub
+
+          Dim ArgDescs() As String
+          Dim c As Range
+          Dim Description As String
+          Dim FunctionName As String
+          Dim i As Long
+          Dim NumArgs
+          Dim OldSaveStatus As Boolean
+          Dim rngArgsAndArgDescs As Range
+          Dim rngFunctions As Range
+          
+1         On Error GoTo ErrHandler
+2         OldSaveStatus = ThisWorkbook.Saved
+3         Application.ScreenUpdating = False
+          'Without setting .IsAddin to False, I see errors:
+          '"Cannot edit a macro on a hidden workbook. Unhide the workbook using the Unhide command."
+          'Not ideal, setting IsAddin to False causes screen flicker.
+4         ThisWorkbook.IsAddin = False
+
+5         With shIntellisense
+6             Set rngFunctions = .Range(.Cells(2, 1), .Cells(1, 1).End(xlDown))
+7         End With
+
+8         For Each c In rngFunctions.Cells
+9             FunctionName = c.Value
+10            Description = c.Offset(0, 1).Value
+        
+11            If IsEmpty(c.Offset(, 3).Value) Then
+12                NumArgs = 0
+13            Else
+14                Set rngArgsAndArgDescs = Range(c.Offset(, 3), c.Offset(, 3).End(xlToRight))
+15                NumArgs = rngArgsAndArgDescs.Columns.Count / 2
+16                ReDim ArgDescs(1 To NumArgs)
+17                For i = 1 To NumArgs
+18                    ArgDescs(i) = rngArgsAndArgDescs.Cells(1, i * 2 - 1).Value
+19                Next i
+20            End If
+
+21            If NumArgs = 0 Then
+22                MacroOptions FunctionName, Description
+23            Else
+24                MacroOptions FunctionName, Description, ArgDescs
+25            End If
+26        Next c
+27        ThisWorkbook.IsAddin = True
+28        ThisWorkbook.Saved = OldSaveStatus
+
+
+29        Exit Sub
 ErrHandler:
-    ' do nothing, failure to register will have printed to the immediate window
+30        Debug.Print "#RegisterAll (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Sub
 
-' -----------------------------------------------------------------------------------------------------------------------
-' Procedure  : RegisterJuliaLaunch
-' Purpose    : Register the function JuliaLaunch with the Excel function wizard, to be called from the WorkBook_Open
-'              event.
-' -----------------------------------------------------------------------------------------------------------------------
-Private Sub RegisterJuliaLaunch()
-    Const Description As String = "Launches a local Julia session which ""listens"" to the current Excel session " & _
-                                  "and responds to calls to JuliaEval etc.."
-    Dim ArgDescs() As String
-
-    On Error GoTo ErrHandler
-
-    ReDim ArgDescs(1 To 2)
-    ArgDescs(1) = "If TRUE, then the Julia session window is minimised, if FALSE (the default) then the window is " & _
-                  "sized normally."
-    ArgDescs(2) = "The location of julia.exe. If omitted, then the function searches for julia.exe, first on the " & _
-                  "path and then at the default locations for Julia installation on Windows, taking the most " & _
-                  "recently installed version if more than one is available."
-    Application.MacroOptions "JuliaLaunch", Description, , , , , gPackageName, , , , ArgDescs
-    Exit Sub
-
+Function MacroOptions(FunctionName As String, Description As String, Optional ArgDescs As Variant)
+    Application.MacroOptions FunctionName, Description, , , , , gPackageName, , , , ArgDescs
+    Exit Function
 ErrHandler:
-    Debug.Print "Warning: Registration of function JuliaLaunch failed with error: " + Err.Description
-End Sub
+    Debug.Print "Warning from " + gPackageName + ": Registration of function " & FunctionName & " failed with error: " + Err.Description
+End Function
 
-' -----------------------------------------------------------------------------------------------------------------------
-' Procedure  : RegisterJuliaInclude
-' Purpose    : Register the function JuliaInclude with the Excel function wizard, to be called from the WorkBook_Open
-'              event.
-' -----------------------------------------------------------------------------------------------------------------------
-Private Sub RegisterJuliaInclude()
-    Const Description As String = "Load a Julia source file into the Julia process, with the likely intention of " & _
-                                  "making additional functions available via JuliaEval and JuliaCall."
-    Dim ArgDescs() As String
-
-    On Error GoTo ErrHandler
-
-    ReDim ArgDescs(1 To 2)
-    ArgDescs(1) = "The full name of the file to be included."
-    ArgDescs(2) = "Provides control over worksheet calculation dependency. Enter a cell or range that must be " & _
-                  "calculated before JuliaInclude is executed."
-    Application.MacroOptions "JuliaInclude", Description, , , , , gPackageName, , , , ArgDescs
-    Exit Sub
-
-ErrHandler:
-    Debug.Print "Warning: Registration of function JuliaInclude failed with error: " + Err.Description
-End Sub
-' -----------------------------------------------------------------------------------------------------------------------
-' Procedure  : RegisterJuliaEval
-' Purpose    : Register the function JuliaEval with the Excel function wizard, to be called from the WorkBook_Open
-'              event.
-' -----------------------------------------------------------------------------------------------------------------------
-Private Sub RegisterJuliaEval()
-    Const Description As String = "Evaluate a Julia expression and return the result to Excel or VBA."
-    Dim ArgDescs() As String
-
-    On Error GoTo ErrHandler
-
-    ReDim ArgDescs(1 To 2)
-    ArgDescs(1) = "Any valid julia code, as a string. Can also be a one-column range to evaluate multiple julia " & _
-                  "statements."
-    ArgDescs(2) = "Provides control over worksheet calculation dependency. Enter a cell or range that must be " & _
-                  "calculated before JuliaEval is executed."
-    Application.MacroOptions "JuliaEval", Description, , , , , gPackageName, , , , ArgDescs
-    Exit Sub
-
-ErrHandler:
-    Debug.Print "Warning: Registration of function JuliaEval failed with error: " + Err.Description
-End Sub
-
-' -----------------------------------------------------------------------------------------------------------------------
-' Procedure  : RegisterJuliaCall
-' Purpose    : Register the function JuliaCall with the Excel function wizard, to be called from the WorkBook_Open
-'              event.
-' -----------------------------------------------------------------------------------------------------------------------
-Private Sub RegisterJuliaCall()
-    Const Description As String = "Call a named Julia function, passing in data from the worksheet or from VBA."
-    Dim ArgDescs() As String
-
-    On Error GoTo ErrHandler
-
-    ReDim ArgDescs(1 To 2)
-    ArgDescs(1) = "The name of a Julia function that's defined in the Julia session, perhaps as a result of prior " & _
-                  "calls to JuliaInclude."
-    ArgDescs(2) = "Zero or more arguments, which may be Excel ranges or variables in VBA code."
-    Application.MacroOptions "JuliaCall", Description, , , , , gPackageName, , , , ArgDescs
-    Exit Sub
-
-ErrHandler:
-    Debug.Print "Warning: Registration of function JuliaCall failed with error: " + Err.Description
-End Sub
-
-' -----------------------------------------------------------------------------------------------------------------------
-' Procedure  : RegisterJuliaCall2
-' Purpose    : Register the function JuliaCall2 with the Excel function wizard, to be called from the WorkBook_Open
-'              event.
-' -----------------------------------------------------------------------------------------------------------------------
-Private Sub RegisterJuliaCall2()
-    Const Description As String = "Call a named Julia function, passing in data from the worksheet or from VBA, " & _
-                                  "with control of worksheet calculation dependency."
-    Dim ArgDescs() As String
-
-    On Error GoTo ErrHandler
-
-    ReDim ArgDescs(1 To 3)
-    ArgDescs(1) = "The name of a Julia function that's available in the Main module of the running Julia session."
-    ArgDescs(2) = "Provides control over worksheet calculation dependency. Enter a cell or range that must be " & _
-                  "calculated before JuliaCall2 is executed."
-    ArgDescs(3) = "Zero or more arguments, such as Excel ranges or nested formulas."
-    Application.MacroOptions "JuliaCall2", Description, , , , , gPackageName, , , , ArgDescs
-    Exit Sub
-
-ErrHandler:
-    Debug.Print "Warning: Registration of function JuliaCall2 failed with error: " + Err.Description
-End Sub
-
-' -----------------------------------------------------------------------------------------------------------------------
-' Procedure  : RegisterJuliaSetVar
-' Purpose    : Register the function JuliaSetVar with the Excel function wizard, to be called from the WorkBook_Open
-'              event.
-' -----------------------------------------------------------------------------------------------------------------------
-Private Sub RegisterJuliaSetVar()
-    Const Description As String = "Set a global variable in the Julia process."
-    Dim ArgDescs() As String
-
-    On Error GoTo ErrHandler
-
-    ReDim ArgDescs(1 To 3)
-    ArgDescs(1) = "The name of the variable to be set. Must follow Julia's rules for allowed variable names."
-    ArgDescs(2) = "An Excel range (from which the .Value2 property is read) or more generally a number, string, " & _
-                  "Boolean, Empty or array of such types. When called from VBA, nested arrays are supported."
-    ArgDescs(3) = "Provides control over worksheet calculation dependency. Enter a cell or range that must be " & _
-                  "calculated before JuliaSetVar is executed."
-    Application.MacroOptions "JuliaSetVar", Description, , , , , gPackageName, , , , ArgDescs
-    Exit Sub
-
-ErrHandler:
-    Debug.Print "Warning: Registration of function JuliaSetVar failed with error: " + Err.Description
-End Sub

@@ -246,7 +246,7 @@ function encode_for_xl(x::Union{Float16,Float32})
     end
 end
 
-function encode_for_xl(x::T,vector2xlmatrix = true) where T <: AbstractArray
+function encode_for_xl(x::T,vector2xlmatrix = false) where T <: AbstractArray
 
     if vector2xlmatrix && length(size(x)) == 1
         dimssection = "2," * string(length(x)) * ",1"

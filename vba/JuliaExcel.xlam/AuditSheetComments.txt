@@ -1,4 +1,8 @@
 Version	Date	Time	Author	Comment
+53	14-Nov-2021	17:07	Philip Swannell	Updated "docstrings".
+52	14-Nov-2021	16:55	Philip Swannell	Updated _Intellisense_ sheet.
+51	14-Nov-2021	16:18	Philip Swannell	Re-wrote code to register functions with the Excel function wizard.
+50	14-Nov-2021	15:49	Philip Swannell	Updated _Intellisense_ sheet.
 49	14-Nov-2021	13:24	Philip Swannell	Planning reform to handling of vectors.
 48	13-Nov-2021	14:51	Philip Swannell	Change names of the Flag, Request and Result files.
 47	12-Nov-2021	11:37	Philip Swannell	Changed method PostMessageToJulia to make Julia exit Package mode if it's in it.

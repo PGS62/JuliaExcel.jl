@@ -57,32 +57,24 @@ Option Base 1
 ' Procedure  : UnserialiseFromFile
 ' Purpose    : Read the file saved by the Julia code and unserialise its contents.
 ' -----------------------------------------------------------------------------------------------------------------------
-Function UnserialiseFromFile(FileName As String, WorksheetMode As Boolean)
-          Dim AllowNested As Boolean
+Function UnserialiseFromFile(FileName As String, AllowNested As Boolean, StringLengthLimit As Long, JuliaVectorToXLColumn As Boolean)
           Dim Contents As String
           Dim ErrMsg As String
           Dim FSO As New Scripting.FileSystemObject
           Dim ts As Scripting.TextStream
-          Dim StringLengthLimit As Long
 
 1         On Error GoTo ErrHandler
 2         Set ts = FSO.OpenTextFile(FileName, ForReading, , TristateTrue)
 3         Contents = ts.ReadAll
 4         ts.Close
 5         Set ts = Nothing
-6         If Not WorksheetMode Then
-8             StringLengthLimit = GetStringLengthLimit()
-              AllowNested = False
-9         Else
-10            StringLengthLimit = 0 'i.e. no limit
-11        End If
 
-12        UnserialiseFromFile = Unserialise(Contents, AllowNested, 0, StringLengthLimit)
-13        Exit Function
+6         UnserialiseFromFile = Unserialise(Contents, AllowNested, 0, StringLengthLimit, JuliaVectorToXLColumn)
+7         Exit Function
 ErrHandler:
-14        ErrMsg = "#UnserialiseFromFile (line " & CStr(Erl) + "): " & Err.Description & "!"
-15        If Not ts Is Nothing Then ts.Close
-16        Throw ErrMsg
+8         ErrMsg = "#UnserialiseFromFile (line " & CStr(Erl) + "): " & Err.Description & "!"
+9         If Not ts Is Nothing Then ts.Close
+10        Throw ErrMsg
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
@@ -94,7 +86,7 @@ End Function
 ' https://stackoverflow.com/questions/69303804/excel-versions-and-limits-on-the-length-of-string-elements-in-arrays-returned-by
 ' Note that this function returns 1 more than the maximum allowed string length
 ' -----------------------------------------------------------------------------------------------------------------------
-Private Function GetStringLengthLimit() As Long
+Function GetStringLengthLimit() As Long
     Static Res As Long
     If Res = 0 Then
         Select Case Val(Application.Version)
@@ -114,7 +106,7 @@ End Function
 ' Procedure  : Unserialise
 ' Purpose    : Unserialises the contents of the results file saved by JuliaExcel julia code.
 ' -----------------------------------------------------------------------------------------------------------------------
-Function Unserialise(Chars As String, AllowNesting As Boolean, ByRef Depth As Long, StringLengthLimit As Long)
+Function Unserialise(Chars As String, AllowNesting As Boolean, ByRef Depth As Long, StringLengthLimit As Long, JuliaVectorToXLColumn As Boolean)
 
 1         On Error GoTo ErrHandler
 2         Depth = Depth + 1
@@ -124,7 +116,9 @@ Function Unserialise(Chars As String, AllowNesting As Boolean, ByRef Depth As Lo
 5             Case 163    '£ (pound sterling) vbString
 6                 If StringLengthLimit > 0 Then
 7                     If Len(Chars) > StringLengthLimit Then
-8                         Throw "Data contains a string longer than " + CStr(StringLengthLimit - 1) + ", which cannot be displayed in Excel version " + Application.Version()
+8                         Throw "Data contains a string of length " & Format(Len(Chars) - 1, "###,###") & _
+                              ", too long to display in Excel version " + Application.Version() + " (the limit is " _
+                              & Format(StringLengthLimit - 1, "###,###") + ")"
 9                     End If
 10                End If
 11                Unserialise = Mid$(Chars, 2)
@@ -172,44 +166,56 @@ Function Unserialise(Chars As String, AllowNesting As Boolean, ByRef Depth As Lo
                           Dim N As Long 'Num elements in array
 41                        N = Mid$(Chars, 4, p1 - 4)
 42                        If N = 0 Then Throw "Cannot create array of size zero"
-43                        ReDim Ret(1 To N)
-44                        For i = 1 To N
-45                            m2 = InStr(m + 1, Chars, ",")
-46                            thislength = Mid$(Chars, m, m2 - m)
-47                            Ret(i) = Unserialise(Mid$(Chars, k, thislength), AllowNesting, Depth, StringLengthLimit)
-48                            k = k + thislength
-49                            m = m2 + 1
-50                        Next i
-51                        Unserialise = Ret
-52                    Case 2 '2 dimensional array
+43                        If JuliaVectorToXLColumn Then
+44                            ReDim Ret(1 To N, 1 To 1)
+45                            For i = 1 To N
+46                                m2 = InStr(m + 1, Chars, ",")
+47                                thislength = Mid$(Chars, m, m2 - m)
+48                                Ret(i, 1) = Unserialise(Mid$(Chars, k, thislength), AllowNesting, Depth, StringLengthLimit, JuliaVectorToXLColumn)
+49                                k = k + thislength
+50                                m = m2 + 1
+51                            Next i
+52                        Else
+53                            ReDim Ret(1 To N)
+54                            For i = 1 To N
+55                                m2 = InStr(m + 1, Chars, ",")
+56                                thislength = Mid$(Chars, m, m2 - m)
+57                                Ret(i) = Unserialise(Mid$(Chars, k, thislength), AllowNesting, Depth, StringLengthLimit, JuliaVectorToXLColumn)
+58                                k = k + thislength
+59                                m = m2 + 1
+60                            Next i
+61                        End If
+
+62                        Unserialise = Ret
+63                    Case 2 '2 dimensional array
                           Dim commapos As Long
                           Dim NC As Long
                           Dim NR As Long
-53                        commapos = InStr(4, Chars, ",")
-54                        NR = Mid$(Chars, 4, commapos - 4)
-55                        NC = Mid$(Chars, commapos + 1, p1 - commapos - 1)
-56                        If NR = 0 Or NC = 0 Then Throw "Cannot create array of size zero"
-57                        ReDim Ret(1 To NR, 1 To NC)
-58                        For j = 1 To NC
-59                            For i = 1 To NR
-60                                m2 = InStr(m + 1, Chars, ",")
-61                                thislength = Mid$(Chars, m, m2 - m)
-62                                Ret(i, j) = Unserialise(Mid$(Chars, k, thislength), AllowNesting, Depth, StringLengthLimit)
-63                                k = k + thislength
-64                                m = m2 + 1
-65                            Next i
-66                        Next j
-67                        Unserialise = Ret
-68                    Case Else
-69                        Throw "Cannot unserialise arrays with more than 2 dimensions"
-70                End Select
-71            Case Else
-72                Throw "Character '" & Left$(Chars, 1) & "' is not recognised as a type identifier"
-73        End Select
+64                        commapos = InStr(4, Chars, ",")
+65                        NR = Mid$(Chars, 4, commapos - 4)
+66                        NC = Mid$(Chars, commapos + 1, p1 - commapos - 1)
+67                        If NR = 0 Or NC = 0 Then Throw "Cannot create array of size zero"
+68                        ReDim Ret(1 To NR, 1 To NC)
+69                        For j = 1 To NC
+70                            For i = 1 To NR
+71                                m2 = InStr(m + 1, Chars, ",")
+72                                thislength = Mid$(Chars, m, m2 - m)
+73                                Ret(i, j) = Unserialise(Mid$(Chars, k, thislength), AllowNesting, Depth, StringLengthLimit, JuliaVectorToXLColumn)
+74                                k = k + thislength
+75                                m = m2 + 1
+76                            Next i
+77                        Next j
+78                        Unserialise = Ret
+79                    Case Else
+80                        Throw "Cannot unserialise arrays with more than 2 dimensions"
+81                End Select
+82            Case Else
+83                Throw "Character '" & Left$(Chars, 1) & "' is not recognised as a type identifier"
+84        End Select
 
-74        Exit Function
+85        Exit Function
 ErrHandler:
-75        Throw "#Unserialise (line " & CStr(Erl) + "): " & Err.Description & "!"
+86        Throw "#Unserialise (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Function
 
 'Values of type Int64 in Julia must be handled differently on Excel 32-bit and Excel 64bit

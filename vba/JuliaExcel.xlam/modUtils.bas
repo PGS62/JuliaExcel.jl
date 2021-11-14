@@ -198,7 +198,7 @@ End Sub
 Sub SaveMe()
 1         ThisWorkbook.IsAddin = True
           Dim FullName As String
-2         FullName = Replace(ThisWorkbook.FullName, ".xlsm", ".xlam")
+2         FullName = "c:\Projects\JuliaExcel\workbooks\JuliaExcel.xlam"
 3         Debug.Print FullName
 4         ThisWorkbook.SaveAs FullName, xlOpenXMLAddIn
 5         ThisWorkbook.IsAddin = False

@@ -56,7 +56,7 @@ Option Private Module
 ' ?Print MakeJuliaLiteral(Array(1#, 2#, Array(3#, 4#)),False)
 ' Any[1.0,2.0,[3.0,4.0]]
 ' -----------------------------------------------------------------------------------------------------------------------
-Function MakeJuliaLiteral(x As Variant, OneDtoTwoD As Boolean)
+Function MakeJuliaLiteral(x As Variant)
           Dim Res As String
 
 1         On Error GoTo ErrHandler
@@ -125,14 +125,14 @@ Function MakeJuliaLiteral(x As Variant, OneDtoTwoD As Boolean)
 53                        FirstType = VarType(x(LBound(x)))
 54                        AllSameType = True
 55                        For i = LBound(x) To UBound(x)
-56                            Tmp(i) = MakeJuliaLiteral(x(i), OneDtoTwoD)
+56                            Tmp(i) = MakeJuliaLiteral(x(i))
 57                            If AllSameType Then
 58                                If VarType(x(i)) <> FirstType Then
 59                                    AllSameType = False
 60                                End If
 61                            End If
 62                        Next i
-63                        MakeJuliaLiteral = IIf(AllSameType, "[", "Any[") & VBA.Join$(Tmp, IIf(OneDtoTwoD, " ", ",")) & "]"
+63                        MakeJuliaLiteral = IIf(AllSameType, "[", "Any[") & VBA.Join$(Tmp, ",") & "]"
 64                    Case 2
 65                        ReDim onerow(LBound(x, 2) To UBound(x, 2))
 66                        ReDim Tmp(LBound(x, 1) To UBound(x, 1))
@@ -140,7 +140,7 @@ Function MakeJuliaLiteral(x As Variant, OneDtoTwoD As Boolean)
 68                        AllSameType = True
 69                        For i = LBound(x, 1) To UBound(x, 1)
 70                            For j = LBound(x, 2) To UBound(x, 2)
-71                                onerow(j) = MakeJuliaLiteral(x(i, j), OneDtoTwoD)
+71                                onerow(j) = MakeJuliaLiteral(x(i, j))
 72                                If AllSameType Then
 73                                    If VarType(x(i, j)) <> FirstType Then
 74                                        AllSameType = False
@@ -151,13 +151,14 @@ Function MakeJuliaLiteral(x As Variant, OneDtoTwoD As Boolean)
 79                        Next i
 
 80                        MakeJuliaLiteral = IIf(AllSameType, "[", "Any[") & VBA.Join$(Tmp, ";") & "]"
+                          'No longer think it's necessary to do this conversion of vectors to matrix-with-one col, PGS 14 Nov
                           'One column case is tricky, could change this code when using Julia 1.7
                           'https://discourse.julialang.org/t/show-versus-parse-and-arrays-with-2-dimensions-but-only-one-column/70142/2
-81                        If UBound(x, 2) = LBound(x, 2) Then
-                              Dim NR As Long
-82                            NR = UBound(x, 1) - LBound(x, 1) + 1
-83                            MakeJuliaLiteral = "reshape(" & MakeJuliaLiteral & "," & CStr(NR) & ",1)"
-84                        End If
+81                        'If UBound(x, 2) = LBound(x, 2) Then
+                          '    Dim NR As Long
+82                        '    NR = UBound(x, 1) - LBound(x, 1) + 1
+83                        '    MakeJuliaLiteral = "reshape(" & MakeJuliaLiteral & "," & CStr(NR) & ",1)"
+84                        'End If
 85                    Case Else
 86                        Throw "case more than two dimensions not handled" 'In VBA there's no way to handle arrays with arbitrary number of dimensions. Easy in Julia!
 87                End Select
