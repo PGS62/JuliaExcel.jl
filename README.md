@@ -1,6 +1,6 @@
 # JuliaExcel
 
-Call Julia functions from Microsoft Excel worksheets and from VBA.
+Call Julia functions from Microsoft Excel worksheets and from VBA. Compatible with Excel's dynamic array functions.
 
 ## Contents
 [Installation](#installation)  
@@ -164,14 +164,14 @@ Function JuliaSetVar(VariableName As String, RefersTo As Variant, Optional Prece
 
 
 ## Marshalling
-Two question arise when implementing `JuliaCall` and `JuliaEval`:
+Two question arise during implementation:
 
 First, when data from a worksheet (or a VBA variable) is passed to `JuliaCall` or `JuliaSetVar`, that data is marshalled over to Julia. As what Julia type should the data arrive? Mostly, this is easy to decide, but what about one-dimensional arrays (from VBA) or ranges with just one column or one just row from an Excel worksheet? Should these have one-dimension or two over in Julia?
 
 Second, after Julia has evaluated the expression, how should the result be marshalled in the opposite direction, back to Excel? Again this is easy to decide for scalars and two dimensional arrays, but what about for vectors in Julia?
 
 There were three objectives to the design of the marshalling processes:
- 1) Round-tripping should work, i.e. the formula `=JuliaCall("identity",x)` should return an identical copy of `x`.
+ 1) Round-tripping should work, i.e. the formula `=JuliaCall("identity",x)` should return an identical copy of `x`, whatever the "shape" of `x`.
  2) Matrix arithmetic should work naturally. In Julia, the `*` operator does matrix multiplication, so marshalling should be such that the formula `=JuliaCall("*",Range1,Range2)` performs the same matrix
  multiplication as the formula `=MMULT(Range1,Range2`), which calls Excel's built-in `MMULT`.
  3) To allow use from `JuliaCall` of Julia's dot syntax for function broadcasting.
@@ -185,7 +185,7 @@ There were three objectives to the design of the marshalling processes:
  `JuliaCall` or `JuliaEval` is a two dimensional array with one column, which occupies a single column range on the worksheet.
  * Single-row ranges, when passed to `JuliaCall` or `JuliaSetVar`, arrive in Julia as 2-dimensional arrays with a single row.
 
- Click below see GIFs that illustrate!
+ Click below to see GIFs that illustrate!
  
 
  <details><summary>Click to see round-tripping of vectors and matrices</summary>
@@ -207,13 +207,6 @@ There were three objectives to the design of the marshalling processes:
  </p></details>
  
  
- 
- 
-
-
-
-
-
 ## Alternatives
 
 ## Compatibility
