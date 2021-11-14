@@ -92,7 +92,6 @@ Attribute JuliaLaunch.VB_ProcData.VB_Invoke_Func = " \n33"
               
 24        LoadFileContents = _
               "try" & vbLf & _
-              "    #println(""Executing $(@__FILE__)"")" & vbLf & _
               "    using " & gPackageName & vbLf & _
               "    using Dates" & vbLf & _
               "    setxlpid(" & CStr(GetCurrentProcessId) & ")" & vbLf & _
@@ -106,7 +105,6 @@ Attribute JuliaLaunch.VB_ProcData.VB_Invoke_Func = " \n33"
               "    write(io,theerror)" & vbLf & _
               "    close(io)" & vbLf & _
               "    rm(""" & Replace(FlagFile, "\", "/") & """)" & vbLf & _
-              "    #exit()" & vbLf & _
               "end"
 
 25        SaveTextFile LoadFile, LoadFileContents, TristateFalse

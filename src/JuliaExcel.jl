@@ -89,10 +89,27 @@ end
 Set a variable in global scope. Called by VBA function JuliaSetVar.    
 """
 function setvar(name::String, arg)
+
     if Base.isidentifier(name)
         Main.eval(Main.eval(Meta.parse(":(global $name = $arg)")))
-        "Set global variable `$name` to a value of type " * 
-        "$(typeof(Main.eval(Meta.parse(name))))"
+
+        thesize = ()
+        thetype = Nothing
+        try
+            tmp = Main.eval(Meta.parse(name))
+            thesize = size(tmp)
+            thetype = typeof(tmp)
+        catch
+        end
+        numdims = length(thesize)
+
+        if numdims == 1
+            sizedesc =  "$(thesize[1])-element "
+        elseif numdims > 1
+            sizedesc = join(thesize,"x") * " "
+        end
+        "Set global variable `$name` to $sizedesc$thetype"
+
     else
         "#`$name` is not an allowed variable name in Julia!"
     end
@@ -229,9 +246,13 @@ function encode_for_xl(x::Union{Float16,Float32})
     end
 end
 
-function encode_for_xl(x::T) where T <: AbstractArray
+function encode_for_xl(x::T,vector2xlmatrix = true) where T <: AbstractArray
 
-    dimssection = string(length(size(x))) * "," * join(size(x), ",")
+    if vector2xlmatrix && length(size(x)) == 1
+        dimssection = "2," * string(length(x)) * ",1"
+    else
+        dimssection = string(length(size(x))) * "," * join(size(x), ",")
+    end    
 
     lengths_buf = IOBuffer()
     contents_buf = IOBuffer()

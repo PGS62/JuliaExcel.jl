@@ -138,6 +138,28 @@ Function JuliaSetVar(VariableName As String, RefersTo As Variant, Optional Prece
 |`RefersTo`|An Excel range (from which the .Value2 property is read) or more generally a number, string, Boolean, Empty or array of such types. When called from VBA, nested arrays are supported.|
 |`PrecedentCell`|Provides control over worksheet calculation dependency. Enter a cell or range that must be calculated before `JuliaSetVar` is executed.|
 
+## Marshalling
+Two question arise when implementing `JuliaCall` and `JuliaEval`:
+
+First, when data from a worksheet (or a VBA variable) is passed to `JuliaCall` or `JuliaSetVar`, that data is marshalled over to Julia. As what Julia type should the data arrive? Mostly, this is easy to decide, but what about one-dimensional arrays (from VBA) or ranges with just one column or one just row from an Excel worksheet? Should these have one-dimension or two over in Julia?
+
+Second, after Julia has evaluated the expression, how should the result be marshalled in the opposite direction, back to Excel? Again this is easy to decide for scalars and two dimensional arrays, but what about for vectors and transposed vectors (of type `LinearAlgebra.Adjoint` in Julia).
+
+There were three objectives to the design of the marshalling processes:
+ 1) Round-tripping should work, i.e. the formula `=JuliaCall("identity",x)` should, as far as possible, always return an identical copy of `x`.
+ 2) Matrix arithmetic should work naturally. In Julia, the `*` operator does matrix multiplication, so marhalling should be such that the formula `=JuliaCall("*",Range1,Range2)` performs the same matrix
+ multiplication as the formula `=MMULT(Range1,Range2`), which calls Excel's built-in `MMULT`.
+ 3) To allow use from `JuliaCall` of Julia's dot syntax for function broadcasting. This is illustrated in the GIF below, in which `f` is defined in the Julia process via `f(x,y) = 100x + 2y` and the formulas `=100 * A1:A4 + 2 * A1:C1` and `=JuliaCall("f.",A1:A4,A1:C1)` agree. Note the vital broadcasting dot character in the `JuliaCall` formula.
+
+ ![broadcasting](images/broadcasting.gif)
+
+
+
+
+
+
+
+
 ## Alternatives
 
 ## Compatibility
