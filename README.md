@@ -2,22 +2,21 @@
 
 Call Julia functions from Microsoft Excel worksheets and from VBA. Compatible with Excel's dynamic array functions.
 
+Windows only.
+
 ## Contents
 [Installation](#installation)  
 [Functions](#functions)  
 [Demo](#demo)  
 [Example VBA](#example-vba)  
 [Function Documentation](#function-documentation)  
-&nbsp;&nbsp;&nbsp;&nbsp;[JuliaLaunch](#julialaunch)  
-&nbsp;&nbsp;&nbsp;&nbsp;[JuliaEval](#juliaeval)  
-&nbsp;&nbsp;&nbsp;&nbsp;[JuliaCall and JuliaCall2](#juliacall)  
-&nbsp;&nbsp;&nbsp;&nbsp;[JuliaSetVar](#juliasetvar)  
+[Marshalling](#marshalling)  
 [Alternatives](#alternatives)  
 [How JuliaExcel works](#how-juliaexcel-works)  
 [Shortcomings](#shortcomings)  
 
 ## Installation
-
+Installation does not require admin rights on the PC.
  * Both [Julia](https://julialang.org/) and Microsoft Office must be installed on your PC, with Excel not running.
  * Launch Julia and switch to the Package REPL with the `]` key.
  * Type `add https://github.com/PGS62/JuliaExcel.jl` followed by the `Enter` key.
@@ -36,10 +35,10 @@ JuliaExcel makes the following functions available from Excel worksheets and fro
 |[JuliaLaunch](#julialaunch)|Launches a local Julia session which "listens" to the current Excel session and responds to calls to JuliaEval etc..|
 |[JuliaInclude](#juliainclude)|Load a Julia source file into the Julia process, to make additional functions available via JuliaEval and JuliaCall.|
 |[JuliaEval](#juliaeval)|Evaluate a Julia expression and return the result to an Excel worksheet.|
-|[JuliaEvalFromVBA](#juliaevalfromvba)|Evaluate a Julia expression and return the result to VBA, tuned for use from VBA, rather than from a worksheet.|
+|[JuliaEvalFromVBA](#juliaevalfromvba)|Evaluate a Julia expression and return the result to VBA. Tuned for use from VBA, rather than from a worksheet.|
 |[JuliaCall](#juliacall)|Call a named Julia function, passing in data from the worksheet.|
 |[JuliaCall2](#juliacall2)|Call a named Julia function, passing in data from the worksheet, with control of worksheet calculation dependency.|
-|[JuliaCallFromVBA](#juliacallfromvba)|Call a named Julia function from VBA code, tuned for use from VBA, rather than from a worksheet.|
+|[JuliaCallFromVBA](#juliacallfromvba)|Call a named Julia function from VBA code. Tuned for use from VBA, rather than from a worksheet.|
 |[JuliaSetVar](#juliasetvar)|Set a global variable in the Julia process.|
 
 
