@@ -101,9 +101,11 @@ function setvar(name::String, arg)
             thetype = typeof(tmp)
         catch
         end
-        numdims = length(thesize)
 
-        if numdims == 1
+        numdims = length(thesize)
+        if numdims == 0
+             sizedesc = ""   
+        elseif numdims == 1
             sizedesc =  "$(thesize[1])-element "
         elseif numdims > 1
             sizedesc = join(thesize,"x") * " "
@@ -240,7 +242,7 @@ function encode_for_xl(x::Union{Float16,Float32})
     if isinf(x)
         "!2036" # #NUM! in Excel
     elseif isnan(x)
-        
+
         "!2042" # #N/A in Excel
     else
         string("S", x)# Single in VBA

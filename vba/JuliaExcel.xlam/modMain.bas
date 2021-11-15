@@ -46,6 +46,8 @@ End Function
 '             recently installed version if more than one is available.
 ' -----------------------------------------------------------------------------------------------------------------------
 Function JuliaLaunch(Optional MinimiseWindow As Boolean, Optional ByVal JuliaExe As String)
+Attribute JuliaLaunch.VB_Description = "Launches a local Julia session which ""listens"" to the current Excel session and responds to calls to JuliaEval etc.."
+Attribute JuliaLaunch.VB_ProcData.VB_Invoke_Func = " \n14"
 
           Dim Command As String
           Dim ErrorCode As Long
@@ -212,10 +214,10 @@ End Function
 ' Arguments
 ' JuliaExpression: Any valid Julia code, as a string. Can also be a one-column range to evaluate multiple
 '             Julia statements.
-' PrecedentCell: Provides control over worksheet calculation dependency. Enter a cell or range that must be
-'             calculated before JuliaEval is executed.
 ' -----------------------------------------------------------------------------------------------------------------------
-Function JuliaEval(ByVal JuliaExpression As Variant, Optional PrecedentCell As Range)
+Function JuliaEval(ByVal JuliaExpression As Variant)
+Attribute JuliaEval.VB_Description = "Evaluate a Julia expression and return the result to an Excel worksheet."
+Attribute JuliaEval.VB_ProcData.VB_Invoke_Func = " \n14"
 1         On Error GoTo ErrHandler
           
 2         If IsFunctionWizardActive() Then
@@ -223,7 +225,7 @@ Function JuliaEval(ByVal JuliaExpression As Variant, Optional PrecedentCell As R
 4             Exit Function
 5         End If
 
-6         JuliaEval = JuliaEval_LowLevel(JuliaExpression, PrecedentCell, False, GetStringLengthLimit(), True)
+6         JuliaEval = JuliaEval_LowLevel(JuliaExpression, False, GetStringLengthLimit(), True)
 
 7         Exit Function
 ErrHandler:
@@ -240,8 +242,10 @@ End Function
 '             Julia statements.
 ' -----------------------------------------------------------------------------------------------------------------------
 Function JuliaEvalFromVBA(ByVal JuliaExpression As Variant)
+Attribute JuliaEvalFromVBA.VB_Description = "Evaluate a Julia expression and return the result to VBA. Designed for use from VBA rather than a worksheet and differs from JuliaEval in handling of 1-dimensional arrays, nested arrays and strings longer than 32,767 characters."
+Attribute JuliaEvalFromVBA.VB_ProcData.VB_Invoke_Func = " \n14"
 1         On Error GoTo ErrHandler
-2         JuliaEvalFromVBA = JuliaEval_LowLevel(JuliaExpression, , AllowNested:=True, StringLengthLimit:=0, JuliaVectorToXLColumn:=False)
+2         JuliaEvalFromVBA = JuliaEval_LowLevel(JuliaExpression, AllowNested:=True, StringLengthLimit:=0, JuliaVectorToXLColumn:=False)
 
 3         Exit Function
 ErrHandler:
@@ -253,7 +257,6 @@ ErrHandler:
 ' Purpose    : Evaluate a Julia expression, exposing more arguments than we should show to the user
 ' Parameters :
 '  JuliaExpression      :
-'  PrecedentCell        :
 '  AllowNested          : Should the function throw an error if it detects that the return from Julia is an array with
 '                         elements that are themselves an array. Should be False when calling from a worksheet since Excel
 '                         would otherwise display a single "#VALUE!" withj no hint as to what caused the problem.
@@ -264,7 +267,7 @@ ErrHandler:
 '                         dimensional array? Should be True when calling from a worksheet, or False when calling from VBA.
 '                         In both cases round tripping will work correctly.
 ' -----------------------------------------------------------------------------------------------------------------------
-Private Function JuliaEval_LowLevel(ByVal JuliaExpression As Variant, Optional PrecedentCell As Range, _
+Private Function JuliaEval_LowLevel(ByVal JuliaExpression As Variant, _
           Optional AllowNested As Boolean, Optional StringLengthLimit As Long, _
           Optional JuliaVectorToXLColumn As Boolean = True)
           
@@ -367,10 +370,10 @@ End Function
 ' VariableName: The name of the variable to be set. Must follow Julia's rules for allowed variable names.
 ' RefersTo  : An Excel range (from which the .Value2 property is read) or more generally a number, string,
 '             Boolean, Empty or array of such types. When called from VBA, nested arrays are supported.
-' PrecedentCell: Provides control over worksheet calculation dependency. Enter a cell or range that must be
-'             calculated before JuliaSetVar is executed.
 ' -----------------------------------------------------------------------------------------------------------------------
-Function JuliaSetVar(VariableName As String, RefersTo As Variant, Optional PrecedentCell As Range)
+Function JuliaSetVar(VariableName As String, RefersTo As Variant)
+Attribute JuliaSetVar.VB_Description = "Set a global variable in the Julia process."
+Attribute JuliaSetVar.VB_ProcData.VB_Invoke_Func = " \n14"
 1         On Error GoTo ErrHandler
 2         JuliaSetVar = JuliaCall(gPackageName & ".setvar", VariableName, RefersTo)
 
@@ -389,6 +392,8 @@ End Function
 '             array of such values or an Excel range.
 ' -----------------------------------------------------------------------------------------------------------------------
 Function JuliaCall(JuliaFunction As String, ParamArray Args())
+Attribute JuliaCall.VB_Description = "Call a named Julia function, passing in data from the worksheet."
+Attribute JuliaCall.VB_ProcData.VB_Invoke_Func = " \n14"
           Dim Expression As String
           Dim i As Long
           Dim Tmp() As String
@@ -420,51 +425,6 @@ ErrHandler:
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
-' Procedure : JuliaCall2
-' Purpose   : Call a named Julia function, passing in data from the worksheet, with control of
-'             worksheet calculation dependency.
-' Arguments
-' JuliaFunction: The name of a Julia function that's available in the Main module of the running Julia
-'             session.
-' PrecedentCell: Provides control over worksheet calculation dependency. Enter a cell or range that must be
-'             calculated before JuliaCall2 is executed.
-' Args...   : Zero or more arguments. Each argument may be a number, string, Boolean value, empty cell, an
-'             array of such values or an Excel range.
-'
-' Note the unpleasant repetition of the code of JuliaCall, but ParamArray is tricky to work with, and I couldn't figure
-' out a way to have JuliaCall2 be a wrapper to JuliaCall.
-' -----------------------------------------------------------------------------------------------------------------------
-Function JuliaCall2(JuliaFunction As String, PrecedentCell As Range, ParamArray Args())
-          Dim Expression As String
-          Dim i As Long
-          Dim Tmp() As String
-
-1         On Error GoTo ErrHandler
-
-2         If IsFunctionWizardActive() Then
-3             JuliaCall2 = "#Disabled in Function Wizard!"
-4             Exit Function
-5         End If
-
-6         If UBound(Args) >= LBound(Args) Then
-7             ReDim Tmp(LBound(Args) To UBound(Args))
-8             For i = LBound(Args) To UBound(Args)
-9                 If TypeName(Args(i)) = "Range" Then Args(i) = Args(i).Value2
-10                Tmp(i) = MakeJuliaLiteral(Args(i))
-11            Next i
-12            Expression = JuliaFunction & "(" & VBA.Join$(Tmp, ",") & ")"
-13        Else
-14            Expression = JuliaFunction & "()"
-15        End If
-
-16        JuliaCall2 = JuliaEval(Expression)
-
-17        Exit Function
-ErrHandler:
-18        JuliaCall2 = "#JuliaCall2 (line " & CStr(Erl) + "): " & Err.Description & "!"
-End Function
-
-' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure : JuliaCallFromVBA
 ' Purpose   : Call a named Julia function from VBA code. Designed for use from VBA rather than a
 '             worksheet and differs from JuliaCall in handling of 1-dimensional arrays, nested arrays and
@@ -476,6 +436,8 @@ End Function
 '             array of such values or an Excel range.
 ' -----------------------------------------------------------------------------------------------------------------------
 Function JuliaCallFromVBA(JuliaFunction As String, ParamArray Args())
+Attribute JuliaCallFromVBA.VB_Description = "Call a named Julia function from VBA code. Designed for use from VBA rather than a worksheet and differs from JuliaCall in handling of 1-dimensional arrays, nested arrays and strings longer than 32,767 characters."
+Attribute JuliaCallFromVBA.VB_ProcData.VB_Invoke_Func = " \n14"
           Dim Expression As String
           Dim i As Long
           Dim Tmp() As String
@@ -492,7 +454,7 @@ Function JuliaCallFromVBA(JuliaFunction As String, ParamArray Args())
 10            Expression = JuliaFunction & "()"
 11        End If
 
-12        JuliaCallFromVBA = JuliaEval_LowLevel(Expression, , AllowNested:=True, StringLengthLimit:=0, JuliaVectorToXLColumn:=False)
+12        JuliaCallFromVBA = JuliaEval_LowLevel(Expression, AllowNested:=True, StringLengthLimit:=0, JuliaVectorToXLColumn:=False)
 
 13        Exit Function
 ErrHandler:
@@ -505,10 +467,10 @@ End Function
 '             via JuliaEval and JuliaCall.
 ' Arguments
 ' FileName  : The full name of the file to be included.
-' PrecedentCell: Provides control over worksheet calculation dependency. Enter a cell or range that must be
-'             calculated before JuliaInclude is executed.
 ' -----------------------------------------------------------------------------------------------------------------------
-Function JuliaInclude(FileName As String, Optional PrecedentCell As Range)
+Function JuliaInclude(FileName As String)
+Attribute JuliaInclude.VB_Description = "Load a Julia source file into the Julia process, to make additional functions available via JuliaEval and JuliaCall."
+Attribute JuliaInclude.VB_ProcData.VB_Invoke_Func = " \n14"
 1         If IsFunctionWizardActive() Then
 2             JuliaInclude = "#Disabled in Function Wizard!"
 3             Exit Function
