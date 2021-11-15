@@ -51,7 +51,6 @@ Option Private Module
 '1×3 Matrix{Float64}:
 ' 1.0  2.0  3.0
 
-
 'Handles nested arrays:
 ' ?Print MakeJuliaLiteral(Array(1#, 2#, Array(3#, 4#)),False)
 ' Any[1.0,2.0,[3.0,4.0]]
@@ -154,22 +153,20 @@ Function MakeJuliaLiteral(x As Variant)
                           'No longer think it's necessary to do this conversion of vectors to matrix-with-one col, PGS 14 Nov
                           'One column case is tricky, could change this code when using Julia 1.7
                           'https://discourse.julialang.org/t/show-versus-parse-and-arrays-with-2-dimensions-but-only-one-column/70142/2
-81                        'If UBound(x, 2) = LBound(x, 2) Then
+                          'If UBound(x, 2) = LBound(x, 2) Then
                           '    Dim NR As Long
-82                        '    NR = UBound(x, 1) - LBound(x, 1) + 1
-83                        '    MakeJuliaLiteral = "reshape(" & MakeJuliaLiteral & "," & CStr(NR) & ",1)"
-84                        'End If
-85                    Case Else
-86                        Throw "case more than two dimensions not handled" 'In VBA there's no way to handle arrays with arbitrary number of dimensions. Easy in Julia!
-87                End Select
+                          '    NR = UBound(x, 1) - LBound(x, 1) + 1
+                          '    MakeJuliaLiteral = "reshape(" & MakeJuliaLiteral & "," & CStr(NR) & ",1)"
+                          'End If
+81                    Case Else
+82                        Throw "case more than two dimensions not handled" 'In VBA there's no way to handle arrays with arbitrary number of dimensions. Easy in Julia!
+83                End Select
 
+84            Case Else
+85                Throw "Variable of type " + TypeName(x) + " is not handled"
+86        End Select
 
-88            Case Else
-89                Throw "Variable of type " + TypeName(x) + " is not handled"
-90        End Select
-
-91        Exit Function
+87        Exit Function
 ErrHandler:
-92        Throw "#MakeJuliaLiteral (line " & CStr(Erl) + "): " & Err.Description & "!"
+88        Throw "#MakeJuliaLiteral (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Function
-

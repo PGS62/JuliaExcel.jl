@@ -7,7 +7,7 @@ Option Explicit
 #If VBA7 And Win64 Then
     Declare PtrSafe Function GetCurrentProcessId Lib "kernel32" () As Long
     Public Declare PtrSafe Sub Sleep Lib "kernel32" (ByVal Milliseconds As Long)
-    Public Declare PtrSafe Function IsWindow Lib "user32" (ByVal hwnd As LongPtr) As Long
+    Public Declare PtrSafe Function IsWindow Lib "USER32" (ByVal hWnd As LongPtr) As Long
 #Else
     Declare Function GetCurrentProcessId Lib "kernel32" () As Long
     Public Declare Sub Sleep Lib "kernel32" (ByVal Milliseconds As Long)
@@ -46,10 +46,7 @@ End Function
 '             recently installed version if more than one is available.
 ' -----------------------------------------------------------------------------------------------------------------------
 Function JuliaLaunch(Optional MinimiseWindow As Boolean, Optional ByVal JuliaExe As String)
-Attribute JuliaLaunch.VB_Description = "Launches a local Julia session which ""listens"" to the current Excel session and responds to calls to JuliaEval etc.."
-Attribute JuliaLaunch.VB_ProcData.VB_Invoke_Func = " \n33"
 
-          
           Dim Command As String
           Dim ErrorCode As Long
           Dim ErrorFile As String
@@ -63,34 +60,40 @@ Attribute JuliaLaunch.VB_ProcData.VB_Invoke_Func = " \n33"
           Dim wsh As WshShell
 
 1         On Error GoTo ErrHandler
-2         If JuliaExe = "" Then
-3             JuliaExe = JuliaLocation()
-4         Else
-5             If LCase(Right(JuliaExe, 10)) <> "\julia.exe" Then
-6                 Throw "Argument JuliaExe has been provided but is not the full path to a file with name julia.exe"
-7             ElseIf Not FileExists(JuliaExe) Then
-8                 Throw "Cannot find file '" + JuliaExe + "'"
-9             End If
-10        End If
 
-11        PID = GetCurrentProcessId
-12        WindowPartialTitle = "serving Excel PID " & CStr(PID)
-13        GetHandleFromPartialCaption HwndJulia, WindowPartialTitle
+2         If IsFunctionWizardActive() Then
+3             JuliaLaunch = "#Disabled in Function Wizard!"
+4             Exit Function
+5         End If
 
-14        If HwndJulia <> 0 Then
-15            WindowTitle = WindowTitleFromHandle(HwndJulia)
-16            JuliaLaunch = "Julia is already running in window """ & WindowTitle & """"
-17            Exit Function
-18        End If
+6         If JuliaExe = "" Then
+7             JuliaExe = JuliaLocation()
+8         Else
+9             If LCase(Right(JuliaExe, 10)) <> "\julia.exe" Then
+10                Throw "Argument JuliaExe has been provided but is not the full path to a file with name julia.exe"
+11            ElseIf Not FileExists(JuliaExe) Then
+12                Throw "Cannot find file '" + JuliaExe + "'"
+13            End If
+14        End If
 
-19        FlagFile = LocalTemp() & "\Flag_" & CStr(GetCurrentProcessId()) & ".txt"
-20        ErrorFile = LocalTemp() & "\LoadError_" & CStr(GetCurrentProcessId()) & ".txt"
-21        If FileExists(ErrorFile) Then Kill ErrorFile
+15        PID = GetCurrentProcessId
+16        WindowPartialTitle = "serving Excel PID " & CStr(PID)
+17        GetHandleFromPartialCaption HwndJulia, WindowPartialTitle
+
+18        If HwndJulia <> 0 Then
+19            WindowTitle = WindowTitleFromHandle(HwndJulia)
+20            JuliaLaunch = "Julia is already running in window """ & WindowTitle & """"
+21            Exit Function
+22        End If
+
+23        FlagFile = LocalTemp() & "\Flag_" & CStr(GetCurrentProcessId()) & ".txt"
+24        ErrorFile = LocalTemp() & "\LoadError_" & CStr(GetCurrentProcessId()) & ".txt"
+25        If FileExists(ErrorFile) Then Kill ErrorFile
           
-22        SaveTextFile FlagFile, "", TristateFalse
-23        LoadFile = LocalTemp() & "\StartUp_" & CStr(GetCurrentProcessId()) & ".jl"
+26        SaveTextFile FlagFile, "", TristateFalse
+27        LoadFile = LocalTemp() & "\StartUp_" & CStr(GetCurrentProcessId()) & ".jl"
               
-24        LoadFileContents = _
+28        LoadFileContents = _
               "try" & vbLf & _
               "    using " & gPackageName & vbLf & _
               "    using Dates" & vbLf & _
@@ -107,31 +110,31 @@ Attribute JuliaLaunch.VB_ProcData.VB_Invoke_Func = " \n33"
               "    rm(""" & Replace(FlagFile, "\", "/") & """)" & vbLf & _
               "end"
 
-25        SaveTextFile LoadFile, LoadFileContents, TristateFalse
+29        SaveTextFile LoadFile, LoadFileContents, TristateFalse
         
-26        Set wsh = New WshShell
-27        Command = JuliaExe & " --banner=no --load """ & LoadFile & """"
-28        ErrorCode = wsh.Run(Command, IIf(MinimiseWindow, vbMinimizedFocus, vbNormalNoFocus), False)
-29        If ErrorCode <> 0 Then
-30            Throw "Command '" + Command + "' failed with error code " + CStr(ErrorCode)
-31        End If
+30        Set wsh = New WshShell
+31        Command = JuliaExe & " --banner=no --load """ & LoadFile & """"
+32        ErrorCode = wsh.Run(Command, IIf(MinimiseWindow, vbMinimizedFocus, vbNormalNoFocus), False)
+33        If ErrorCode <> 0 Then
+34            Throw "Command '" + Command + "' failed with error code " + CStr(ErrorCode)
+35        End If
           
-32        While FileExists(FlagFile)
-33            Sleep 10
-34        Wend
-35        CleanLocalTemp
-36        If FileExists(ErrorFile) Then
-37            Throw "Julia launched but encountered an error when executing '" & LoadFile & "' the error was: " & ReadTextFile(ErrorFile, TristateFalse)
-38        End If
+36        While FileExists(FlagFile)
+37            Sleep 10
+38        Wend
+39        CleanLocalTemp
+40        If FileExists(ErrorFile) Then
+41            Throw "Julia launched but encountered an error when executing '" & LoadFile & "' the error was: " & ReadTextFile(ErrorFile, TristateFalse)
+42        End If
           
-39        GetHandleFromPartialCaption HwndJulia, WindowPartialTitle
-40        WindowTitle = WindowTitleFromHandle(HwndJulia)
+43        GetHandleFromPartialCaption HwndJulia, WindowPartialTitle
+44        WindowTitle = WindowTitleFromHandle(HwndJulia)
           
-41        JuliaLaunch = "Julia launched in window """ & WindowTitle & """"
+45        JuliaLaunch = "Julia launched in window """ & WindowTitle & """"
 
-42        Exit Function
+46        Exit Function
 ErrHandler:
-43        JuliaLaunch = "#JuliaLaunch (line " & CStr(Erl) + "): " & Err.Description & "!"
+47        JuliaLaunch = "#JuliaLaunch (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
@@ -213,14 +216,18 @@ End Function
 '             calculated before JuliaEval is executed.
 ' -----------------------------------------------------------------------------------------------------------------------
 Function JuliaEval(ByVal JuliaExpression As Variant, Optional PrecedentCell As Range)
-Attribute JuliaEval.VB_Description = "Evaluate a Julia expression and return the result to an Excel worksheet."
-Attribute JuliaEval.VB_ProcData.VB_Invoke_Func = " \n33"
-    On Error GoTo ErrHandler
-    JuliaEval = JuliaEval_LowLevel(JuliaExpression, PrecedentCell, False, GetStringLengthLimit(), True)
+1         On Error GoTo ErrHandler
+          
+2         If IsFunctionWizardActive() Then
+3             JuliaEval = "#Disabled in Function Wizard!"
+4             Exit Function
+5         End If
 
-    Exit Function
+6         JuliaEval = JuliaEval_LowLevel(JuliaExpression, PrecedentCell, False, GetStringLengthLimit(), True)
+
+7         Exit Function
 ErrHandler:
-    JuliaEval = "#JuliaEval (line " & CStr(Erl) + "): " & Err.Description & "!"
+8         JuliaEval = "#JuliaEval (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
@@ -233,19 +240,15 @@ End Function
 '             Julia statements.
 ' -----------------------------------------------------------------------------------------------------------------------
 Function JuliaEvalFromVBA(ByVal JuliaExpression As Variant)
-Attribute JuliaEvalFromVBA.VB_Description = "Evaluate a Julia expression and return the result to VBA. Designed for use from VBA rather than a worksheet and differs from JuliaEval in handling of 1-dimensional arrays, nested arrays and strings longer than 32,767 characters."
-Attribute JuliaEvalFromVBA.VB_ProcData.VB_Invoke_Func = " \n33"
-    On Error GoTo ErrHandler
-    JuliaEvalFromVBA = JuliaEval_LowLevel(JuliaExpression, , AllowNested:=True, StringLengthLimit:=0, JuliaVectorToXLColumn:=False)
+1         On Error GoTo ErrHandler
+2         JuliaEvalFromVBA = JuliaEval_LowLevel(JuliaExpression, , AllowNested:=True, StringLengthLimit:=0, JuliaVectorToXLColumn:=False)
 
-    Exit Function
+3         Exit Function
 ErrHandler:
-    Throw "#JuliaEvalFromVBA (line " & CStr(Erl) + "): " & Err.Description & "!"
+4         Throw "#JuliaEvalFromVBA (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Function
 
 Private Function JuliaEval_LowLevel(ByVal JuliaExpression As Variant, Optional PrecedentCell As Range, Optional AllowNested As Boolean, Optional StringLengthLimit As Long, Optional JuliaVectorToXLColumn As Boolean = True)
-Attribute JuliaEval_LowLevel.VB_Description = "Evaluate a Julia expression and return the result to Excel or VBA."
-Attribute JuliaEval_LowLevel.VB_ProcData.VB_Invoke_Func = " \n33"
           
           Dim ExpressionFile As String
           Dim FlagFile As String
@@ -350,8 +353,6 @@ End Function
 '             calculated before JuliaSetVar is executed.
 ' -----------------------------------------------------------------------------------------------------------------------
 Function JuliaSetVar(VariableName As String, RefersTo As Variant, Optional PrecedentCell As Range)
-Attribute JuliaSetVar.VB_Description = "Set a global variable in the Julia process."
-Attribute JuliaSetVar.VB_ProcData.VB_Invoke_Func = " \n33"
 1         On Error GoTo ErrHandler
 2         JuliaSetVar = JuliaCall(gPackageName & ".setvar", VariableName, RefersTo)
 
@@ -370,30 +371,34 @@ End Function
 '             array of such values or an Excel range.
 ' -----------------------------------------------------------------------------------------------------------------------
 Function JuliaCall(JuliaFunction As String, ParamArray Args())
-Attribute JuliaCall.VB_Description = "Call a named Julia function, passing in data from the worksheet."
-Attribute JuliaCall.VB_ProcData.VB_Invoke_Func = " \n33"
           Dim Expression As String
           Dim i As Long
           Dim Tmp() As String
 
 1         On Error GoTo ErrHandler
-2         If UBound(Args) >= LBound(Args) Then
-3             ReDim Tmp(LBound(Args) To UBound(Args))
 
-4             For i = LBound(Args) To UBound(Args)
-5                 If TypeName(Args(i)) = "Range" Then Args(i) = Args(i).Value2
-6                 Tmp(i) = MakeJuliaLiteral(Args(i))
-7             Next i
-8             Expression = JuliaFunction & "(" & VBA.Join$(Tmp, ",") & ")"
-9         Else
-10            Expression = JuliaFunction & "()"
-11        End If
+2         If IsFunctionWizardActive() Then
+3             JuliaCall = "#Disabled in Function Wizard!"
+4             Exit Function
+5         End If
 
-12        JuliaCall = JuliaEval(Expression)
+6         If UBound(Args) >= LBound(Args) Then
+7             ReDim Tmp(LBound(Args) To UBound(Args))
 
-13        Exit Function
+8             For i = LBound(Args) To UBound(Args)
+9                 If TypeName(Args(i)) = "Range" Then Args(i) = Args(i).Value2
+10                Tmp(i) = MakeJuliaLiteral(Args(i))
+11            Next i
+12            Expression = JuliaFunction & "(" & VBA.Join$(Tmp, ",") & ")"
+13        Else
+14            Expression = JuliaFunction & "()"
+15        End If
+
+16        JuliaCall = JuliaEval(Expression)
+
+17        Exit Function
 ErrHandler:
-14        JuliaCall = "#JuliaCall (line " & CStr(Erl) + "): " & Err.Description & "!"
+18        JuliaCall = "#JuliaCall (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
@@ -412,29 +417,33 @@ End Function
 ' out a way to have JuliaCall2 be a wrapper to JuliaCall.
 ' -----------------------------------------------------------------------------------------------------------------------
 Function JuliaCall2(JuliaFunction As String, PrecedentCell As Range, ParamArray Args())
-Attribute JuliaCall2.VB_Description = "Call a named Julia function, passing in data from the worksheet, with control of worksheet calculation dependency."
-Attribute JuliaCall2.VB_ProcData.VB_Invoke_Func = " \n33"
           Dim Expression As String
           Dim i As Long
           Dim Tmp() As String
 
 1         On Error GoTo ErrHandler
-2         If UBound(Args) >= LBound(Args) Then
-3             ReDim Tmp(LBound(Args) To UBound(Args))
-4             For i = LBound(Args) To UBound(Args)
-5                 If TypeName(Args(i)) = "Range" Then Args(i) = Args(i).Value2
-6                 Tmp(i) = MakeJuliaLiteral(Args(i))
-7             Next i
-8             Expression = JuliaFunction & "(" & VBA.Join$(Tmp, ",") & ")"
-9         Else
-10            Expression = JuliaFunction & "()"
-11        End If
 
-12        JuliaCall2 = JuliaEval(Expression)
+2         If IsFunctionWizardActive() Then
+3             JuliaCall2 = "#Disabled in Function Wizard!"
+4             Exit Function
+5         End If
 
-13        Exit Function
+6         If UBound(Args) >= LBound(Args) Then
+7             ReDim Tmp(LBound(Args) To UBound(Args))
+8             For i = LBound(Args) To UBound(Args)
+9                 If TypeName(Args(i)) = "Range" Then Args(i) = Args(i).Value2
+10                Tmp(i) = MakeJuliaLiteral(Args(i))
+11            Next i
+12            Expression = JuliaFunction & "(" & VBA.Join$(Tmp, ",") & ")"
+13        Else
+14            Expression = JuliaFunction & "()"
+15        End If
+
+16        JuliaCall2 = JuliaEval(Expression)
+
+17        Exit Function
 ErrHandler:
-14        JuliaCall2 = "#JuliaCall2 (line " & CStr(Erl) + "): " & Err.Description & "!"
+18        JuliaCall2 = "#JuliaCall2 (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
@@ -486,9 +495,11 @@ End Function
 '             calculated before JuliaInclude is executed.
 ' -----------------------------------------------------------------------------------------------------------------------
 Function JuliaInclude(FileName As String, Optional PrecedentCell As Range)
-Attribute JuliaInclude.VB_Description = "Load a Julia source file into the Julia process, to make additional functions available via JuliaEval and JuliaCall."
-Attribute JuliaInclude.VB_ProcData.VB_Invoke_Func = " \n33"
-1         JuliaInclude = JuliaCall(gPackageName & ".include", Replace(FileName, "\", "/"))
+1         If IsFunctionWizardActive() Then
+2             JuliaInclude = "#Disabled in Function Wizard!"
+3             Exit Function
+4         End If
+5         JuliaInclude = JuliaCall(gPackageName & ".include", Replace(FileName, "\", "/"))
 End Function
 
 '05-Nov-2021 16:18:37        DESKTOP-0VD2AF0
@@ -518,5 +529,4 @@ Private Sub SpeedTest()
 9         Debug.Print "Average time in JuliaEval", (t2 - t1) / NumCalls
 
 End Sub
-
 

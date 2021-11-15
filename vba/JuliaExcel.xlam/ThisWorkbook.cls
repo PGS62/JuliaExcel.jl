@@ -9,15 +9,13 @@ Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = True
 Option Explicit
 
-Private Sub Workbook_AddinInstall()
-  '  Debug.Print "Calling RegisterAll from Workbook_AddinInstall"
-    RegisterAll
-End Sub
-
-Private Sub Workbook_Open()
-  '  Debug.Print "Calling RegisterAll from Workbook_Open"
-    RegisterAll
-End Sub
-
-
+'Private Sub Workbook_AddinInstall()
+'    RegisterExcelJuliaFunctionsWithFunctionWizard
+'End Sub
+'
+'Private Sub Workbook_Open()
+'    RegisterAll
+'End Sub
+'
+'
 

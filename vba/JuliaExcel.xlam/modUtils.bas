@@ -7,11 +7,11 @@ Option Explicit
 Option Private Module
 
 #If VBA7 And Win64 Then
-Private Declare PtrSafe Function QueryPerformanceFrequency Lib "kernel32" (lpFrequency As Currency) As Long
-Private Declare PtrSafe Function QueryPerformanceCounter Lib "kernel32" (lpPerformanceCount As Currency) As Long
+    Private Declare PtrSafe Function QueryPerformanceFrequency Lib "kernel32" (lpFrequency As Currency) As Long
+    Private Declare PtrSafe Function QueryPerformanceCounter Lib "kernel32" (lpPerformanceCount As Currency) As Long
 #Else
-Private Declare Function QueryPerformanceFrequency Lib "kernel32" (lpFrequency As Currency) As Long
-Private Declare Function QueryPerformanceCounter Lib "kernel32" (lpPerformanceCount As Currency) As Long
+    Private Declare Function QueryPerformanceFrequency Lib "kernel32" (lpFrequency As Currency) As Long
+    Private Declare Function QueryPerformanceCounter Lib "kernel32" (lpPerformanceCount As Currency) As Long
 #End If
 
 ' -----------------------------------------------------------------------------------------------------------------------
@@ -203,6 +203,4 @@ Sub SaveMe()
 4         ThisWorkbook.SaveAs FullName, xlOpenXMLAddIn
 5         ThisWorkbook.IsAddin = False
 End Sub
-
-
 

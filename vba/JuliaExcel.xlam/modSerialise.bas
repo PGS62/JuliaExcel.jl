@@ -87,19 +87,19 @@ End Function
 ' Note that this function returns 1 more than the maximum allowed string length
 ' -----------------------------------------------------------------------------------------------------------------------
 Function GetStringLengthLimit() As Long
-    Static Res As Long
-    If Res = 0 Then
-        Select Case Val(Application.Version)
-            Case Is <= 14 'Excel 2010
-                Res = 256
-            Case 15
-                Res = 32768 'Don't yet know if this is correct for Excel 2013
-            Case Else
-                Res = 32768 'Excel 2016, 2019, 365. Hopefully these versions (which all _
-                             return 16 as Application.Version) have the same limit.
-        End Select
-    End If
-    GetStringLengthLimit = Res
+          Static Res As Long
+1         If Res = 0 Then
+2             Select Case Val(Application.Version)
+                  Case Is <= 14 'Excel 2010
+3                     Res = 256
+4                 Case 15
+5                     Res = 32768 'Don't yet know if this is correct for Excel 2013
+6                 Case Else
+7                     Res = 32768 'Excel 2016, 2019, 365. Hopefully these versions (which all _
+                                   return 16 as Application.Version) have the same limit.
+8             End Select
+9         End If
+10        GetStringLengthLimit = Res
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------

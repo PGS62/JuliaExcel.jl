@@ -1,6 +1,7 @@
 Version	Date	Time	Author	Comment
-18	14-Nov-2021	16:58	Philip Swannell	Seem to have lost work done last Friday. Grrr. Maybe on PC in office and didn't commit to Git?
-17	10-Nov-2021	19:11	Philip Swannell	Now with Intellisense worksheet, that will (hopefully) be picked up by the DNA.intellisense code, once copied to the add-in
+19	15-Nov-2021	10:23	Philip Swannell	Renamed to JuliaExcel-Documenter.
+18	11-Nov-2021	11:59	Philip Swannell	Now take all data from the _IntelliSense_ sheet of JuliaExcel.xlsm
+17	10-Nov-2021	19:11	Philip Swannell	Now with Intellisense worksheet, that will (hopefully) be picked up by the DNA.intellisense coe, once copied to the add-in
 16	09-Nov-2021	09:32	Philip Swannell	Fixed typo
 15	08-Nov-2021	14:37	Philip Swannell	Updates to documentation
 14	07-Nov-2021	10:22	Philip Swannell	Renamed to JuliaExcel

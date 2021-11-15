@@ -2,98 +2,45 @@ Attribute VB_Name = "modDependencies"
 Option Explicit
 Option Private Module
 
-'---------------------------------------------------------------------------------------------------------
-' Procedure : VStack
-' Purpose   : Places arrays on top of one another. If the arrays are of unequal width then they will be
-'             padded to the right with #NA! values.
-' Arguments
-' ArraysToStack:
-'---------------------------------------------------------------------------------------------------------
-Public Function VStack(ParamArray ArraysToStack())
-    Dim AllC As Long
-    Dim AllR As Long
-    Dim c As Long
-    Dim i As Long
-    Dim j As Long
-    Dim k As Long
-    Dim R As Long
-    Dim R0 As Long
-    Dim ReturnArray()
-    On Error GoTo ErrHandler
-
-    Static NA As Variant
-    If IsMissing(ArraysToStack) Then
-        VStack = CreateMissing()
-    Else
-        If IsEmpty(NA) Then NA = CVErr(xlErrNA)
-
-        For i = LBound(ArraysToStack) To UBound(ArraysToStack)
-            If TypeName(ArraysToStack(i)) = "Range" Then ArraysToStack(i) = ArraysToStack(i).Value
-            If IsMissing(ArraysToStack(i)) Then
-                R = 0: c = 0
-            Else
-                Select Case NumDimensions(ArraysToStack(i))
-                    Case 0
-                        R = 1: c = 1
-                    Case 1
-                        R = 1
-                        c = UBound(ArraysToStack(i)) - LBound(ArraysToStack(i)) + 1
-                    Case 2
-                        R = UBound(ArraysToStack(i), 1) - LBound(ArraysToStack(i), 1) + 1
-                        c = UBound(ArraysToStack(i), 2) - LBound(ArraysToStack(i), 2) + 1
-                End Select
-            End If
-            If c > AllC Then AllC = c
-            AllR = AllR + R
-        Next i
-
-        If AllR = 0 Then
-            VStack = CreateMissing
-            Exit Function
-        End If
-
-        ReDim ReturnArray(1 To AllR, 1 To AllC)
-
-        R0 = 1
-        For i = LBound(ArraysToStack) To UBound(ArraysToStack)
-            If Not IsMissing(ArraysToStack(i)) Then
-                Select Case NumDimensions(ArraysToStack(i))
-                    Case 0
-                        R = 1: c = 1
-                        ReturnArray(R0, 1) = ArraysToStack(i)
-                    Case 1
-                        R = 1
-                        c = UBound(ArraysToStack(i)) - LBound(ArraysToStack(i)) + 1
-                        For j = 1 To c
-                            ReturnArray(R0, j) = ArraysToStack(i)(j + LBound(ArraysToStack(i)) - 1)
-                        Next j
-                    Case 2
-                        R = UBound(ArraysToStack(i), 1) - LBound(ArraysToStack(i), 1) + 1
-                        c = UBound(ArraysToStack(i), 2) - LBound(ArraysToStack(i), 2) + 1
-
-                        For j = 1 To R
-                            For k = 1 To c
-                                ReturnArray(R0 + j - 1, k) = ArraysToStack(i)(j + LBound(ArraysToStack(i), 1) - 1, k + LBound(ArraysToStack(i), 2) - 1)
-                            Next k
-                        Next j
-
-                End Select
-                If c < AllC Then
-                    For j = 1 To R
-                        For k = c + 1 To AllC
-                            ReturnArray(R0 + j - 1, k) = NA
-                        Next k
-                    Next j
-                End If
-                R0 = R0 + R
-            End If
-        Next i
-
-        VStack = ReturnArray
-    End If
-    Exit Function
+' -----------------------------------------------------------------------------------------------------------------------
+' Procedure : IsInCollection
+' Purpose   : Tests for membership of any collection. Can be used in place of multiple
+'             functions BookHasSheet, SheetHasName etc. Works irrespective of whether
+'             the collection contains objects or primitives.
+' -----------------------------------------------------------------------------------------------------------------------
+Function IsInCollection(oColn As Object, Key As String) As Boolean
+1         On Error GoTo ErrHandler
+2         VarType (oColn(Key))
+3         IsInCollection = True
+4         Exit Function
 ErrHandler:
-    VStack = "#VStack (line " & CStr(Erl) + "): " & Err.Description & "!"
+5     End Function
+
+Function RawFileContents(FileName As String)
+          Dim F As Scripting.File
+          Dim FSO As New FileSystemObject
+          Dim T As Scripting.TextStream
+1         On Error GoTo ErrHandler
+2         Set F = FSO.GetFile(FileName)
+3         Set T = F.OpenAsTextStream()
+4         RawFileContents = T.ReadAll
+5         T.Close
+
+6         Exit Function
+ErrHandler:
+           Throw "#RawFileContents (line " & CStr(Erl) + "): " & Err.Description & "!"
+End Function
+
+' -----------------------------------------------------------------------------------------------------------------------
+' Procedure : CreateStacker
+' Purpose   : So that we can create clsStacker objects from other workbooks...
+' -----------------------------------------------------------------------------------------------------------------------
+Function CreateStacker() As clsStacker
+1         On Error GoTo ErrHandler
+2         Set CreateStacker = New clsStacker
+3         Exit Function
+ErrHandler:
+4         Throw "#CreateStacker (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Function
 
 '---------------------------------------------------------------------------------------
@@ -101,48 +48,48 @@ End Function
 ' Purpose   : Returns a variant of type Missing
 '---------------------------------------------------------------------------------------
 Private Function CreateMissing()
-    CreateMissing = CM2()
+1         CreateMissing = CM2()
 End Function
 Private Function CM2(Optional OptionalArg As Variant)
-    CM2 = OptionalArg
+1         CM2 = OptionalArg
 End Function
 
-Private Function NumDimensions(x As Variant) As Long
-    Dim i As Long
-    Dim y As Long
-    If Not IsArray(x) Then
-        NumDimensions = 0
-        Exit Function
-    Else
-        On Error GoTo ExitPoint
-        i = 1
-        Do While True
-            y = LBound(x, i)
-            i = i + 1
-        Loop
-    End If
+Function NumDimensions(x As Variant) As Long
+          Dim i As Long
+          Dim y As Long
+1         If Not IsArray(x) Then
+2             NumDimensions = 0
+3             Exit Function
+4         Else
+5             On Error GoTo ExitPoint
+6             i = 1
+7             Do While True
+8                 y = LBound(x, i)
+9                 i = i + 1
+10            Loop
+11        End If
 ExitPoint:
-    NumDimensions = i - 1
+12        NumDimensions = i - 1
 End Function
 '---------------------------------------------------------------------------------------
 ' Procedure : sNRows
 ' Purpose   : Number of rows in an array. Missing has zero rows, 1-dimensional arrays have one row.
 '---------------------------------------------------------------------------------------
 Public Function sNRows(Optional TheArray) As Long
-    If TypeName(TheArray) = "Range" Then
-        sNRows = TheArray.Rows.Count
-    ElseIf IsMissing(TheArray) Then
-        sNRows = 0
-    ElseIf VarType(TheArray) < vbArray Then
-        sNRows = 1
-    Else
-        Select Case NumDimensions(TheArray)
-            Case 1
-                sNRows = 1
-            Case Else
-                sNRows = UBound(TheArray, 1) - LBound(TheArray, 1) + 1
-        End Select
-    End If
+1         If TypeName(TheArray) = "Range" Then
+2             sNRows = TheArray.Rows.Count
+3         ElseIf IsMissing(TheArray) Then
+4             sNRows = 0
+5         ElseIf VarType(TheArray) < vbArray Then
+6             sNRows = 1
+7         Else
+8             Select Case NumDimensions(TheArray)
+                  Case 1
+9                     sNRows = 1
+10                Case Else
+11                    sNRows = UBound(TheArray, 1) - LBound(TheArray, 1) + 1
+12            End Select
+13        End If
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
@@ -167,71 +114,69 @@ Function sNCols(Optional TheArray) As Long
 13        End If
 End Function
 
-
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : Throw
 ' Purpose    : Simple error handling.
 ' -----------------------------------------------------------------------------------------------------------------------
 Public Sub Throw(ByVal ErrorString As String)
-    Err.Raise vbObjectError + 1, , ErrorString
+1         Err.Raise vbObjectError + 1, , ErrorString
 End Sub
 
-
 Public Function StringBetweenStrings(TheString, LeftString, RightString, Optional IncludeLeftString As Boolean, Optional IncludeRightString As Boolean)
-    Dim MatchPoint1 As Long        ' the position of the first character to return
-    Dim MatchPoint2 As Long        ' the position of the last character to return
-    Dim FoundLeft As Boolean
-    Dim FoundRight As Boolean
-    
-    On Error GoTo ErrHandler
-    
-    If VarType(TheString) <> vbString Or VarType(LeftString) <> vbString Or VarType(RightString) <> vbString Then Throw "Inputs must be strings"
-    If LeftString = vbNullString Then
-        MatchPoint1 = 0
-    Else
-        MatchPoint1 = InStr(1, TheString, LeftString, vbTextCompare)
-    End If
+          Dim MatchPoint1 As Long        ' the position of the first character to return
+          Dim MatchPoint2 As Long        ' the position of the last character to return
+          Dim FoundLeft As Boolean
+          Dim FoundRight As Boolean
+          
+1         On Error GoTo ErrHandler
+          
+2         If VarType(TheString) <> vbString Or VarType(LeftString) <> vbString Or VarType(RightString) <> vbString Then Throw "Inputs must be strings"
+3         If LeftString = vbNullString Then
+4             MatchPoint1 = 0
+5         Else
+6             MatchPoint1 = InStr(1, TheString, LeftString, vbTextCompare)
+7         End If
 
-    If MatchPoint1 = 0 Then
-        FoundLeft = False
-        MatchPoint1 = 1
-    Else
-        FoundLeft = True
-    End If
+8         If MatchPoint1 = 0 Then
+9             FoundLeft = False
+10            MatchPoint1 = 1
+11        Else
+12            FoundLeft = True
+13        End If
 
-    If RightString = vbNullString Then
-        MatchPoint2 = 0
-    ElseIf FoundLeft Then
-        MatchPoint2 = InStr(MatchPoint1 + Len(LeftString), TheString, RightString, vbTextCompare)
-    Else
-        MatchPoint2 = InStr(1, TheString, RightString, vbTextCompare)
-    End If
+14        If RightString = vbNullString Then
+15            MatchPoint2 = 0
+16        ElseIf FoundLeft Then
+17            MatchPoint2 = InStr(MatchPoint1 + Len(LeftString), TheString, RightString, vbTextCompare)
+18        Else
+19            MatchPoint2 = InStr(1, TheString, RightString, vbTextCompare)
+20        End If
 
-    If MatchPoint2 = 0 Then
-        FoundRight = False
-        MatchPoint2 = Len(TheString)
-    Else
-        FoundRight = True
-        MatchPoint2 = MatchPoint2 - 1
-    End If
+21        If MatchPoint2 = 0 Then
+22            FoundRight = False
+23            MatchPoint2 = Len(TheString)
+24        Else
+25            FoundRight = True
+26            MatchPoint2 = MatchPoint2 - 1
+27        End If
 
-    If Not IncludeLeftString Then
-        If FoundLeft Then
-            MatchPoint1 = MatchPoint1 + Len(LeftString)
-        End If
-    End If
+28        If Not IncludeLeftString Then
+29            If FoundLeft Then
+30                MatchPoint1 = MatchPoint1 + Len(LeftString)
+31            End If
+32        End If
 
-    If IncludeRightString Then
-        If FoundRight Then
-            MatchPoint2 = MatchPoint2 + Len(RightString)
-        End If
-    End If
+33        If IncludeRightString Then
+34            If FoundRight Then
+35                MatchPoint2 = MatchPoint2 + Len(RightString)
+36            End If
+37        End If
 
-    StringBetweenStrings = Mid$(TheString, MatchPoint1, MatchPoint2 - MatchPoint1 + 1)
+38        StringBetweenStrings = Mid$(TheString, MatchPoint1, MatchPoint2 - MatchPoint1 + 1)
 
-    Exit Function
+39        Exit Function
 ErrHandler:
-    StringBetweenStrings = "#StringBetweenStrings (line " & CStr(Erl) + "): " & Err.Description & "!"
+40        StringBetweenStrings = "#StringBetweenStrings (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Function
 
 '---------------------------------------------------------------------------------------------------------
@@ -342,4 +287,3 @@ Function RegExSyntaxValid(RegularExpression As String) As Boolean
 ErrHandler:
 11        RegExSyntaxValid = False
 End Function
-

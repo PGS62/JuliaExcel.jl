@@ -1,4 +1,7 @@
 Version	Date	Time	Author	Comment
+56	15-Nov-2021	10:17	Philip Swannell	Test for Function Wizard active. Exit early if so.
+55	15-Nov-2021	09:44	Philip Swannell	No longer register functions on add-in open. I think it's not necessary.
+54	15-Nov-2021	09:36	Philip Swannell	Changes in module RegisterAll.
 53	14-Nov-2021	17:07	Philip Swannell	Updated "docstrings".
 52	14-Nov-2021	16:55	Philip Swannell	Updated _Intellisense_ sheet.
 51	14-Nov-2021	16:18	Philip Swannell	Re-wrote code to register functions with the Excel function wizard.

@@ -4,27 +4,32 @@ Attribute VB_Name = "modPostMessage"
 ' Document: https://github.com/PGS62/JuliaExcel.jl#readme
 Option Explicit
 Option Private Module
+Private Const GW_HWNDNEXT = 2
 
 #If VBA7 And Win64 Then
-    Private Declare PtrSafe Function PostMessage Lib "user32" Alias "PostMessageA" (ByVal hwnd As LongPtr, _
-                                      ByVal wMsg As Long, ByVal wParam As LongPtr, lParam As Any) As Long
-    Private Declare PtrSafe Function FindWindow Lib "user32" Alias "FindWindowA" (ByVal lpClassName As String, _
-                                      ByVal lpWindowName As String) As LongPtr
-    Private Declare PtrSafe Function GetWindowTextLength Lib "user32" Alias "GetWindowTextLengthA" _
-                                     (ByVal hwnd As LongPtr) As Long
-    Private Declare PtrSafe Function GetWindowText Lib "user32" Alias "GetWindowTextA" _
-                                    (ByVal hwnd As LongPtr, ByVal lpString As String, ByVal cch As Long) As Long
-    Private Declare PtrSafe Function GetWindow Lib "user32" (ByVal hwnd As LongPtr, ByVal wCmd As Long) As LongPtr
+    Private Declare PtrSafe Function PostMessage Lib "USER32" Alias "PostMessageA" (ByVal hWnd As LongPtr, _
+        ByVal wMsg As Long, ByVal wParam As LongPtr, lParam As Any) As Long
+    Private Declare PtrSafe Function FindWindow Lib "USER32" Alias "FindWindowA" (ByVal lpClassName As String, _
+        ByVal lpWindowName As String) As LongPtr
+    Private Declare PtrSafe Function GetWindowTextLength Lib "USER32" Alias "GetWindowTextLengthA" _
+        (ByVal hWnd As LongPtr) As Long
+    Private Declare PtrSafe Function GetWindowText Lib "USER32" Alias "GetWindowTextA" _
+        (ByVal hWnd As LongPtr, ByVal lpString As String, ByVal cch As Long) As Long
+    Private Declare PtrSafe Function GetWindow Lib "USER32" (ByVal hWnd As LongPtr, ByVal wCmd As Long) As LongPtr
+    Private Declare PtrSafe Function GetWindowThreadProcessId Lib "user32.dll" _
+        (ByVal hWnd As LongPtr, ByRef lpdwProcessId As Long) As Long
 #Else
-    Private Declare  Function PostMessage Lib "user32" Alias "PostMessageA" (ByVal hwnd As Long, _
-                                      ByVal wMsg As Long, ByVal wParam As Long, lParam As Any) As Long
-    Private Declare  Function FindWindow Lib "user32" Alias "FindWindowA" (ByVal lpClassName As String, _
-                                      ByVal lpWindowName As String) As Long
-    Private Declare  Function GetWindowTextLength Lib "user32" Alias "GetWindowTextLengthA" _
-                                     (ByVal hwnd As Long) As Long
-    Private Declare  Function GetWindowText Lib "user32" Alias "GetWindowTextA" _
-                                    (ByVal hwnd As Long, ByVal lpString As String, ByVal cch As Long) As Long
-    Private Declare  Function GetWindow Lib "user32" (ByVal hwnd As Long, ByVal wCmd As Long) As Long
+    Private Declare Function PostMessage Lib "user32" Alias "PostMessageA" (ByVal hwnd As Long, _
+        ByVal wMsg As Long, ByVal wParam As Long, lParam As Any) As Long
+    Private Declare Function FindWindow Lib "user32" Alias "FindWindowA" (ByVal lpClassName As String, _
+        ByVal lpWindowName As String) As Long
+    Private Declare Function GetWindowTextLength Lib "user32" Alias "GetWindowTextLengthA" _
+        (ByVal hwnd As Long) As Long
+    Private Declare Function GetWindowText Lib "user32" Alias "GetWindowTextA" _
+        (ByVal hwnd As Long, ByVal lpString As String, ByVal cch As Long) As Long
+    Private Declare Function GetWindow Lib "user32" (ByVal hwnd As Long, ByVal wCmd As Long) As Long
+    Private Declare Function GetWindowThreadProcessId Lib "user32.dll" _
+        (ByVal hWnd As Long, ByRef lpdwProcessId As Long) As Long
 #End If
 
 ' -----------------------------------------------------------------------------------------------------------------------
@@ -119,3 +124,49 @@ Function WindowTitleFromHandle(lhWndP As LongPtr)
 ErrHandler:
 7         Throw "#WindowTitleFromHandle (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Function
+
+' -----------------------------------------------------------------------------------------------------------------------
+' Procedure  : IsFunctionWizardActive
+' Purpose    : Tests if the Excel Function Wizard is in use.
+'            :See discussion at https://stackoverflow.com/questions/20866484/can-i-disable-a-vba-udf-calculation-when-the-insert-function-function-arguments
+' -----------------------------------------------------------------------------------------------------------------------
+Function IsFunctionWizardActive() As Boolean
+
+          Dim ExcelPID As Long
+          Dim lhWndP As LongPtr
+          Dim WindowPID As Long
+          Dim WindowTitle As String
+          Const FunctionWizardCaption = "Function Arguments" 'This won't work for non English-language Excel
+          
+1         On Error GoTo ErrHandler
+2         If TypeName(Application.Caller) = "Range" Then
+              'The "CommandBars test" below is usually sufficient to determine that the Function Wizard is active,
+              'but can sometimes give a false positive. Example: When a csv file is opened (via File Open) then all
+              'active workbooks are calculated (even if calculation is set to manual!) with
+              'Application.CommandBars("Standard").Controls(1).Enabled being False.
+              'So apply a further test using Windows API to loop over all windows checking for a window with title
+              '"Function  Arguments", checking also the process id.
+3             If Not Application.CommandBars("Standard").Controls(1).Enabled Then
+4                 ExcelPID = GetCurrentProcessId()
+5                 lhWndP = FindWindow(vbNullString, vbNullString) 'PARENT WINDOW
+6                 Do While lhWndP <> 0
+7                     WindowTitle = String(GetWindowTextLength(lhWndP) + 1, Chr$(0))
+8                     GetWindowText lhWndP, WindowTitle, Len(WindowTitle)
+9                     WindowTitle = Left$(WindowTitle, Len(WindowTitle) - 1)
+10                    If WindowTitle = FunctionWizardCaption Then
+11                        GetWindowThreadProcessId lhWndP, WindowPID
+12                        If WindowPID = ExcelPID Then
+13                            IsFunctionWizardActive = True
+14                            Exit Function
+15                        End If
+16                    End If
+17                    lhWndP = GetWindow(lhWndP, GW_HWNDNEXT)
+18                Loop
+19            End If
+20        End If
+
+21        Exit Function
+ErrHandler:
+22        Throw "#IsFunctionWizardActive (line " & CStr(Erl) + "): " & Err.Description & "!"
+End Function
+
