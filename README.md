@@ -30,7 +30,6 @@ Installation does not require admin rights on the PC.
 ## Functions
 JuliaExcel makes the following functions available from Excel worksheets and from VBA:
 
-|Name|Description|
 |----|-----------|
 |Name|Description|
 |----|-----------|
