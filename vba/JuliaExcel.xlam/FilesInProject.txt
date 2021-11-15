@@ -5,6 +5,4 @@ modMain.bas
 modPostMessage.bas
 modRegister.bas
 modSerialise.bas
-Module1.bas
 modUtils.bas
-ThisWorkbook.cls

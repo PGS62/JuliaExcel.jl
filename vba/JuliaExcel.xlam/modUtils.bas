@@ -195,12 +195,3 @@ ErrHandler:
 4         MsgBox "#MenuButton (line " & CStr(Erl) + "): " & Err.Description & "!", vbCritical
 End Sub
 
-Sub SaveMe()
-1         ThisWorkbook.IsAddin = True
-          Dim FullName As String
-2         FullName = "c:\Projects\JuliaExcel\workbooks\JuliaExcel.xlam"
-3         Debug.Print FullName
-4         ThisWorkbook.SaveAs FullName, xlOpenXMLAddIn
-5         ThisWorkbook.IsAddin = False
-End Sub
-

@@ -5,30 +5,6 @@ Option Private Module
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : MakeJuliaLiteral
 ' Purpose    : Convert an array into a string which Julia will parse as x.
-' Parameters :
-'  x         : The variable in Excel or VBA.
-'  OneDtoTwoD: If TRUE, then if x is a one-dimensional array, the return will be a string that will be parsed by Julia
-'              to a two-dimensional array with one row. Otherwise, if FALSE, the return will be a string that will be
-'              parsed to a one-dimensional array.
-'
-'              Unfortunately, the "best, most natural" value for OneDtoTwoD is different when calling from the worksheet
-'              versus when calling from VBA:
-'
-'           1) From the worksheet: Excel treats 1-dimensional arrays as as if they were 2-dimensional arrays with a single
-'              row, in the following senses:
-'           a) If you call a VBA UDF from a worksheet formula, and the UDF returns a 1-d array then the formula spills
-'              to a range with a single row.
-'           b) If you pass a 2-d array with a single row to a VBA UDF then the variable appears in VBA as a 1-dimensional
-'              array. This holds for string literals such as {1,2,3,4} or a call to (say) SEQUENCE(1,3) or to a reference
-'              to a range with only one row.
-'
-'              But we almost certainly want a 2-d array with one row (or range with one row) in Excel to "arrive in Julia"
-'              as two dimensional. That means that, in the context of worksheet formulas, one-dimensional value for the
-'              argument x must result in a string that Julia will parse to a two-dimensional array with a single row. And
-'              that's easy to arrange - just use space character as the delimiter, Julia parses [1 2 3] as 2-d with one row.
-
-'              By contrast, VBA supports 1-d arrays "properly" so when calling into Julia from VBA we would expect 1-d arrays to
-'              "arrive in Julia" with one dimension
 '
 ' Examples:
 ' In VBA immediate window:
@@ -150,14 +126,6 @@ Function MakeJuliaLiteral(x As Variant)
 79                        Next i
 
 80                        MakeJuliaLiteral = IIf(AllSameType, "[", "Any[") & VBA.Join$(Tmp, ";") & "]"
-                          'No longer think it's necessary to do this conversion of vectors to matrix-with-one col, PGS 14 Nov
-                          'One column case is tricky, could change this code when using Julia 1.7
-                          'https://discourse.julialang.org/t/show-versus-parse-and-arrays-with-2-dimensions-but-only-one-column/70142/2
-                          'If UBound(x, 2) = LBound(x, 2) Then
-                          '    Dim NR As Long
-                          '    NR = UBound(x, 1) - LBound(x, 1) + 1
-                          '    MakeJuliaLiteral = "reshape(" & MakeJuliaLiteral & "," & CStr(NR) & ",1)"
-                          'End If
 81                    Case Else
 82                        Throw "case more than two dimensions not handled" 'In VBA there's no way to handle arrays with arbitrary number of dimensions. Easy in Julia!
 83                End Select

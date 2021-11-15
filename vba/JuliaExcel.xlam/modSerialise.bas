@@ -11,7 +11,7 @@ Option Base 1
 '=============================================
 'Format designed to be as fast as possible to unserialise.
 '- Singleton types are prefixed with a type indicator character.
-'- Dates are converted to their Excel representation - faster to unserialise in VBA.
+'- Dates are shown in their Excel representation as a number - faster to unserialise in VBA.
 '- Arrays are written with type indicator *, then three sections separated by semi-colons:
 '  First section gives the number of dimensions and the dimensions themselves, comma
 '  delimited e.g. a 3 x 4 array would have a dimensions section "2,3,4".
@@ -221,11 +221,11 @@ End Function
 'Values of type Int64 in Julia must be handled differently on Excel 32-bit and Excel 64bit
 #If Win64 Then
     Function parseInt64(x As String)
-        parseInt64 = CLngLng(x)
+1             parseInt64 = CLngLng(x)
     End Function
 #Else
     Function parseInt64(x As String)
-        parseInt64 = CDbl(x)
+1             parseInt64 = CDbl(x)
     End Function
 #End If
 

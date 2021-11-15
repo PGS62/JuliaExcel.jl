@@ -2,6 +2,7 @@ Attribute VB_Name = "modPostMessage"
 ' Copyright (c) 2021 - Philip Swannell
 ' License MIT (https://opensource.org/licenses/MIT)
 ' Document: https://github.com/PGS62/JuliaExcel.jl#readme
+
 Option Explicit
 Option Private Module
 Private Const GW_HWNDNEXT = 2
@@ -58,6 +59,7 @@ Sub PostMessageToJulia(HwndJulia As LongPtr)
 2             PostMessage HwndJulia, WM_CHAR, ByVal 27, ByVal &H10001
 3             PostMessage HwndJulia, WM_CHAR, ByVal 8, ByVal &H10001
 4         Next i
+
           'One more {BACKSPACE} should be enough to switch Julia out of Package REPL mode if it's in it.
 5         PostMessage HwndJulia, WM_CHAR, ByVal 8, ByVal &H10001
 

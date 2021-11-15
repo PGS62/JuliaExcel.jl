@@ -67,7 +67,7 @@ Function JuliaLaunch(Optional MinimiseWindow As Boolean, Optional ByVal JuliaExe
 5         End If
 
 6         If JuliaExe = "" Then
-7             JuliaExe = JuliaLocation()
+7             JuliaExe = JuliaExeLocation()
 8         Else
 9             If LCase(Right(JuliaExe, 10)) <> "\julia.exe" Then
 10                Throw "Argument JuliaExe has been provided but is not the full path to a file with name julia.exe"
@@ -138,12 +138,12 @@ ErrHandler:
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
-' Procedure  : JuliaLocation
+' Procedure  : JuliaExeLocation
 ' Purpose    : Returns the location of the Julia executable. First looks at the path, and if not found looks at the
 '              locations to which Julia is (by default) installed. If more than one version is found then returns the
 '              most recently installed.
 ' -----------------------------------------------------------------------------------------------------------------------
-Private Function JuliaLocation()
+Private Function JuliaExeLocation()
 
           Dim ChildFolder As Scripting.Folder
           Dim ChosenExe As String
@@ -169,7 +169,7 @@ Private Function JuliaLocation()
 6             If Right(Folder, 1) <> "\" Then Folder = Folder + "\"
 7             ExeFile = Folder + "julia.exe"
 8             If FileExists(ExeFile) Then
-9                 JuliaLocation = ExeFile
+9                 JuliaExeLocation = ExeFile
 10                Exit Function
 11            End If
 12        Next i
@@ -198,12 +198,12 @@ Private Function JuliaLocation()
                   ParentFolderName + " which is the default location for Julia on Windows"
 29            Throw ErrString
 30        Else
-31            JuliaLocation = ChosenExe
+31            JuliaExeLocation = ChosenExe
 32        End If
 
 33        Exit Function
 ErrHandler:
-34        Throw "#JuliaLocation (line " & CStr(Erl) + "): " & Err.Description & "!"
+34        Throw "#JuliaExeLocation (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
@@ -246,9 +246,27 @@ Function JuliaEvalFromVBA(ByVal JuliaExpression As Variant)
 3         Exit Function
 ErrHandler:
 4         Throw "#JuliaEvalFromVBA (line " & CStr(Erl) + "): " & Err.Description & "!"
-End Function
+5     End Function
 
-Private Function JuliaEval_LowLevel(ByVal JuliaExpression As Variant, Optional PrecedentCell As Range, Optional AllowNested As Boolean, Optional StringLengthLimit As Long, Optional JuliaVectorToXLColumn As Boolean = True)
+' -----------------------------------------------------------------------------------------------------------------------
+' Procedure  : JuliaEval_LowLevel
+' Purpose    : Evaluate a Julia expression, exposing more arguments than we should show to the user
+' Parameters :
+'  JuliaExpression      :
+'  PrecedentCell        :
+'  AllowNested          : Should the function throw an error if it detects that the return from Julia is an array with
+'                         elements that are themselves an array. Should be False when calling from a worksheet since Excel
+'                         would otherwise display a single "#VALUE!" withj no hint as to what caused the problem.
+'  StringLengthLimit    : The longest string allowed in (an element of) the return from Julia. If exceeded the function
+'                         throws an intelligible error. When calling from the worksheet, should be set to the return from
+'                         GetStringLengthLimit, which returns either 255 or 32767 according to the Excel version.
+'  JuliaVectorToXLColumn: Should a return from Julia that's a vector (array with one dimension) be unserialised as a two
+'                         dimensional array? Should be True when calling from a worksheet, or False when calling from VBA.
+'                         In both cases round tripping will work correctly.
+' -----------------------------------------------------------------------------------------------------------------------
+Private Function JuliaEval_LowLevel(ByVal JuliaExpression As Variant, Optional PrecedentCell As Range, _
+          Optional AllowNested As Boolean, Optional StringLengthLimit As Long, _
+          Optional JuliaVectorToXLColumn As Boolean = True)
           
           Dim ExpressionFile As String
           Dim FlagFile As String
@@ -265,7 +283,7 @@ Private Function JuliaEval_LowLevel(ByVal JuliaExpression As Variant, Optional P
 2         strJuliaExpression = ConcatenateExpressions(JuliaExpression)
 
 3         If JuliaExe = "" Then
-4             JuliaExe = JuliaLocation()
+4             JuliaExe = JuliaExeLocation()
 5         End If
 6         If PID = 0 Then
 7             PID = GetCurrentProcessId
@@ -457,10 +475,6 @@ End Function
 ' Args...   : Zero or more arguments. Each argument may be a number, string, Boolean value, empty cell, an
 '             array of such values or an Excel range.
 ' -----------------------------------------------------------------------------------------------------------------------
-'Differences from JuliaCall:
-'a) Arguments and return can be nested arrays, i.e. arrays with elements that are themselves arrays.
-'b) If the function evaluates in Julia to a vector (1-dimensional array) then the return from JuliaCallFromVBA will be
-'   a one-dimensional array. By contrast, JuliaCall will return a two-d array with 1 column.
 Function JuliaCallFromVBA(JuliaFunction As String, ParamArray Args())
           Dim Expression As String
           Dim i As Long

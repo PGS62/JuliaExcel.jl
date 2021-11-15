@@ -1,4 +1,8 @@
 Attribute VB_Name = "modRegister"
+' Copyright (c) 2021 - Philip Swannell
+' License MIT (https://opensource.org/licenses/MIT)
+' Document: https://github.com/PGS62/JuliaExcel.jl#readme
+
 Option Explicit
 Option Private Module
 
@@ -6,6 +10,7 @@ Option Private Module
 ' Procedure  : RegisterExcelJuliaFunctionsWithFunctionWizard
 ' Purpose    : Register functions with the Excel function wizard, taking the information form the Intellisense sheet
 '              that is also parsed by Excel.DNA Intellisense add-in.
+'              This method does not need to be run at "Load Time", but at "add-in creation time"
 ' -----------------------------------------------------------------------------------------------------------------------
 Sub RegisterExcelJuliaFunctionsWithFunctionWizard()
 
@@ -51,9 +56,9 @@ Sub RegisterExcelJuliaFunctionsWithFunctionWizard()
 23            End If
 
 24            If NumArgs = 0 Then
-25                MacroOptions FunctionName, Description
+25                Application.MacroOptions FunctionName, Description
 26            Else
-27                MacroOptions FunctionName, Description, ArgDescs
+27                Application.MacroOptions FunctionName, Description, , , , , , , , , ArgDescs
 28            End If
 29        Next c
 30        If OldIsAddinStatus Then
@@ -66,11 +71,4 @@ ErrHandler:
 35        Debug.Print "#RegisterExcelJuliaFunctionsWithFunctionWizard (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Sub
 
-Function MacroOptions(FunctionName As String, Description As String, Optional ArgDescs As Variant)
-1         On Error GoTo ErrHandler
-2         Application.MacroOptions FunctionName, Description, , , , , gPackageName, , , , ArgDescs
-3         Exit Function
-ErrHandler:
-4         Debug.Print "Warning from " + gPackageName + ": Registration of function " & FunctionName & " failed with error: " + Err.Description
-End Function
 
