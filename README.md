@@ -172,23 +172,21 @@ There were three objectives to the design of the marshalling processes:
  `JuliaCall` or `JuliaEval` is a two dimensional array with one column, which occupies a single column range on the worksheet.
  * Single-row ranges, when passed to `JuliaCall` or `JuliaSetVar`, arrive in Julia as 2-dimensional arrays with a single row.
 
- Click below to see GIFs that illustrate!
+ Click the black triangles below to see illustrations.
  
-
- <details><summary>Click to see round-tripping of vectors and matrices</summary>
+ <details><summary><u>Round-tripping of vectors and matrices</u></summary>
  <p>
   
  ![roundtripping](images/roundtripping.gif)
 </p>
 </details>
 
-
-<details><summary>Click to see matrix arithmetic</summary><p>
+<details><summary>Matrix arithmetic</summary><p>
 
  ![matrixarithmetic](images/matrixarithmetic.gif)
 </p></details>
 
-<details><summary>Click to see function broadcasting</summary><p>
+<details><summary>Function broadcasting</summary><p>
 
  ![functionbroadcasting](images/functionbroadcasting.gif)
  </p></details>
