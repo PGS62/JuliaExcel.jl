@@ -240,20 +240,16 @@ function encode_for_xl(x::Union{Float16,Float32})
     if isinf(x)
         "!2036" # #NUM! in Excel
     elseif isnan(x)
+        
         "!2042" # #N/A in Excel
     else
         string("S", x)# Single in VBA
     end
 end
 
-function encode_for_xl(x::T,vector2xlmatrix = false) where T <: AbstractArray
+function encode_for_xl(x::T) where T <: AbstractArray
 
-    if vector2xlmatrix && length(size(x)) == 1
-        dimssection = "2," * string(length(x)) * ",1"
-    else
-        dimssection = string(length(size(x))) * "," * join(size(x), ",")
-    end    
-
+    dimssection = string(length(size(x))) * "," * join(size(x), ",")
     lengths_buf = IOBuffer()
     contents_buf = IOBuffer()
 
