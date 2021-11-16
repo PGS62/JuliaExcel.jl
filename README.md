@@ -22,7 +22,7 @@ Windows only.
 [Marshalling](#marshalling)  
 [Alternatives](#alternatives)  
 [Compatibility](#compatibility)  
-[Viewing the VBA code](#viewing-the-vba-code)  
+[Viewing the code](#viewing-the-code)  
 [How JuliaExcel works](#how-juliaexcel-works)  
 [Shortcomings](#shortcomings)  
 
