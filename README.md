@@ -20,7 +20,7 @@ Windows only.
 &nbsp;&nbsp;&nbsp;&nbsp;[JuliaCallFromVBA](#juliacallfromvba)  
 &nbsp;&nbsp;&nbsp;&nbsp;[JuliaSetVar](#juliasetvar)  
 [Marshalling](#marshalling)  
-[Alternatives](#alternatives) 
+[Alternatives](#alternatives)  
 [Compatibility](#compatibility)  
 [Viewing the VBA code](#viewing-the-vba-code)  
 [How JuliaExcel works](#how-juliaexcel-works)  
