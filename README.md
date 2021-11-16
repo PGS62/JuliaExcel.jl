@@ -219,8 +219,8 @@ JuliaExcel has been tested on Excel under Microsoft 365, both 32-bit and 64-bit.
 The implementation of JuliaExcel is very "low-tech". When `JuliaEval` is called from a worksheet, the following happens:
 1) VBA code (in JuliaExcel.xlam) writes the expression to a file in the JuliaExcel sub-folder of the temporary folder.
 2) VBA code then uses the Windows API `PostMessage` to send keystrokes `srv_xl()` to the Julia window.
-3) That causes the Julia function `srv_xl` (defined in JuliaExcel.jl) to execute. The function reads the expression file, evaluates it and writes to a result file.
-4) The VBA code (in a wait loop since step 1) detects that the result file has been (completely) written, and unserialises the contents of the result file.
+3) That causes the Julia function `srv_xl` (defined in JuliaExcel.jl) to execute. The function reads the expression from file, evaluates it and writes to a result file.
+4) The VBA code (in a wait loop since step 1) detects that the result file has been (completely) written, and unserialises its contents.
 
 Other points to note:
  * `JuliaCall` is simply a wrapper to JuliaEval, with the arguments to `JuliaCall` being encoded using Julia's syntax for array literals.
