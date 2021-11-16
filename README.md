@@ -196,10 +196,29 @@ There were three objectives to the design of the marshalling processes:
  </p></details>
   
 ## Alternatives
+There is one alternative method of calling Julia from Excel of which I am aware:  
+
+https://github.com/JuliaComputing/JuliaInXL.jl  
+
+JuliaInXL has recently (October 2021) been made open source, having previously required a licence for commercial use. At the time of writing, it's not possible to call JuliaInXL from VBA and it is not compatible with dynamic array formulas when called from Excel worksheets. 
 
 ## Compatibility
+JuliaExcel has been tested on Excel within Microsoft 365, both 32-bit and 64-bit. It _should_ work on earlier versions of Excel (perhaps back to Excel 2010) but it has not been tested on them.
 
 ## How JuliaExcel works
+The implementation of JuliaExcel is very "low-tech". When a `JuliaEval` is called from a worksheet, the following happens:
+1) VBA code (in JuliaExcel.xlam) writes the expression to a file in the JuliaExcel sub-folder of the temporary folder.
+2) VBA code then uses the Windows API PostMessage to send keystrokes to the Julia window, the keystrokes are `srv_xl()`
+3) That causes the Julia function in `srv_xl` (defined in JuliaExcel.jl) to execute. The function reads the expression file, evaluates it and writes to a result file.
+4) The VBA code (in a wait loop since step 1) detects that the result file has been written, and unserialises the contents of the result file.
+
+Other points to note:
+ * `JuliaCall` is simply a wrapper to JuliaEval, with the arguments to `JuliaCall` being encoded using Julia's syntax for array literals.
+ * The result file is written in a custom format designed to be fast to unserialise
+ * There is obvious scope to improve this implementation by switching away from a file-based messaging system to to one based on sockets. Perhaps in a future version.
+
+## Viewing the VBA code
+The VBA project is password protected to prevent accidental changes. You can see the code [here](https://github.com/PGS62/JuliaExcel.jl/blob/master/vba/JuliaExcel.xlam/modMain.bas), or view it in the JuliaExcel.xlam by unprotecting with the password "JuliaExcel".
 
 ## Shortcomings
 
