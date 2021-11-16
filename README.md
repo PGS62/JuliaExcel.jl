@@ -27,6 +27,8 @@ Installation does not require admin rights on the PC.
  * Click through a couple of dialogs.
  * Launch Excel. Check that the JuliaExcel functions are available by typing `=Julia` into a worksheet cell and checking that the auto-complete offers `JuliaCall`, `JuliaEval`, `JuliaInclude` etc.
 
+The process is illustrated in the GIF below. F5 to replay.
+
 ![installation](images/installation.gif)
 
 ## Functions
