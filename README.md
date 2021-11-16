@@ -177,13 +177,16 @@ There were three objectives to the design of the marshalling processes:
  3) To allow use from `JuliaCall` of Julia's dot syntax for function broadcasting.
  
  The following marshalling scheme achieves the objectives:
-
  * Scalar values in Excel marshal back and forth to Julia as scalar values.
  * Two-dimensional arrays (or ranges) with more than one row and more than one column marshal back and forth as two-dimensional.
  * Single-column ranges, when passed to `JuliaCall` or `JuliaSetVar`, arrive in Julia as vectors.
  * Conversely, if the result of an evaluation in Julia is a vector, then the return from 
- `JuliaCall` or `JuliaEval` is a two dimensional array with one column, which occupies a single column range on the worksheet.
+ `JuliaCall` or `JuliaEval` is a two dimensional array with one column, which occupies a single-column range on the worksheet.
  * Single-row ranges, when passed to `JuliaCall` or `JuliaSetVar`, arrive in Julia as 2-dimensional arrays with a single row.
+
+For calls from VBA:
+ * Vectors (one-dimensional arrays) in VBA are marshalled to vectors in Julia.
+ * Vectors in Julia are marshalled by `JuliaCallFromVBA` and `JUliaEvalFromVBA` to vectors in VBA. The objective again is to achieve correct round-tripping, though this time VBA variable to and from Julia variable, as opposed to worksheet contents to and from Julia variable.
 
  Click the black triangles below to see illustrations.
  
