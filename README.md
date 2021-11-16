@@ -218,11 +218,11 @@ JuliaComputing has recently (October 2021) made JuliaInXL open source, it having
 JuliaExcel has been tested on Excel within Microsoft 365, both 32-bit and 64-bit. It _should_ work on earlier versions of Excel (perhaps back to Excel 2010) but it has not been tested on them.
 
 ## How JuliaExcel works
-The implementation of JuliaExcel is very "low-tech". When a `JuliaEval` is called from a worksheet, the following happens:
+The implementation of JuliaExcel is very "low-tech". When `JuliaEval` is called from a worksheet, the following happens:
 1) VBA code (in JuliaExcel.xlam) writes the expression to a file in the JuliaExcel sub-folder of the temporary folder.
-2) VBA code then uses the Windows API PostMessage to send keystrokes to the Julia window, the keystrokes are `srv_xl()`
-3) That causes the Julia function in `srv_xl` (defined in JuliaExcel.jl) to execute. The function reads the expression file, evaluates it and writes to a result file.
-4) The VBA code (in a wait loop since step 1) detects that the result file has been written, and unserialises the contents of the result file.
+2) VBA code then uses the Windows API `PostMessage` to send keystrokes `srv_xl()` to the Julia window.
+3) That causes the Julia function `srv_xl` (defined in JuliaExcel.jl) to execute. The function reads the expression file, evaluates it and writes to a result file.
+4) The VBA code (in a wait loop since step 1) detects that the result file has been (completely) written, and unserialises the contents of the result file.
 
 Other points to note:
  * `JuliaCall` is simply a wrapper to JuliaEval, with the arguments to `JuliaCall` being encoded using Julia's syntax for array literals.
@@ -230,8 +230,8 @@ Other points to note:
  * There is obvious scope to improve this implementation by switching away from a file-based messaging system to one based on sockets.
  * The "wait loop" includes a heart-beat check that Julia is still alive, so executing `=JuliaEval("exit()")` errors gracefully. 
 
-## Viewing the VBA code
-The VBA project is password protected to prevent accidental changes. You can see the code [here](https://github.com/PGS62/JuliaExcel.jl/blob/master/vba/JuliaExcel.xlam/modMain.bas), or view it in the JuliaExcel.xlam by unprotecting with the password "JuliaExcel".
+## Viewing the code
+The VBA project is password protected to prevent accidental changes. You can see the VBA code [here](https://github.com/PGS62/JuliaExcel.jl/blob/master/vba/JuliaExcel.xlam/modMain.bas), or view it in the JuliaExcel.xlam by unprotecting with the password "JuliaExcel". Julia source code is always visible on your PC. The [@functionloc](https://docs.julialang.org/en/v1/stdlib/InteractiveUtils/#InteractiveUtils.@functionloc) macro is a nifty way to find the code of any function you're interested in.
 
 ## Shortcomings
 Given how JuliaExcel works, with file-based messaging and serialisation in VBA, an interpreted and therefore relatively slow language, the most obvious shortcoming will be performance. That's not always a problem however, notably if the time for marshalling data between Excel and Julia is small (milliseconds) compared with the execution time of the Julia code (tens of seconds). I designed JuliaExcel for a project where that situation holds.
