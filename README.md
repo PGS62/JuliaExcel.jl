@@ -212,7 +212,7 @@ There is one alternative method of calling Julia from Excel of which I am aware:
 
 https://github.com/JuliaComputing/JuliaInXL.jl  
 
-JuliaInXL has recently (October 2021) been made open source, having previously required a licence for commercial use. At the time of writing, it's not possible to call JuliaInXL from VBA and it is not compatible with dynamic array formulas when called from Excel worksheets. On the other hand, JuliaInXL uses socket-based communication and C# rather than VBA for serialisation and unserialisation on the Excel side. So in some scenarios, its performance will be better. I have yet to do extensive testing on that however.
+JuliaComputing has recently (October 2021) made JuliaInXL open source, it having previously required a licence for commercial use. At the time of writing, it's not possible to call JuliaInXL from VBA and it is not compatible with dynamic array formulas when called from Excel worksheets. On the other hand, JuliaInXL uses socket-based communication and C# rather than VBA for serialisation and unserialisation on the Excel side. So in some scenarios, its performance will be better. I have yet to do extensive testing on that however.
 
 ## Compatibility
 JuliaExcel has been tested on Excel within Microsoft 365, both 32-bit and 64-bit. It _should_ work on earlier versions of Excel (perhaps back to Excel 2010) but it has not been tested on them.
@@ -228,6 +228,7 @@ Other points to note:
  * `JuliaCall` is simply a wrapper to JuliaEval, with the arguments to `JuliaCall` being encoded using Julia's syntax for array literals.
  * The result file is written in a custom format designed to be fast to unserialise.
  * There is obvious scope to improve this implementation by switching away from a file-based messaging system to one based on sockets.
+ * The "wait loop" includes a heart-beat check that Julia is still alive, so executing `=JuliaEval("exit()")` errors gracefully. 
 
 ## Viewing the VBA code
 The VBA project is password protected to prevent accidental changes. You can see the code [here](https://github.com/PGS62/JuliaExcel.jl/blob/master/vba/JuliaExcel.xlam/modMain.bas), or view it in the JuliaExcel.xlam by unprotecting with the password "JuliaExcel".
@@ -240,7 +241,9 @@ Other, perhaps less obvious shortcomings are:
  *  Given that the communication Julia to Excel is text based with floating point numbers represented in base 10, there is the usual introduction round-off errors. For values near 1, the round-tripping error is of the order of 10 to the power -16.
 
 
+&nbsp;
 
+&nbsp;
 
-Philip Swannell
+Philip Swannell  
 16 November 2021
