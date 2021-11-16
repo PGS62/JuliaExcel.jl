@@ -1,12 +1,11 @@
 name = "JuliaExcel"
 uuid = "661490ff-676f-49f7-9f60-bdb0e4e6656a"
 authors = ["Philip Swannell"]
-version = "0.0.0"
+version = "0.1.0"
 
 [deps]
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
-Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
 StringEncodings = "69024149-9ee7-55f6-a4c4-859efe599b68"
 
 [compat]
