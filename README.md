@@ -184,7 +184,7 @@ There were three objectives to the design of the marshalling processes:
 
 For calls from VBA:
  * Vectors (one-dimensional arrays) in VBA are marshalled to vectors in Julia.
- * Vectors in Julia are marshalled by `JuliaCallFromVBA` and `JUliaEvalFromVBA` to vectors in VBA. The objective again is to achieve correct round-tripping, though this time VBA variable to and from Julia variable, as opposed to worksheet contents to and from Julia variable.
+ * Vectors in Julia are marshalled by `JuliaCallFromVBA` and `JuliaEvalFromVBA` to vectors in VBA. The objective again is to achieve correct round-tripping, though this time VBA variable to and from Julia variable, as opposed to worksheet contents to and from Julia variable.
 
  Click the black triangles below to see illustrations.
  
