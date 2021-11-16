@@ -200,7 +200,7 @@ There is one alternative method of calling Julia from Excel of which I am aware:
 
 https://github.com/JuliaComputing/JuliaInXL.jl  
 
-JuliaInXL has recently (October 2021) been made open source, having previously required a licence for commercial use. At the time of writing, it's not possible to call JuliaInXL from VBA and it is not compatible with dynamic array formulas when called from Excel worksheets. 
+JuliaInXL has recently (October 2021) been made open source, having previously required a licence for commercial use. At the time of writing, it's not possible to call JuliaInXL from VBA and it is not compatible with dynamic array formulas when called from Excel worksheets. On the other hand, JuliaInXL uses socket-based communication and C# rather than VBA for serialisation and unserialisation on the Excel side. So in some scenarios, its performance will be better. I have yet to do extensive testing on that however.
 
 ## Compatibility
 JuliaExcel has been tested on Excel within Microsoft 365, both 32-bit and 64-bit. It _should_ work on earlier versions of Excel (perhaps back to Excel 2010) but it has not been tested on them.
@@ -214,15 +214,22 @@ The implementation of JuliaExcel is very "low-tech". When a `JuliaEval` is calle
 
 Other points to note:
  * `JuliaCall` is simply a wrapper to JuliaEval, with the arguments to `JuliaCall` being encoded using Julia's syntax for array literals.
- * The result file is written in a custom format designed to be fast to unserialise
- * There is obvious scope to improve this implementation by switching away from a file-based messaging system to one based on sockets. Perhaps in a future version.
+ * The result file is written in a custom format designed to be fast to unserialise.
+ * There is obvious scope to improve this implementation by switching away from a file-based messaging system to one based on sockets.
 
 ## Viewing the VBA code
 The VBA project is password protected to prevent accidental changes. You can see the code [here](https://github.com/PGS62/JuliaExcel.jl/blob/master/vba/JuliaExcel.xlam/modMain.bas), or view it in the JuliaExcel.xlam by unprotecting with the password "JuliaExcel".
 
 ## Shortcomings
 
+Given how JuliaExcel works, with file-based messaging and serialisation in VBA, an interpreted and therefore relatively slow language, the most obvious shortcoming will be performance. That's not always a problem however, notably if the time for marshalling data between Excel and Julia is small (milliseconds) compared with the execution time of the Julia code (tens of seconds). I designed JuliaExcel for a project where that situation holds.
+
+Other, perhaps less obvious shortcomings are:
+ *  There is a limit on the length of expression that Julia is able to parse, which leads to errors what passing large arrays as arguments to `JuliaCall`. For example this formula to evaluate the sum of 700,000 random numbers: `JuliaEval("sum",RANDARRAY(700000))` produces the error `#(ErrorException("syntax: expression too large"))!`. 
+ *  Given that the communication Julia to Excel is text based with floating point numbers represented in base 10, there is the usual introduction round-off errors. For values near 1, the round-tripping error is of the order of 10 to the power -16.
+
+
 
 
 Philip Swannell
-15 November 2021
+16 November 2021
