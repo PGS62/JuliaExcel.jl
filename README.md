@@ -155,7 +155,7 @@ Function JuliaSetVar(VariableName As String, RefersTo As Variant)
 |`RefersTo`|An Excel range (from which the .Value2 property is read) or more generally a number, string, Boolean, Empty or array of such types. When called from VBA, nested arrays are supported.|
 
 ## Marshalling
-Two question arise during implementation:
+Two question arose during implementation:
 
 First, when data from a worksheet (or a VBA variable) is passed to `JuliaCall` or `JuliaSetVar`, that data is marshalled over to Julia. As what Julia type should the data arrive? Mostly, this is easy to decide, but what about one-dimensional arrays (from VBA) or ranges with just one column or one just row from an Excel worksheet? Should these have one-dimension or two over in Julia?
 
