@@ -159,7 +159,7 @@ Two question arose during implementation:
 
 First, when data from a worksheet (or a VBA variable) is passed to `JuliaCall` or `JuliaSetVar`, that data is marshalled over to Julia. As what Julia type should the data arrive? Mostly, this is easy to decide, but what about one-dimensional arrays (from VBA) or ranges with just one column or one just row from an Excel worksheet? Should these have one-dimension or two over in Julia?
 
-Second, after Julia has evaluated the expression, how should the result be marshalled in the opposite direction, back to Excel? Again this is easy to decide for scalars and two dimensional arrays, but what about for vectors in Julia?
+Second, after Julia has evaluated the expression, how should the result be marshalled in the opposite direction, back to Excel? Again, this is easy to decide for scalars and two dimensional arrays, but what about for vectors in Julia?
 
 There were three objectives to the design of the marshalling processes:
  1) Round-tripping should work, i.e. the formula `=JuliaCall("identity",x)` should return an identical copy of `x`, whatever the "shape" of `x`.
@@ -170,7 +170,7 @@ There were three objectives to the design of the marshalling processes:
  The following marshalling scheme achieves the objectives:
 
  * Scalar values in Excel marshal back and forth to Julia as scalar values.
- * Two-dimensional arrays (or ranges) with more than one row and more than one column marshal back and forth as two dimensional.
+ * Two-dimensional arrays (or ranges) with more than one row and more than one column marshal back and forth as two-dimensional.
  * Single-column ranges, when passed to `JuliaCall` or `JuliaSetVar`, arrive in Julia as vectors.
  * Conversely, if the result of an evaluation in Julia is a vector, then the return from 
  `JuliaCall` or `JuliaEval` is a two dimensional array with one column, which occupies a single column range on the worksheet.
@@ -215,7 +215,7 @@ The implementation of JuliaExcel is very "low-tech". When a `JuliaEval` is calle
 Other points to note:
  * `JuliaCall` is simply a wrapper to JuliaEval, with the arguments to `JuliaCall` being encoded using Julia's syntax for array literals.
  * The result file is written in a custom format designed to be fast to unserialise
- * There is obvious scope to improve this implementation by switching away from a file-based messaging system to to one based on sockets. Perhaps in a future version.
+ * There is obvious scope to improve this implementation by switching away from a file-based messaging system to one based on sockets. Perhaps in a future version.
 
 ## Viewing the VBA code
 The VBA project is password protected to prevent accidental changes. You can see the code [here](https://github.com/PGS62/JuliaExcel.jl/blob/master/vba/JuliaExcel.xlam/modMain.bas), or view it in the JuliaExcel.xlam by unprotecting with the password "JuliaExcel".
