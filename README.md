@@ -15,10 +15,10 @@ Windows only.
 &nbsp;&nbsp;&nbsp;&nbsp;[JuliaLaunch](#julialaunch)  
 &nbsp;&nbsp;&nbsp;&nbsp;[JuliaInclude](#juliainclude)  
 &nbsp;&nbsp;&nbsp;&nbsp;[JuliaEval](#juliaeval)  
-&nbsp;&nbsp;&nbsp;&nbsp;[JuliaEvalFromVBA](#juliaevalfromvba)  
 &nbsp;&nbsp;&nbsp;&nbsp;[JuliaCall](#juliacall)  
-&nbsp;&nbsp;&nbsp;&nbsp;[JuliaCallFromVBA](#juliacallfromvba)  
 &nbsp;&nbsp;&nbsp;&nbsp;[JuliaSetVar](#juliasetvar)  
+&nbsp;&nbsp;&nbsp;&nbsp;[JuliaEvalFromVBA](#juliaevalfromvba)  
+&nbsp;&nbsp;&nbsp;&nbsp;[JuliaCallFromVBA](#juliacallfromvba)  
 [Marshalling](#marshalling)  
 [Alternatives](#alternatives)  
 [Compatibility](#compatibility)  
@@ -48,10 +48,10 @@ JuliaExcel makes the following functions available from Excel worksheets and fro
 |[JuliaLaunch](#julialaunch)|Launches a local Julia session which "listens" to the current Excel session and responds to calls to JuliaEval etc..|
 |[JuliaInclude](#juliainclude)|Load a Julia source file into the Julia process, to make additional functions available via JuliaEval and JuliaCall.|
 |[JuliaEval](#juliaeval)|Evaluate a Julia expression and return the result to an Excel worksheet.|
-|[JuliaEvalFromVBA](#juliaevalfromvba)|Evaluate a Julia expression and return the result to VBA. Tuned for use from VBA rather than a worksheet.|
 |[JuliaCall](#juliacall)|Call a named Julia function, passing in data from the worksheet.|
-|[JuliaCallFromVBA](#juliacallfromvba)|Call a named Julia function from VBA code. Tuned for use from VBA rather than a worksheet.|
 |[JuliaSetVar](#juliasetvar)|Set a global variable in the Julia process.|
+|[JuliaEvalFromVBA](#juliaevalfromvba)|Evaluate a Julia expression and return the result to VBA. Tuned for use from VBA rather than a worksheet.|
+|[JuliaCallFromVBA](#juliacallfromvba)|Call a named Julia function from VBA code. Tuned for use from VBA rather than a worksheet.|
 
 ## Demo
 Here's a quick demonstration of the functions in action.
@@ -117,33 +117,10 @@ Function JuliaEval(ByVal JuliaExpression As Variant)
 |`JuliaExpression`|Any valid Julia code, as a string. Can also be a one-column range to evaluate multiple Julia statements.|
 
 
-#### _JuliaEvalFromVBA_
-Evaluate a Julia expression and return the result to VBA. Designed for use from VBA rather than a worksheet and differs from `JuliaEval` in handling of 1-dimensional arrays, nested arrays and strings longer than 32,767 characters.
-```vba
-Function JuliaEvalFromVBA(ByVal JuliaExpression As Variant)
-```
-
-|Argument|Description|
-|:-------|:----------|
-|`JuliaExpression`|Any valid Julia code, as a string. Can also be a one-column range to evaluate multiple Julia statements.|
-
-
 #### _JuliaCall_
 Call a named Julia function, passing in data from the worksheet.
 ```vba
 Function JuliaCall(JuliaFunction As String, ParamArray Args())
-```
-
-|Argument|Description|
-|:-------|:----------|
-|`JuliaFunction`|The name of a Julia function that's defined in the Julia session, perhaps as a result of prior calls to `JuliaInclude`.|
-|`Args...`|Zero or more arguments. Each argument may be a number, string, Boolean value, empty cell, an array of such values or an Excel range.|
-
-
-#### _JuliaCallFromVBA_
-Call a named Julia function from VBA code. Designed for use from VBA rather than a worksheet and differs from `JuliaCall` in handling of 1-dimensional arrays, nested arrays and strings longer than 32,767 characters.
-```vba
-Function JuliaCallFromVBA(JuliaFunction As String, ParamArray Args())
 ```
 
 |Argument|Description|
@@ -162,6 +139,27 @@ Function JuliaSetVar(VariableName As String, RefersTo As Variant)
 |:-------|:----------|
 |`VariableName`|The name of the variable to be set. Must follow Julia's [rules](https://docs.julialang.org/en/v1/manual/variables/#Allowed-Variable-Names) for allowed variable names.|
 |`RefersTo`|An Excel range (from which the .Value2 property is read) or more generally a number, string, Boolean, Empty or array of such types. When called from VBA, nested arrays are supported.|
+
+#### _JuliaEvalFromVBA_
+Evaluate a Julia expression and return the result to VBA. Designed for use from VBA rather than a worksheet and differs from `JuliaEval` in handling of 1-dimensional arrays, nested arrays and strings longer than 32,767 characters.
+```vba
+Function JuliaEvalFromVBA(ByVal JuliaExpression As Variant)
+```
+
+|Argument|Description|
+|:-------|:----------|
+|`JuliaExpression`|Any valid Julia code, as a string. Can also be a one-column range to evaluate multiple Julia statements.|
+
+#### _JuliaCallFromVBA_
+Call a named Julia function from VBA code. Designed for use from VBA rather than a worksheet and differs from `JuliaCall` in handling of 1-dimensional arrays, nested arrays and strings longer than 32,767 characters.
+```vba
+Function JuliaCallFromVBA(JuliaFunction As String, ParamArray Args())
+```
+
+|Argument|Description|
+|:-------|:----------|
+|`JuliaFunction`|The name of a Julia function that's defined in the Julia session, perhaps as a result of prior calls to `JuliaInclude`.|
+|`Args...`|Zero or more arguments. Each argument may be a number, string, Boolean value, empty cell, an array of such values or an Excel range.|
 
 ## Marshalling
 Two question arose during implementation:
@@ -212,7 +210,7 @@ There is one alternative method of calling Julia from Excel of which I am aware:
 
 https://github.com/JuliaComputing/JuliaInXL.jl  
 
-JuliaComputing has recently (October 2021) made JuliaInXL open source, it having previously required a licence for commercial use. At the time of writing, it's not possible to call JuliaInXL from VBA and it is not compatible with dynamic array formulas when called from Excel worksheets. On the other hand, JuliaInXL uses socket-based communication and C# rather than VBA for serialisation and unserialisation on the Excel side. So in some scenarios, its performance will be better. I have yet to do extensive testing on that however.
+JuliaComputing has recently (October 2021) made JuliaInXL open source, it having previously required a licence for commercial use. At the time of writing, JuliaInXL is not compatible with dynamic array formulas, and does not permit calling Julia from VBA. On the other hand, JuliaInXL uses socket-based communication and C# rather than VBA for serialisation and unserialisation on the Excel side. So in many scenarios, its performance will be better. I have yet to do extensive testing on that however.
 
 ## Compatibility
 JuliaExcel has been tested on Excel under Microsoft 365, both 32-bit and 64-bit. It _should_ work on earlier versions of Excel (perhaps back to Excel 2010) but it has not been tested on them.
@@ -229,7 +227,7 @@ Other points to note:
  * The result file is written in a custom format designed to be fast to unserialise.
  * The "wait loop" includes a heart-beat check that Julia is still alive, so executing `=JuliaEval("exit()")` errors gracefully. 
  * There is obvious scope to improve this implementation by switching away from a file-based messaging system to one based on sockets.
- * But best performance could be achieved using C via the [Excel SDK](https://docs.microsoft.com/en-us/office/client-developer/excel/welcome-to-the-excel-software-development-kit) and [Julia Embedding](https://docs.julialang.org/en/v1/manual/embedding/).
+ * But best performance would be achieved using C via the [Excel SDK](https://docs.microsoft.com/en-us/office/client-developer/excel/welcome-to-the-excel-software-development-kit) and [Julia Embedding](https://docs.julialang.org/en/v1/manual/embedding/).
 
 ## Viewing the code
 The VBA project is password protected to prevent accidental changes. You can see the VBA code [here](https://github.com/PGS62/JuliaExcel.jl/blob/master/vba/JuliaExcel.xlam/modMain.bas), or view it in JuliaExcel.xlam by unprotecting with the password "JuliaExcel". Julia source code is always visible on your PC, and the [@functionloc](https://docs.julialang.org/en/v1/stdlib/InteractiveUtils/#InteractiveUtils.@functionloc) macro is a easy way to locate the code of any function you're interested in.
