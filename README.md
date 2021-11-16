@@ -12,8 +12,17 @@ Windows only.
 [Demo](#demo)  
 [Example VBA](#example-vba)  
 [Function Documentation](#function-documentation)  
+&nbsp;&nbsp;&nbsp;&nbsp;[JuliaLaunch](#julialaunch)  
+&nbsp;&nbsp;&nbsp;&nbsp;[JuliaInclude](#juliainclude)  
+&nbsp;&nbsp;&nbsp;&nbsp;[JuliaEval](#juliaeval)  
+&nbsp;&nbsp;&nbsp;&nbsp;[JuliaEvalFromVBA](#juliaevalfromvba)  
+&nbsp;&nbsp;&nbsp;&nbsp;[JuliaCall](#juliacall)  
+&nbsp;&nbsp;&nbsp;&nbsp;[JuliaCallFromVBA](#juliacallfromvba)  
+&nbsp;&nbsp;&nbsp;&nbsp;[JuliaSetVar](#juliasetvar)  
 [Marshalling](#marshalling)  
-[Alternatives](#alternatives)  
+[Alternatives](#alternatives) 
+[Compatibility](#compatibility)  
+[Viewing the VBA code](#viewing-the-vba-code)  
 [How JuliaExcel works](#how-juliaexcel-works)  
 [Shortcomings](#shortcomings)  
 
@@ -221,7 +230,6 @@ Other points to note:
 The VBA project is password protected to prevent accidental changes. You can see the code [here](https://github.com/PGS62/JuliaExcel.jl/blob/master/vba/JuliaExcel.xlam/modMain.bas), or view it in the JuliaExcel.xlam by unprotecting with the password "JuliaExcel".
 
 ## Shortcomings
-
 Given how JuliaExcel works, with file-based messaging and serialisation in VBA, an interpreted and therefore relatively slow language, the most obvious shortcoming will be performance. That's not always a problem however, notably if the time for marshalling data between Excel and Julia is small (milliseconds) compared with the execution time of the Julia code (tens of seconds). I designed JuliaExcel for a project where that situation holds.
 
 Other, perhaps less obvious shortcomings are:
