@@ -9,14 +9,32 @@
 Option Explicit
 
 Const AddinName = "JuliaExcel.xlam"
-Const website = "https://github.com/PGS62/JuliaExcel.jl"
+Const Website = "https://github.com/PGS62/JuliaExcel.jl"
 Const GIFRecordingFlagFile = "C:\Temp\RecordingGIF.tmp"
 Const MsgBoxTitle = "Install JuliaExcel"
 Const MsgBoxTitleBad = "Install JuliaExcel - Error Encountered"
+'Const AddinsDest = "C:\ProgramData\JuliaExcel\"  'Would need Admin rights to write to
+Const AddinsDest = "C:\Users\Public\JuliaExcel\"  'Does not need admin rights
+Const ElevateToAdmin = False 'Since writing to c:\Users\Public does not need admin rights
+
+' Putting the add-in in the same folder for all users has both advantages and 
+' disadvantages:
+' Advantage: Avoid "Excel Link Hell" caused by the fact that workbooks store the 
+'     absolute address of files to which they link (unless the file is in the same 
+'     folder). Causes endless problems when two users share a workbook.
+' Disadvantage: Two different users of the same PC would share copy of the add-in and 
+'     thus be forced to use the same version of the add-in, though they don't both have 
+'     to have the addin installed since that's controlled via the registry, which _is_ 
+'     user specific.
 
 Dim gErrorsEncountered
-Dim myWS, AddinsDest
 Dim GIFRecordingMode
+Dim AddinsSource
+Dim IntellisenseSource
+Dim IntellisenseName
+Dim InstallIntellisense
+Dim Prompt
+Dim myWS
 
 Function IsProcessRunning(strComputer, strProcess)
     Dim Process, strObject
@@ -84,7 +102,6 @@ Function FolderIsWritable(FolderPath)
                 FolderIsWritable = False
             End If
         End If
-
 End Function
 
 Function DeleteFolder(TheFolderName)
@@ -226,6 +243,7 @@ End Function
 ' https://msdn.microsoft.com/en-us/library/x05fawxd(v=vs.84).aspx
 '---------------------------------------------------------------------------------------
 Function RegistryRead(RegKey, DefaultValue)
+    Dim myWS
     RegistryRead = DefaultValue
     Set myWS = CreateObject("WScript.Shell")
     On Error Resume Next
@@ -259,6 +277,7 @@ Function RegistryKeyExists(RegKey)
 End Function
 
 Function RegistryDelete(RegKey)
+    Dim myWS
     Set myWS = CreateObject("WScript.Shell")
     myWS.regDelete RegKey
 End Function
@@ -404,9 +423,6 @@ Sub DeleteExcelAddinFromRegistry(AddinName)
     Next
 End Sub
 
-Dim ElevateToAdmin
-ElevateToAdmin = False 'No longer need to elevate to admin since writing to c:\Users\Public
-
 '*******************************************************************************************
 'Effective start of this VBScript. Note elevating to admin as per 
 'http://www.winhelponline.com/blog/vbscripts-and-uac-elevation/
@@ -441,28 +457,12 @@ Else
                "Office, but not yet used Excel under user account '" & Environ("USERNAME") & "'." _
                ,vbCritical,MsgBoxTitleBad
         WScript.Quit
-    End If
+    End If    
 
-    ' Putting the add-in in the same folder for all users has both advantages and 
-    ' disadvantages:
-    ' Advantage: Avoid "Excel Link Hell" caused by the fact that workbooks store the 
-    '     absolute address of files to which they link (unless the file is in the same 
-    '     folder). Causes endless problems when two users share a workbook.
-    ' Disadvantage: Two different users of the same PC would share copy of the add-in and 
-    '     thus be forced to use the same version of the add-in, though they don't both have 
-    '     to have the addin installed since that's controlled via the registry, which _is_ 
-    '     user specific.
-
-    AddinsDest = "C:\ProgramData\JuliaExcel\"  ' Would need Admin rights to write to
-    AddinsDest = "C:\Users\Public\JuliaExcel\" ' Does not need admin rights
-    
-    Dim AddinsSource
     AddinsSource = WScript.ScriptFullName
     AddinsSource = Left(AddinsSource, InStrRev(AddinsSource, "\") - 1)
     AddinsSource = Left(AddinsSource, InStrRev(AddinsSource, "\"))
     AddinsSource = AddinsSource & "workbooks\"
-
-    Dim IntellisenseSource, IntellisenseName, InstallIntellisense
     IntellisenseSource = WScript.ScriptFullName
     IntellisenseSource = Left(IntellisenseSource, InStrRev(IntellisenseSource, "\") - 1)
     IntellisenseSource = Left(IntellisenseSource, InStrRev(IntellisenseSource, "\"))
@@ -479,7 +479,6 @@ Else
             InstallIntellisense = False
         End Select
 
-    Dim Prompt
     Prompt = "This will install JuliaExcel by copying two files from: " & vbLf & vblf & _
         AddinsSource & AddinName  & vbLf & _
         IntellisenseSource & IntellisenseName & vbLf & vbLf & _
@@ -489,42 +488,35 @@ Else
         "and making them both be Excel add-ins," & vblf & _
         "via Excel > File > Options > Add-ins > Excel Add-ins." & vblf & vblf & _
         "Do you wish to continue?" & vblf  & vblf & _
-        "More information at:" & vblf & _
-        website
-    Dim result
+        "More information at:" & vblf & Website
 
-    result = MsgBox(Prompt, vbYesNo + vbQuestion, MsgBoxTitle)
-    If result <> vbYes Then WScript.Quit
+    If MsgBox(Prompt, vbYesNo + vbQuestion, MsgBoxTitle) <> vbYes Then WScript.Quit
 
     ForceFolderToExist AddinsDest
 
     If not GIFRecordingMode Then
-        'Copy it.
+
         CopyNamedFiles AddinsSource, AddinsDest, AddinName, True
-        'Make it readonly - avoid dialog "Want to Save JuliaExcel.xlsm" every time the user
-        'Exits Excel
         MakeFileReadOnly AddinsDest & AddinName
-        'Make Excel "see" it.
         DeleteExcelAddinFromRegistry AddinName
         InstallExcelAddin AddinsDest & AddinName, True
 
         If InstallIntellisense Then
-                CopyNamedFiles IntellisenseSource, AddinsDest, IntellisenseName, True
-                DeleteExcelAddinFromRegistry IntellisenseName
-                InstallExcelAddin AddinsDest & IntellisenseName, True
+            CopyNamedFiles IntellisenseSource, AddinsDest, IntellisenseName, True
+            DeleteExcelAddinFromRegistry IntellisenseName
+            InstallExcelAddin AddinsDest & IntellisenseName, True
         End If
-
     End If
 
     If gErrorsEncountered Then
         Prompt = "The install script has finished, but errors were encountered, " & _
                  "which may mean the software will not work correctly." & vblf & vblf & _
-                 website
+                 Website
         MsgBox Prompt, vbOKOnly + vbCritical, MsgBoxTitleBad
     Else
         Prompt = "JuliaExcel is installed, and its functions such as JuliaEval and " & _
                  "JuliaCall will be available the next time you start Excel." & vblf & _
-                 vblf & website
+                 vblf & Website
         MsgBox Prompt, vbOKOnly + vbInformation, MsgBoxTitle
     End If
 
