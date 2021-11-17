@@ -17,8 +17,8 @@ Windows only.
 &nbsp;&nbsp;&nbsp;&nbsp;[JuliaEval](#juliaeval)  
 &nbsp;&nbsp;&nbsp;&nbsp;[JuliaCall](#juliacall)  
 &nbsp;&nbsp;&nbsp;&nbsp;[JuliaSetVar](#juliasetvar)  
-&nbsp;&nbsp;&nbsp;&nbsp;[JuliaEvalFromVBA](#juliaevalfromvba)  
-&nbsp;&nbsp;&nbsp;&nbsp;[JuliaCallFromVBA](#juliacallfromvba)  
+&nbsp;&nbsp;&nbsp;&nbsp;[JuliaEvalVBA](#juliaevalfromvba)  
+&nbsp;&nbsp;&nbsp;&nbsp;[JuliaCallVBA](#juliacallfromvba)  
 [Marshalling](#marshalling)  
 [Alternatives](#alternatives)  
 [Compatibility](#compatibility)  
@@ -50,8 +50,8 @@ JuliaExcel makes the following functions available from Excel worksheets and fro
 |[JuliaEval](#juliaeval)|Evaluate a Julia expression and return the result to an Excel worksheet.|
 |[JuliaCall](#juliacall)|Call a named Julia function, passing in data from the worksheet.|
 |[JuliaSetVar](#juliasetvar)|Set a global variable in the Julia process.|
-|[JuliaEvalFromVBA](#juliaevalfromvba)|Evaluate a Julia expression and return the result to VBA. Tuned for use from VBA rather than a worksheet.|
-|[JuliaCallFromVBA](#juliacallfromvba)|Call a named Julia function from VBA code. Tuned for use from VBA rather than a worksheet.|
+|[JuliaEvalVBA](#juliaevalfromvba)|Evaluate a Julia expression and return the result to VBA. Tuned for use from VBA rather than a worksheet.|
+|[JuliaCallVBA](#juliacallfromvba)|Call a named Julia function from VBA code. Tuned for use from VBA rather than a worksheet.|
 
 ## Demo
 Here's a quick demonstration of the functions in action.
@@ -64,7 +64,7 @@ Here's a quick demonstration of the functions in action.
 The VBA code below makes a call to `JuliaLaunch` and `JuliaEval` and then pastes the result to range A1:J10 in a new worksheet. To run it, make sure that the project has a reference to JuliaExcel (VBA editor, Tools menu -> References).
 
 ```vba
-Sub DemoCallFromVBA()
+Sub DemoCallVBA()
 
     Dim ResultFromJulia As Variant, PasteHere As Range
     
@@ -140,20 +140,20 @@ Function JuliaSetVar(VariableName As String, RefersTo As Variant)
 |`VariableName`|The name of the variable to be set. Must follow Julia's [rules](https://docs.julialang.org/en/v1/manual/variables/#Allowed-Variable-Names) for allowed variable names.|
 |`RefersTo`|An Excel range (from which the .Value2 property is read) or more generally a number, string, Boolean, Empty or array of such types. When called from VBA, nested arrays are supported.|
 
-#### _JuliaEvalFromVBA_
+#### _JuliaEvalVBA_
 Evaluate a Julia expression and return the result to VBA. Designed for use from VBA rather than a worksheet and differs from `JuliaEval` in handling of 1-dimensional arrays, nested arrays and strings longer than 32,767 characters.
 ```vba
-Function JuliaEvalFromVBA(ByVal JuliaExpression As Variant)
+Function JuliaEvalVBA(ByVal JuliaExpression As Variant)
 ```
 
 |Argument|Description|
 |:-------|:----------|
 |`JuliaExpression`|Any valid Julia code, as a string. Can also be a one-column range to evaluate multiple Julia statements.|
 
-#### _JuliaCallFromVBA_
+#### _JuliaCallVBA_
 Call a named Julia function from VBA code. Designed for use from VBA rather than a worksheet and differs from `JuliaCall` in handling of 1-dimensional arrays, nested arrays and strings longer than 32,767 characters.
 ```vba
-Function JuliaCallFromVBA(JuliaFunction As String, ParamArray Args())
+Function JuliaCallVBA(JuliaFunction As String, ParamArray Args())
 ```
 
 |Argument|Description|
@@ -184,7 +184,7 @@ There were three objectives to the design of the marshalling processes:
 
 For calls from VBA:
  * Vectors (one-dimensional arrays) in VBA are marshalled to vectors in Julia.
- * Vectors in Julia are marshalled by `JuliaCallFromVBA` and `JuliaEvalFromVBA` to vectors in VBA. The objective again is to achieve correct round-tripping, though this time VBA variable to and from Julia variable, as opposed to worksheet contents to and from Julia variable.
+ * Vectors in Julia are marshalled by `JuliaCallVBA` and `JuliaEvalVBA` to vectors in VBA. The objective again is to achieve correct round-tripping, though this time VBA variable to and from Julia variable, as opposed to worksheet contents to and from Julia variable.
 
  Click the black triangles below to see illustrations.
  

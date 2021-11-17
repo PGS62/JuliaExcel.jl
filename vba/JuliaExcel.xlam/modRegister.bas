@@ -7,12 +7,12 @@ Option Explicit
 Option Private Module
 
 ' -----------------------------------------------------------------------------------------------------------------------
-' Procedure  : RegisterExcelJuliaFunctionsWithFunctionWizard
+' Procedure  : RegisterJuliaExcelFunctionsWithFunctionWizard
 ' Purpose    : Register functions with the Excel function wizard, taking the information form the Intellisense sheet
 '              that is also parsed by Excel.DNA Intellisense add-in.
 '              This method does not need to be run at "Load Time", but at "add-in creation time"
 ' -----------------------------------------------------------------------------------------------------------------------
-Sub RegisterExcelJuliaFunctionsWithFunctionWizard()
+Sub RegisterJuliaExcelFunctionsWithFunctionWizard()
 
           Dim ArgDescs() As String
           Dim c As Range
@@ -58,7 +58,7 @@ Sub RegisterExcelJuliaFunctionsWithFunctionWizard()
 24            If NumArgs = 0 Then
 25                Application.MacroOptions FunctionName, Description
 26            Else
-27                Application.MacroOptions FunctionName, Description, , , , , , , , , ArgDescs
+27                Application.MacroOptions FunctionName, Description, , , , , , "JuliaExcel", , , ArgDescs
 28            End If
 29        Next c
 30        If OldIsAddinStatus Then
@@ -68,7 +68,7 @@ Sub RegisterExcelJuliaFunctionsWithFunctionWizard()
 
 34        Exit Sub
 ErrHandler:
-35        Debug.Print "#RegisterExcelJuliaFunctionsWithFunctionWizard (line " & CStr(Erl) + "): " & Err.Description & "!"
+35        Debug.Print "#RegisterJuliaExcelFunctionsWithFunctionWizard (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Sub
 
 

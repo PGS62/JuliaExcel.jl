@@ -233,7 +233,7 @@ ErrHandler:
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
-' Procedure : JuliaEvalFromVBA
+' Procedure : JuliaEvalVBA
 ' Purpose   : Evaluate a Julia expression and return the result to VBA. Designed for use from VBA
 '             rather than a worksheet and differs from JuliaEval in handling of 1-dimensional arrays,
 '             nested arrays and strings longer than 32,767 characters.
@@ -241,15 +241,15 @@ End Function
 ' JuliaExpression: Any valid Julia code, as a string. Can also be a one-column range to evaluate multiple
 '             Julia statements.
 ' -----------------------------------------------------------------------------------------------------------------------
-Function JuliaEvalFromVBA(ByVal JuliaExpression As Variant)
-Attribute JuliaEvalFromVBA.VB_Description = "Evaluate a Julia expression and return the result to VBA. Designed for use from VBA rather than a worksheet and differs from JuliaEval in handling of 1-dimensional arrays, nested arrays and strings longer than 32,767 characters."
-Attribute JuliaEvalFromVBA.VB_ProcData.VB_Invoke_Func = " \n14"
+Function JuliaEvalVBA(ByVal JuliaExpression As Variant)
+Attribute JuliaEvalVBA.VB_Description = "Evaluate a Julia expression and return the result to VBA. Designed for use from VBA rather than a worksheet and differs from JuliaEval in handling of 1-dimensional arrays, nested arrays and strings longer than 32,767 characters."
+Attribute JuliaEvalVBA.VB_ProcData.VB_Invoke_Func = " \n14"
 1         On Error GoTo ErrHandler
-2         JuliaEvalFromVBA = JuliaEval_LowLevel(JuliaExpression, AllowNested:=True, StringLengthLimit:=0, JuliaVectorToXLColumn:=False)
+2         JuliaEvalVBA = JuliaEval_LowLevel(JuliaExpression, AllowNested:=True, StringLengthLimit:=0, JuliaVectorToXLColumn:=False)
 
 3         Exit Function
 ErrHandler:
-4         Throw "#JuliaEvalFromVBA (line " & CStr(Erl) + "): " & Err.Description & "!"
+4         Throw "#JuliaEvalVBA (line " & CStr(Erl) + "): " & Err.Description & "!"
 5     End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
@@ -425,7 +425,7 @@ ErrHandler:
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
-' Procedure : JuliaCallFromVBA
+' Procedure : JuliaCallVBA
 ' Purpose   : Call a named Julia function from VBA code. Designed for use from VBA rather than a
 '             worksheet and differs from JuliaCall in handling of 1-dimensional arrays, nested arrays and
 '             strings longer than 32,767 characters.
@@ -435,9 +435,9 @@ End Function
 ' Args...   : Zero or more arguments. Each argument may be a number, string, Boolean value, empty cell, an
 '             array of such values or an Excel range.
 ' -----------------------------------------------------------------------------------------------------------------------
-Function JuliaCallFromVBA(JuliaFunction As String, ParamArray Args())
-Attribute JuliaCallFromVBA.VB_Description = "Call a named Julia function from VBA code. Designed for use from VBA rather than a worksheet and differs from JuliaCall in handling of 1-dimensional arrays, nested arrays and strings longer than 32,767 characters."
-Attribute JuliaCallFromVBA.VB_ProcData.VB_Invoke_Func = " \n14"
+Function JuliaCallVBA(JuliaFunction As String, ParamArray Args())
+Attribute JuliaCallVBA.VB_Description = "Call a named Julia function from VBA code. Designed for use from VBA rather than a worksheet and differs from JuliaCall in handling of 1-dimensional arrays, nested arrays and strings longer than 32,767 characters."
+Attribute JuliaCallVBA.VB_ProcData.VB_Invoke_Func = " \n14"
           Dim Expression As String
           Dim i As Long
           Dim Tmp() As String
@@ -454,11 +454,11 @@ Attribute JuliaCallFromVBA.VB_ProcData.VB_Invoke_Func = " \n14"
 10            Expression = JuliaFunction & "()"
 11        End If
 
-12        JuliaCallFromVBA = JuliaEval_LowLevel(Expression, AllowNested:=True, StringLengthLimit:=0, JuliaVectorToXLColumn:=False)
+12        JuliaCallVBA = JuliaEval_LowLevel(Expression, AllowNested:=True, StringLengthLimit:=0, JuliaVectorToXLColumn:=False)
 
 13        Exit Function
 ErrHandler:
-14        Throw "#JuliaCallFromVBA (line " & CStr(Erl) + "): " & Err.Description & "!"
+14        Throw "#JuliaCallVBA (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------

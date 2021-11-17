@@ -1,4 +1,5 @@
 Version	Date	Time	Author	Comment
+59	17-Nov-2021	12:26	Philip Swannell	JuliaEvalFromVBA --> JuliaEvalVBA, JuliaCallFromVBA --> JuliaCallVBA
 58	15-Nov-2021	17:30	Philip Swannell	Ditched function JuliaCall2 and arguments PrecedentCell. While I can make it work for JuliaSetVar and JuliaInclude, I don't think it's possible to make it work for JuliaCall and JuliaEval (though perhaps not necessay in those cases). Useful resource: https://www.decisionmodels.com/calcsecretsj.htm
 57	15-Nov-2021	15:23	Philip Swannell	Edited docstrings.
 56	15-Nov-2021	10:17	Philip Swannell	Test for Function Wizard active. Exit early if so.
