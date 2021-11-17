@@ -10,9 +10,12 @@ Option Explicit
 
 Const AddinName = "JuliaExcel.xlam"
 Const website = "https://github.com/PGS62/JuliaExcel.jl"
+Const GIFRecordingFlagFile = "C:\Temp\RecordingGIF.tmp"
+Const MsgBoxTitle = "Install JuliaExcel"
+Const MsgBoxTitleBad = "Install JuliaExcel - Error Encountered"
 
 Dim gErrorsEncountered
-Dim myWS, AddinsDest, MsgBoxTitle, MsgBoxTitleBad
+Dim myWS, AddinsDest
 Dim GIFRecordingMode
 
 Function IsProcessRunning(strComputer, strProcess)
@@ -140,7 +143,7 @@ Function CopyNamedFiles(ByVal TheSourceFolder, ByVal TheDestinationFolder, _
                 MsgBox ErrorMessage, vbOKOnly + vbExclamation, MsgBoxTitleBad
             End If
         Else
-            if FileExists(TheDestinationFolder & FileNamesArray(i)) Then
+            If FileExists(TheDestinationFolder & FileNamesArray(i)) Then
                 On Error Resume Next
                 MakeFileWritable TheDestinationFolder & FileNamesArray(i)
             End If
@@ -197,13 +200,10 @@ End Function
 
 '---------------------------------------------------------------------------------------
 ' Procedure : GetAltStartupPath
-' Author    : Philip Swannell
-' Date      : Nov-2017
 ' Purpose   : Gets the AltStartupPath, by looking in the Registry
 '             There is some chance that this returns the wrong result - e.g. on a PC
 '             where Office 16.0 was previously installed (leaving data in the Registry)
-'             but the version of Office used is Office 15.0 - For example the "Bloomberg PC"
-'             in Solum's offices
+'             but the version of Office used is Office 15.0 
 '---------------------------------------------------------------------------------------
 Function GetAltStartupPath() 'App)
     GetAltStartupPath = RegistryRead("HKEY_CURRENT_USER\Software\Microsoft\Office\" & _
@@ -212,8 +212,6 @@ End Function
 
 '---------------------------------------------------------------------------------------
 ' Procedure : SetAltStartupPath
-' Author    : Philip Swannell
-' Date      : Nov-2017
 ' Purpose   : Sets the AltStartupPath, by looking in the Registry. See caution for 
 '             GetAltStartupPath
 '---------------------------------------------------------------------------------------
@@ -224,8 +222,6 @@ End Function
 
 '---------------------------------------------------------------------------------------
 ' Procedure : RegistryRead
-' Author    : Philip Swannell
-' Date      : 30-Nov-2017
 ' Purpose   : Read a value from the Registry
 ' https://msdn.microsoft.com/en-us/library/x05fawxd(v=vs.84).aspx
 '---------------------------------------------------------------------------------------
@@ -239,8 +235,6 @@ End Function
 
 '---------------------------------------------------------------------------------------
 ' Procedure : RegistryWrite
-' Author    : Philip Swannell
-' Date      : 30-Nov-2017
 ' Purpose   : Write to the Registry
 ' https://msdn.microsoft.com/en-us/library/yfdfhz1b(v=vs.84).aspx
 '---------------------------------------------------------------------------------------
@@ -252,8 +246,6 @@ End Function
 
 '---------------------------------------------------------------------------------------
 ' Procedure : sRegistryKeyExists
-' Author    : Philip Swannell
-' Date      : 25-Apr-2016
 ' Purpose   : Returns True or False according to whether a RegKey exists in the Registry
 '---------------------------------------------------------------------------------------
 Function RegistryKeyExists(RegKey)
@@ -328,14 +320,10 @@ Sub InstallExcelAddin(AddinFullName, WithSlashR)
         RegValue = AddinFullName
     End If
     RegistryWrite RegKeyBranch + RegKeyLeaf, RegValue
-
 End Sub
-
 
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : OfficeBitness
-' Author     : Philip Swannell
-' Date       : 24-Jan-2019
 ' Purpose    : Stackoverflow has a long discussion on determining the bitness of office via the registry, with 27(!) answers
 '             This function is based on the solution suggested by stackoverflow user uflrob
 '              See https://stackoverflow.com/questions/2203980/detect-whether-office-is-32bit-or-64bit-via-the-registry
@@ -343,7 +331,7 @@ End Sub
 Function OfficeBitness()
 	Dim ExcelPath
 	ExcelPath = RegistryRead("HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\excel.exe\Path","Not found")
-	if ExcelPath = "Not found" Then
+	If ExcelPath = "Not found" Then
 		OfficeBitness = 0
 		gErrorsEncountered = True
 		MsgBox "Cannot determine if Microsoft Excel is 64 bit or 32 bit",vbOKOnly + vbExclamation, MsgBoxTitleBad
@@ -360,8 +348,6 @@ End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : DeleteExcelAddinFromRegistry
-' Author     : Philip Swannell
-' Date       : 24-Jan-2019
 ' Purpose    : Edits the Windows Registry to ensure that excel does not load a particular addin. Will not work if the addin
 '              is located in the AltStartUp path
 ' Parameters :
@@ -437,26 +423,22 @@ If (WScript.Arguments.length = 0) And ElevateToAdmin Then
 Else
     Set myWS = CreateObject("WScript.Shell")
     
-    MsgBoxTitle = "Install JuliaExcel"
-    MsgBoxTitleBad = "Install JuliaExcel - Error Encountered"
-    'Hack to make it easy to record a GIF of the installation process without an 
-    'installation actually happening
-    GIFRecordingMode = FileExists("C:\Temp\RecordingGIF.tmp")
+    GIFRecordingMode = FileExists(GIFRecordingFlagFile)
 
     gErrorsEncountered = False
-    if Not GIFRecordingMode Then
+    If Not GIFRecordingMode Then
         CheckProcess "Excel.exe"
     End If
 
-    if OfficeVersion(0) = "Office Not found" Then
+    If OfficeVersion(0) = "Office Not found" Then
         MsgBox "Installation cannot proceed because no version of Microsoft Office has " & _
                "been detected on this PC." & vblf  & vblf & _
                "The script attempts to detect installed versions of Office by looking " & _
-               "in the Windows Registry for a key " & _ 
-               "'HKEY_CURRENT_USER\Software\Microsoft\Office\<OFFICE_VERSION_NUMBER>\Excel\Options\'," & _
-               " but no such key was found." & vblf & vbLf & _
+               "in the Windows Registry for a key:" & vblf & vblf & _ 
+               "'HKEY_CURRENT_USER\Software\Microsoft\Office\<OFFICE_VERSION_NUMBER>\Excel\Options\'" & _
+               vblf & vblf & " but that key was not found." & vblf & vbLf & _
                "One possible cause of this problem is that you have just installed " & _
-               "Office, but not used Excel yet under the current user account.", _
+               "Office, but not yet used Excel under user account '" & Environ("USERNAME") & "'." _
                ,vbCritical,MsgBoxTitleBad
         WScript.Quit
     End If
@@ -512,7 +494,7 @@ Else
     Dim result
 
     result = MsgBox(Prompt, vbYesNo + vbQuestion, MsgBoxTitle)
-    if result <> vbYes Then WScript.Quit
+    If result <> vbYes Then WScript.Quit
 
     ForceFolderToExist AddinsDest
 
@@ -544,6 +526,13 @@ Else
                  "JuliaCall will be available the next time you start Excel." & vblf & _
                  vblf & website
         MsgBox Prompt, vbOKOnly + vbInformation, MsgBoxTitle
+    End If
+
+    'Don't record this bit. Have this warning after forgetting about the flag file!
+    If GIFRecordingMode Then 
+        MsgBox "That previous message was false. The installation was blocked by the " & _
+                "existence of file '" & GIFRecordingFlagFile & "'",vbOKOnly + vbCritical, _
+                MsgBoxTitleBad
     End If
 
     WScript.Quit
