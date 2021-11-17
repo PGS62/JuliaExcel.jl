@@ -61,7 +61,7 @@ Here's a quick demonstration of the functions in action.
 ![demo2](images/Demo4-take3.gif)
 
 ## Example VBA
-The VBA code below makes a call to `JuliaLaunch` and `JuliaEval` and then pastes the result to range A1:J10 in a new worksheet. To run it, make sure that the project has a reference to JuliaExcel (VBA editor, Tools menu -> References).
+The VBA code below makes a call to `JuliaLaunch` and `JuliaEvalVBA` and then pastes the result to range A1:J10 in a new worksheet. To run it, make sure that the project has a reference to JuliaExcel (VBA editor, Tools menu -> References).
 
 ```vba
 Sub DemoCallVBA()
@@ -70,7 +70,7 @@ Sub DemoCallVBA()
     
     JuliaLaunch
     
-    ResultFromJulia = JuliaEval("(1:10).^(1:10)'")
+    ResultFromJulia = JuliaEvalVBA("(1:10).^(1:10)'")
 
     Set PasteHere = Application.Workbooks.Add.Worksheets(1) _
         .Cells(1, 1).Resize(UBound(ResultFromJulia, 1), _
