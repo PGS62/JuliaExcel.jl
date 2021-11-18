@@ -29,16 +29,15 @@ Windows only.
 ## Installation
 Installation does not require admin rights on the PC.
  * Both [Julia](https://julialang.org/) and Microsoft Office must be installed on your PC, with Excel not running.
- * Launch Julia and switch to the Package REPL with the `]` key.
- * Type `add https://github.com/PGS62/JuliaExcel.jl` followed by the `Enter` key.
- * Exit the Package REPL with the `Backspace` key, then type `using JuliaExcel` followed by `Enter`.
- * Type `JuliaExcel.installme()` followed by `Enter`.
+ * Launch Julia, and copy-paste the following command into the REPL:  
+   `using Pkg; Pkg.add(url="https://github.com/PGS62/JuliaExcel.jl");using JuliaExcel;JuliaExcel.installme()`  
+   (paste into the REPL is via mouse right-click).
  * Click through a couple of dialogs.
  * Launch Excel. Check that the JuliaExcel functions are available by typing `=Julia` into a worksheet cell and checking that the auto-complete offers `JuliaCall`, `JuliaEval`, `JuliaInclude` etc.
 
 The process is illustrated in the GIF below. F5 to replay.
 
-![installation](images/installation.gif)
+![installation](images/install-take3.gif)
 
 ## Functions
 JuliaExcel makes the following functions available from Excel worksheets and from VBA:
