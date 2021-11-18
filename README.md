@@ -1,6 +1,6 @@
 # JuliaExcel
 
-Call Julia from Microsoft Excel worksheets and from VBA.  
+Call [Julia](https://julialang.org/) from Microsoft Excel worksheets and from VBA.  
 
 Compatible with Excel's [dynamic array formulas](https://support.microsoft.com/en-us/office/dynamic-array-formulas-and-spilled-array-behavior-205c6b06-03ba-4151-89a1-87a7eb36e531).
 
