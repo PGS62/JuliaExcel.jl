@@ -1,6 +1,6 @@
 # JuliaExcel
 
-Call Julia functions from Microsoft Excel worksheets and from VBA.  
+Call [Julia](https://julialang.org/) from Microsoft Excel worksheets and from VBA.  
 
 Compatible with Excel's [dynamic array formulas](https://support.microsoft.com/en-us/office/dynamic-array-formulas-and-spilled-array-behavior-205c6b06-03ba-4151-89a1-87a7eb36e531).
 
@@ -21,7 +21,7 @@ Windows only.
 
 ## Installation
 Installation does not require admin rights on the PC.
- * Both [Julia](https://julialang.org/) and Microsoft Office must be installed on your PC, with Excel not running.
+ * Both Julia and Microsoft Office must be installed on your PC, with Excel not running.
  * Launch Julia, and copy-paste the following command into the REPL:  
    `using Pkg; Pkg.add(url="https://github.com/PGS62/JuliaExcel.jl");using JuliaExcel;JuliaExcel.installme()`  
    (paste into the REPL is via mouse right-click).
