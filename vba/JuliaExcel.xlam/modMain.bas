@@ -115,7 +115,7 @@ Attribute JuliaLaunch.VB_ProcData.VB_Invoke_Func = " \n14"
 29        SaveTextFile LoadFile, LoadFileContents, TristateFalse
         
 30        Set wsh = New WshShell
-31        Command = JuliaExe & " --banner=no --load """ & LoadFile & """"
+31        Command = JuliaExe & " --threads=auto --banner=no --load """ & LoadFile & """"
 32        ErrorCode = wsh.Run(Command, IIf(MinimiseWindow, vbMinimizedFocus, vbNormalNoFocus), False)
 33        If ErrorCode <> 0 Then
 34            Throw "Command '" + Command + "' failed with error code " + CStr(ErrorCode)
