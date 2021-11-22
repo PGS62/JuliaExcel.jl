@@ -202,8 +202,8 @@ julia> JuliaExcel.encode_for_xl([1 2;true π;"Hello" "World"])
 "*2,3,2;2,1,6,2,18,6,;&1T£Hello&2#3.141592653589793£World" =#
 
 # See also VBA method Decode which unserialises i.e. inverts this function
-encode_for_xl(x::String) = "£" * x         # String in VBA/Excel
-encode_for_xl(x::Char) = "£" * x           # String in VBA/Excel
+encode_for_xl(x::AbstractString) = "£" * x         # String in VBA/Excel
+encode_for_xl(x::AbstractChar) = "£" * x           # String in VBA/Excel
 encode_for_xl(x::Int8) = string("S", x)   # Integer in VBA
 encode_for_xl(x::Int16) = string("S", x)   # Integer in VBA
 encode_for_xl(x::Int32) = string("&", x)   # Long in VBA 64-bit, no native 32-bit integer
