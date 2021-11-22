@@ -85,6 +85,33 @@ ErrHandler:
 End Sub
 
 ' -----------------------------------------------------------------------------------------------------------------------
+' Procedure  : NumWindowsWithCaption
+' Purpose    : How many windows are open whose caption includes sCaption?
+' -----------------------------------------------------------------------------------------------------------------------
+Function NumWindowsWithCaption(ByVal sCaption As String) As Long
+
+          'https://docs.microsoft.com/en-gb/windows/win32/inputdev/virtual-key-codes?redirectedfrom=MSDN
+          Const GW_HWNDNEXT = 2
+
+          Dim lhWndP As LongPtr
+          Dim sStr As String
+1         On Error GoTo ErrHandler
+2         NumWindowsWithCaption = False
+3         lhWndP = FindWindow(vbNullString, vbNullString) 'PARENT WINDOW
+4         Do While lhWndP <> 0
+5             sStr = WindowTitleFromHandle(lhWndP)
+6             If InStr(1, sStr, sCaption) > 0 Then
+7                 NumWindowsWithCaption = NumWindowsWithCaption + 1
+10            End If
+11            lhWndP = GetWindow(lhWndP, GW_HWNDNEXT)
+12        Loop
+
+13        Exit Function
+ErrHandler:
+14        Throw "#NumWindowsWithCaption (line " & CStr(Erl) + "): " & Err.Description & "!"
+End Function
+
+' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : GetHandleFromPartialCaption
 ' Purpose    : Get a window handle for a window whose title contains the string sCaption
 ' Adapted from
