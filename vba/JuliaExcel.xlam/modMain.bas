@@ -36,17 +36,23 @@ End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure : JuliaLaunch
-' Purpose   : Launches a local Julia session which "listens" to the current Excel session and
-'             responds to calls to JuliaEval etc..
+' Purpose   : Launches a local Julia session which "listens" to the current Excel session and responds
+'             to calls to JuliaEval etc..
 ' Arguments
 ' MinimiseWindow: If TRUE, then the Julia session window is minimised, if FALSE (the default) then the
 '             window is sized normally.
 ' JuliaExe  : The location of julia.exe. If omitted, then the function searches for julia.exe, first on the
 '             path and then at the default locations for Julia installation on Windows, taking the most
 '             recently installed version if more than one is available.
+' CommandLineOptions: Command line switches to be set when launching Julia.
+'             Example: "--threads=auto --banner=no".
+'
+'             https://docs.julialang.org/en/v1/manual/command-line-options/
 ' -----------------------------------------------------------------------------------------------------------------------
 Function JuliaLaunch(Optional MinimiseWindow As Boolean, Optional ByVal JuliaExe As String, _
           Optional ByVal CommandLineOptions As String)
+Attribute JuliaLaunch.VB_Description = "Launches a local Julia session which ""listens"" to the current Excel session and responds to calls to JuliaEval etc.."
+Attribute JuliaLaunch.VB_ProcData.VB_Invoke_Func = " \n14"
 
           Dim Command As String
           Dim ErrorFile As String
@@ -77,29 +83,33 @@ Function JuliaLaunch(Optional MinimiseWindow As Boolean, Optional ByVal JuliaExe
 13            End If
 14        End If
 
-15        PID = GetCurrentProcessId
-16        WindowPartialTitle = "serving Excel PID " & CStr(PID)
-17        GetHandleFromPartialCaption HwndJulia, WindowPartialTitle
+15        If InStr(CommandLineOptions, "-L") > 0 Or InStr(CommandLineOptions, "--load ") > 0 Then
+16            Throw "CommandLineOptions cannot include the -L or --load options. Instead use JuliaLaunch without that option and then use JuliaCall(""include"",""path_to_file"")"
+17        End If
 
-18        If HwndJulia <> 0 Then
-19            WindowTitle = WindowTitleFromHandle(HwndJulia)
-20            JuliaLaunch = "Julia is already running in window """ & WindowTitle & """"
-21            Exit Function
-22        End If
+18        PID = GetCurrentProcessId
+19        WindowPartialTitle = "serving Excel PID " & CStr(PID)
+20        GetHandleFromPartialCaption HwndJulia, WindowPartialTitle
 
-23        FlagFile = LocalTemp() & "\Flag_" & CStr(GetCurrentProcessId()) & ".txt"
-24        ErrorFile = LocalTemp() & "\LoadError_" & CStr(GetCurrentProcessId()) & ".txt"
-25        If FileExists(ErrorFile) Then Kill ErrorFile
+21        If HwndJulia <> 0 Then
+22            WindowTitle = WindowTitleFromHandle(HwndJulia)
+23            JuliaLaunch = "Julia is already running in window """ & WindowTitle & """"
+24            Exit Function
+25        End If
+
+26        FlagFile = LocalTemp() & "\Flag_" & CStr(GetCurrentProcessId()) & ".txt"
+27        ErrorFile = LocalTemp() & "\LoadError_" & CStr(GetCurrentProcessId()) & ".txt"
+28        If FileExists(ErrorFile) Then Kill ErrorFile
           
-26        SaveTextFile FlagFile, "", TristateFalse
-27        LoadFile = LocalTemp() & "\StartUp_" & CStr(GetCurrentProcessId()) & ".jl"
+29        SaveTextFile FlagFile, "", TristateFalse
+30        LoadFile = LocalTemp() & "\StartUp_" & CStr(GetCurrentProcessId()) & ".jl"
 
-28        Command = """" & JuliaExe & """" & " " & Trim(CommandLineOptions) & " --load """ & LoadFile & """"
+31        Command = """" & JuliaExe & """" & " " & Trim(CommandLineOptions) & " --load """ & LoadFile & """"
           Dim LiteralCommand As String
-29        LiteralCommand = MakeJuliaLiteral(Command)
-30        LiteralCommand = Mid(LiteralCommand, 2, Len(LiteralCommand) - 2)
+32        LiteralCommand = MakeJuliaLiteral(Command)
+33        LiteralCommand = Mid(LiteralCommand, 2, Len(LiteralCommand) - 2)
 
-31        LoadFileContents = _
+34        LoadFileContents = _
               "try" & vbLf & _
               "    using " & gPackageName & vbLf & _
               "    using Dates" & vbLf & _
@@ -117,41 +127,41 @@ Function JuliaLaunch(Optional MinimiseWindow As Boolean, Optional ByVal JuliaExe
               "    rm(""" & Replace(FlagFile, "\", "/") & """)" & vbLf & _
               "end"
 
-32        SaveTextFile LoadFile, LoadFileContents, TristateFalse
+35        SaveTextFile LoadFile, LoadFileContents, TristateFalse
         
-33        Set wsh = New WshShell
+36        Set wsh = New WshShell
 
           Dim NumBefore As Long
           Dim StartTime As Double
-34        StartTime = ElapsedTime()
+37        StartTime = ElapsedTime()
           Const PartialCaption = "Julia 1."
-35        NumBefore = NumWindowsWithCaption(PartialCaption)
+38        NumBefore = NumWindowsWithCaption(PartialCaption)
 
-36        wsh.Run Command, IIf(MinimiseWindow, vbMinimizedFocus, vbNormalNoFocus), False
+39        wsh.Run Command, IIf(MinimiseWindow, vbMinimizedFocus, vbNormalNoFocus), False
           'Unfortunately, if the CommandLineOptions are invalid then Julia does not launch, but the
           'call to wsh.Run does not throw an error. Work-around is to count the number of windows whose
           'caption contains "Julia 1." before and TIMEOUT seconds after the call to wsh.Run.
-38        While FileExists(FlagFile)
-39            Sleep 50
-40            If ElapsedTime() - StartTime > TIMEOUT Then
-41                If NumWindowsWithCaption(PartialCaption) <> NumBefore + 1 Then
-42                    Throw "Julia failed to launch after " + CStr(TIMEOUT) + " seconds. Check the CommandLineOptions are valid (https://docs.julialang.org/en/v1/manual/command-line-options/)"
-43                End If
-44            End If
-45        Wend
-46        CleanLocalTemp
-47        If FileExists(ErrorFile) Then
-48            Throw "Julia launched but encountered an error when executing '" & LoadFile & "' the error was: " & ReadTextFile(ErrorFile, TristateFalse)
-49        End If
+40        While FileExists(FlagFile)
+41            Sleep 50
+42            If ElapsedTime() - StartTime > TIMEOUT Then
+43                If NumWindowsWithCaption(PartialCaption) <> NumBefore + 1 Then
+44                    Throw "Julia failed to launch after " + CStr(TIMEOUT) + " seconds. Check the CommandLineOptions are valid (https://docs.julialang.org/en/v1/manual/command-line-options/)"
+45                End If
+46            End If
+47        Wend
+48        CleanLocalTemp
+49        If FileExists(ErrorFile) Then
+50            Throw "Julia launched but encountered an error when executing '" & LoadFile & "' the error was: " & ReadTextFile(ErrorFile, TristateFalse)
+51        End If
           
-50        GetHandleFromPartialCaption HwndJulia, WindowPartialTitle
-51        WindowTitle = WindowTitleFromHandle(HwndJulia)
+52        GetHandleFromPartialCaption HwndJulia, WindowPartialTitle
+53        WindowTitle = WindowTitleFromHandle(HwndJulia)
           
-52        JuliaLaunch = "Julia launched in window """ & WindowTitle & """"
+54        JuliaLaunch = "Julia launched in window """ & WindowTitle & """"
 
-53        Exit Function
+55        Exit Function
 ErrHandler:
-54        JuliaLaunch = "#JuliaLaunch (line " & CStr(Erl) + "): " & Err.Description & "!"
+56        JuliaLaunch = "#JuliaLaunch (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------

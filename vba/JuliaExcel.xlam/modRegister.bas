@@ -51,7 +51,7 @@ Sub RegisterJuliaExcelFunctionsWithFunctionWizard()
 18                NumArgs = rngArgsAndArgDescs.Columns.Count / 2
 19                ReDim ArgDescs(1 To NumArgs)
 20                For i = 1 To NumArgs
-21                    ArgDescs(i) = rngArgsAndArgDescs.Cells(1, i * 2 - 1).Value
+21                    ArgDescs(i) = rngArgsAndArgDescs.Cells(1, i * 2).Value
 22                Next i
 23            End If
 

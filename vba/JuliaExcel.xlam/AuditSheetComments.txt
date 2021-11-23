@@ -1,4 +1,5 @@
 Version	Date	Time	Author	Comment
+62	23-Nov-2021	16:44	Philip Swannell	Updated documentation.
 61	22-Nov-2021	17:43	Philip Swannell	Added optional argument CommandLineOptions to function JuliaLaunch.
 60	19-Nov-2021	15:49	Philip Swannell	When launching Julia now set command-line option --threads=auto
 59	17-Nov-2021	12:26	Philip Swannell	JuliaEvalFromVBA --> JuliaEvalVBA, JuliaCallFromVBA --> JuliaCallVBA
