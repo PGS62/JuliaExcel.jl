@@ -4,7 +4,6 @@ export srv_xl, setxlpid
 using Dates, DataFrames
 import StringEncodings
 global const xlpid = Ref(0)
-#this is a test edit
 
 """
     setxlpid(pid::Int64)
@@ -178,6 +177,7 @@ interpreted as follows:
               2042 for the Excel error value #N/A )
  @   Decimal
  *   Array
+ ^   Dictionary
 
   Examples:
   julia> JuliaExcel.encode_for_xl(1.0)
@@ -273,6 +273,24 @@ function encode_for_xl(x::DataFrame)
         headers[1,i] = names(x)[i]
     end
     encode_for_xl(vcat(headers, data))
+end
+
+function encode_for_xl(x::T) where T <: AbstractDict
+
+    dimssection = string(length(x))
+    lengths_buf = IOBuffer()
+    contents_buf = IOBuffer()
+
+    for (k,v) in x
+        thiskey = encode_for_xl(k)
+        thisvalue = encode_for_xl(v)
+        write(contents_buf, thiskey)
+        write(contents_buf,thisvalue)
+        write(lengths_buf, string(length(thiskey)), ",")
+        write(lengths_buf, string(length(thisvalue)), ",")
+    end   
+
+    "^" * dimssection * ";" * String(take!(lengths_buf)) * ";" * String(take!(contents_buf))
 end
 
 end # module
