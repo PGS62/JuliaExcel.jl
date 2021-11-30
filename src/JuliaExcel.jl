@@ -47,12 +47,6 @@ See https://discourse.julialang.org/t/reading-a-utf-16-le-file/11687
 """
 read_utf16(filename::String) = transcode(String, reinterpret(UInt16, read(filename)))[4:end]
 
-function foo()
-global wtf = 100
-end
-
-
-
 """
     srv_xl()
 Read the expression file created by JuliaExcel.xlam, evaluate it and write the result to
@@ -68,9 +62,9 @@ function srv_xl()
     catch e
         "#($e)!"
     end
-    println("setting ans2")
-    global ans2 = result   
-println(ans2)
+    println("setting Main.ans2")
+    global Main.ans2 = result   
+println(Main.ans2)
 
     canencode = true
     encodedresult = try
