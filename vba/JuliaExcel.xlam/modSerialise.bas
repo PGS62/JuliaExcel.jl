@@ -37,6 +37,7 @@ Option Base 1
 ' ! Error
 ' @ Decimal
 ' * Array
+' ^ Scripting.Dictionary
 
 '
 'Examples:
@@ -68,8 +69,8 @@ Function UnserialiseFromFile(FileName As String, AllowNested As Boolean, StringL
 3         Contents = ts.ReadAll
 4         ts.Close
 5         Set ts = Nothing
+6         Assign UnserialiseFromFile, Unserialise(Contents, AllowNested, 0, StringLengthLimit, JuliaVectorToXLColumn)
 
-6         UnserialiseFromFile = Unserialise(Contents, AllowNested, 0, StringLengthLimit, JuliaVectorToXLColumn)
 7         Exit Function
 ErrHandler:
 8         ErrMsg = "#UnserialiseFromFile (line " & CStr(Erl) + "): " & Err.Description & "!"
@@ -165,57 +166,87 @@ Function Unserialise(Chars As String, AllowNesting As Boolean, ByRef Depth As Lo
                       Case 1 '1 dimensional array
                           Dim N As Long 'Num elements in array
 41                        N = Mid$(Chars, 4, p1 - 4)
-42                        If N = 0 Then Throw "Cannot create array of size zero"
-43                        If JuliaVectorToXLColumn Then
-44                            ReDim Ret(1 To N, 1 To 1)
-45                            For i = 1 To N
-46                                m2 = InStr(m + 1, Chars, ",")
-47                                thislength = Mid$(Chars, m, m2 - m)
-48                                Ret(i, 1) = Unserialise(Mid$(Chars, k, thislength), AllowNesting, Depth, StringLengthLimit, JuliaVectorToXLColumn)
-49                                k = k + thislength
-50                                m = m2 + 1
-51                            Next i
-52                        Else
-53                            ReDim Ret(1 To N)
-54                            For i = 1 To N
-55                                m2 = InStr(m + 1, Chars, ",")
-56                                thislength = Mid$(Chars, m, m2 - m)
-57                                Ret(i) = Unserialise(Mid$(Chars, k, thislength), AllowNesting, Depth, StringLengthLimit, JuliaVectorToXLColumn)
-58                                k = k + thislength
-59                                m = m2 + 1
-60                            Next i
-61                        End If
-
-62                        Unserialise = Ret
-63                    Case 2 '2 dimensional array
+42                        If N = 0 Then
+43                            If Not AllowNesting Then Throw "Excel cannot display arrays with zero elements"
+44                            Unserialise = VBA.Split(vbNullString) 'See discussion at https://stackoverflow.com/questions/55123413/declare-a-0-length-string-array-in-vba-impossible
+45                        Else
+46                            If JuliaVectorToXLColumn Then
+47                                ReDim Ret(1 To N, 1 To 1)
+48                                For i = 1 To N
+49                                    m2 = InStr(m, Chars, ",") + 1
+50                                    thislength = Mid$(Chars, m, m2 - m - 1)
+51                                    Assign Ret(i, 1), Unserialise(Mid$(Chars, k, thislength), AllowNesting, Depth, StringLengthLimit, JuliaVectorToXLColumn)
+52                                    k = k + thislength
+53                                    m = m2
+54                                Next i
+55                            Else
+56                                ReDim Ret(1 To N)
+57                                For i = 1 To N
+58                                    m2 = InStr(m, Chars, ",") + 1
+59                                    thislength = Mid$(Chars, m, m2 - m - 1)
+60                                    Assign Ret(i), Unserialise(Mid$(Chars, k, thislength), AllowNesting, Depth, StringLengthLimit, JuliaVectorToXLColumn)
+61                                    k = k + thislength
+62                                    m = m2
+63                                Next i
+64                            End If
+65                            Unserialise = Ret
+66                        End If
+67                    Case 2 '2 dimensional array
                           Dim commapos As Long
                           Dim NC As Long
                           Dim NR As Long
-64                        commapos = InStr(4, Chars, ",")
-65                        NR = Mid$(Chars, 4, commapos - 4)
-66                        NC = Mid$(Chars, commapos + 1, p1 - commapos - 1)
-67                        If NR = 0 Or NC = 0 Then Throw "Cannot create array of size zero"
-68                        ReDim Ret(1 To NR, 1 To NC)
-69                        For j = 1 To NC
-70                            For i = 1 To NR
-71                                m2 = InStr(m + 1, Chars, ",")
-72                                thislength = Mid$(Chars, m, m2 - m)
-73                                Ret(i, j) = Unserialise(Mid$(Chars, k, thislength), AllowNesting, Depth, StringLengthLimit, JuliaVectorToXLColumn)
-74                                k = k + thislength
-75                                m = m2 + 1
-76                            Next i
-77                        Next j
-78                        Unserialise = Ret
-79                    Case Else
-80                        Throw "Cannot unserialise arrays with more than 2 dimensions"
-81                End Select
-82            Case Else
-83                Throw "Character '" & Left$(Chars, 1) & "' is not recognised as a type identifier"
-84        End Select
+68                        commapos = InStr(4, Chars, ",")
+69                        NR = Mid$(Chars, 4, commapos - 4)
+70                        NC = Mid$(Chars, commapos + 1, p1 - commapos - 1)
+71                        If NR = 0 Or NC = 0 Then Throw "Cannot create array of size zero"
+72                        ReDim Ret(1 To NR, 1 To NC)
+73                        For j = 1 To NC
+74                            For i = 1 To NR
+75                                m2 = InStr(m, Chars, ",") + 1
+76                                thislength = Mid$(Chars, m, m2 - m - 1)
+77                                Assign Ret(i, j), Unserialise(Mid$(Chars, k, thislength), AllowNesting, Depth, StringLengthLimit, JuliaVectorToXLColumn)
+                                '  Ret(i, j) = Unserialise(Mid$(Chars, k, thislength), AllowNesting, Depth, StringLengthLimit, JuliaVectorToXLColumn)
+78                                k = k + thislength
+79                                m = m2
+80                            Next i
+81                        Next j
+82                        Unserialise = Ret
+83                    Case Else
+84                        Throw "Cannot unserialise arrays with more than 2 dimensions"
+85                End Select
+86            Case 94 '^ Dictionary
+87                If Not AllowNesting Then Throw "Excel cannot display variables of type Dictionary"
+88                p1 = InStr(Chars, ";")
+89                p2 = InStr(p1 + 1, Chars, ";")
+90                m = p1 + 1 '"pointer" to read from lengths section. Points to the first character after each comma.
+91                k = p2 + 1 '"pointer" to read from contents section. Points to the first character of each "chunk".
+                  Dim DictRet As New Scripting.Dictionary
+                  Dim keylength As Long
+                  Dim m3 As Long
+                  Dim ThisKey As Variant
+                  Dim ThisValue As Variant
+                  Dim valuelength As Long
+92                N = Mid$(Chars, 2, p1 - 2) 'Num elements in dictionary
+93                For i = 1 To N
+94                    m2 = InStr(m, Chars, ",") + 1
+95                    m3 = InStr(m2, Chars, ",") + 1
+96                    keylength = Mid$(Chars, m, m2 - m - 1)
+97                    valuelength = Mid$(Chars, m2, m3 - m2 - 1)
+98                    Assign ThisKey, Unserialise(Mid$(Chars, k, keylength), AllowNesting, Depth, StringLengthLimit, JuliaVectorToXLColumn)
+99                    k = k + keylength
+100                   Assign ThisValue, Unserialise(Mid$(Chars, k, valuelength), AllowNesting, Depth, StringLengthLimit, JuliaVectorToXLColumn)
+101                   k = k + valuelength
+102                   m = m3
+103                   DictRet.Add ThisKey, ThisValue
+104               Next i
+105               Set Unserialise = DictRet
+106           Case Else
+107               Throw "Character '" & Left$(Chars, 1) & "' is not recognised as a type identifier"
+108       End Select
 
-85        Exit Function
+109       Exit Function
 ErrHandler:
-86        Throw "#Unserialise (line " & CStr(Erl) + "): " & Err.Description & "!"
+110       Throw "#Unserialise (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Function
 
 'Values of type Int64 in Julia must be handled differently on Excel 32-bit and Excel 64bit
@@ -263,11 +294,12 @@ End Function
 ' -----------------------------------------------------------------------------------------------------------------------
 Function Serialise(x As Variant) As String
 
-          Dim contentsArray() As String
+          Dim ContentsArray() As String
           Dim i As Long
           Dim j As Long
           Dim k As Long
-          Dim lengthsArray() As String
+          Dim KeysArray() As String
+          Dim LengthsArray() As String
           Dim NC As Long
           Dim NR As Long
 
@@ -297,38 +329,55 @@ Function Serialise(x As Variant) As String
 23                Serialise = IIf(x, "T", "F")
 24            Case vbDecimal
 25                Serialise = "@" & CStr(x)
-26            Case Is >= vbArray
-27                Select Case NumDimensions(x)
+26            Case vbObject
+27                If TypeName(x) <> "Dictionary" Then Throw "Cannot serialise object of type " + TypeName(x)
+28                ReDim LengthsArray(0 To x.Count - 1)
+29                ReDim ContentsArray(0 To x.Count - 1)
+                  Dim key
+                  Dim ThisItem As String
+                  Dim ThisKey As String
+30                i = 0
+31                For Each key In x.Keys
+32                    ThisKey = Serialise(key)
+33                    ThisItem = Serialise(x(key))
+34                    ContentsArray(i) = ThisKey & ThisItem
+35                    LengthsArray(i) = CStr(Len(ThisKey)) & "," & CStr(Len(ThisItem))
+36                    i = i + 1
+37                Next key
+38                Serialise = "^" & CStr(x.Count) & ";" & VBA.Join(LengthsArray, ",") & ",;" & VBA.Join(ContentsArray, "")
+39            Case Is >= vbArray
+40                Select Case NumDimensions(x)
                       Case 1
-28                        ReDim lengthsArray(LBound(x) To UBound(x))
-29                        ReDim contentsArray(LBound(x) To UBound(x))
-30                        For i = LBound(x) To UBound(x)
-31                            contentsArray(i) = Serialise(x(i))
-32                            lengthsArray(i) = CStr(Len(contentsArray(i)))
-33                        Next i
-34                        Serialise = "*1," & CStr(UBound(x) - LBound(x) + 1) & ";" & VBA.Join(lengthsArray, ",") & ",;" & VBA.Join(contentsArray, "")
-35                    Case 2
-36                        NR = UBound(x, 1) - LBound(x, 1) + 1
-37                        NC = UBound(x, 2) - LBound(x, 2) + 1
-38                        k = 0
-39                        ReDim lengthsArray(NR * NC)
-40                        ReDim contentsArray(NR * NC)
-41                        For j = LBound(x, 2) To UBound(x, 2)
-42                            For i = LBound(x, 1) To UBound(x, 1)
-43                                k = k + 1
-44                                contentsArray(k) = Serialise(x(i, j))
-45                                lengthsArray(k) = CStr(Len(contentsArray(k)))
-46                            Next i
-47                        Next j
-48                        Serialise = "*2," & CStr(UBound(x, 1) - LBound(x, 1) + 1) & "," & CStr(UBound(x, 2) - LBound(x, 2) + 1) & ";" & VBA.Join(lengthsArray, ",") & ",;" & VBA.Join(contentsArray, "")
-49                    Case Else
-50                        Throw "Cannot serialise array with " + CStr(NumDimensions(x)) + " dimensions"
-51                End Select
-52            Case Else
-53                Throw "Cannot serialise variable of type " & TypeName(x)
-54        End Select
+41                        ReDim LengthsArray(LBound(x) To UBound(x))
+42                        ReDim ContentsArray(LBound(x) To UBound(x))
+43                        For i = LBound(x) To UBound(x)
+44                            ContentsArray(i) = Serialise(x(i))
+45                            LengthsArray(i) = CStr(Len(ContentsArray(i)))
+46                        Next i
+47                        Serialise = "*1," & CStr(UBound(x) - LBound(x) + 1) & ";" & VBA.Join(LengthsArray, ",") & ",;" & VBA.Join(ContentsArray, "")
+48                    Case 2
+49                        NR = UBound(x, 1) - LBound(x, 1) + 1
+50                        NC = UBound(x, 2) - LBound(x, 2) + 1
+51                        k = 0
+52                        ReDim LengthsArray(NR * NC)
+53                        ReDim ContentsArray(NR * NC)
+54                        For j = LBound(x, 2) To UBound(x, 2)
+55                            For i = LBound(x, 1) To UBound(x, 1)
+56                                k = k + 1
+57                                ContentsArray(k) = Serialise(x(i, j))
+58                                LengthsArray(k) = CStr(Len(ContentsArray(k)))
+59                            Next i
+60                        Next j
+61                        Serialise = "*2," & CStr(UBound(x, 1) - LBound(x, 1) + 1) & "," & CStr(UBound(x, 2) - LBound(x, 2) + 1) & ";" & VBA.Join(LengthsArray, ",") & ",;" & VBA.Join(ContentsArray, "")
+62                    Case Else
+63                        Throw "Cannot serialise array with " + CStr(NumDimensions(x)) + " dimensions"
+64                End Select
+65            Case Else
+66                Throw "Cannot serialise variable of type " & TypeName(x)
+67        End Select
 
-55        Exit Function
+68        Exit Function
 ErrHandler:
-56        Throw "#Serialise (line " & CStr(Erl) + "): " & Err.Description & "!"
+69        Throw "#Serialise (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Function
+

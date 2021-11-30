@@ -64,7 +64,7 @@ Attribute JuliaLaunch.VB_ProcData.VB_Invoke_Func = " \n14"
           Dim WindowPartialTitle As String
           Dim WindowTitle As String
           Dim wsh As WshShell
-          Const TIMEOUT = 5
+          Const TIMEOUT = 30
 
 1         On Error GoTo ErrHandler
 
@@ -250,7 +250,7 @@ Attribute JuliaEval.VB_ProcData.VB_Invoke_Func = " \n14"
 4             Exit Function
 5         End If
 
-6         JuliaEval = JuliaEval_LowLevel(JuliaExpression, False, GetStringLengthLimit(), True)
+6         Assign JuliaEval, JuliaEval_LowLevel(JuliaExpression, False, GetStringLengthLimit(), True)
 
 7         Exit Function
 ErrHandler:
@@ -270,8 +270,7 @@ Function JuliaEvalVBA(ByVal JuliaExpression As Variant)
 Attribute JuliaEvalVBA.VB_Description = "Evaluate a Julia expression and return the result to VBA. Designed for use from VBA rather than a worksheet and differs from JuliaEval in handling of 1-dimensional arrays, nested arrays and strings longer than 32,767 characters."
 Attribute JuliaEvalVBA.VB_ProcData.VB_Invoke_Func = " \n14"
 1         On Error GoTo ErrHandler
-2         JuliaEvalVBA = JuliaEval_LowLevel(JuliaExpression, AllowNested:=True, StringLengthLimit:=0, JuliaVectorToXLColumn:=False)
-
+2         Assign JuliaEvalVBA, JuliaEval_LowLevel(JuliaExpression, AllowNested:=True, StringLengthLimit:=0, JuliaVectorToXLColumn:=False)
 3         Exit Function
 ErrHandler:
 4         Throw "#JuliaEvalVBA (line " & CStr(Erl) + "): " & Err.Description & "!"
@@ -346,9 +345,7 @@ Private Function JuliaEval_LowLevel(ByVal JuliaExpression As Variant, _
 28                Exit Function
 29            End If
 30        Loop
-
-31        JuliaEval_LowLevel = UnserialiseFromFile(ResultFile, AllowNested, StringLengthLimit, JuliaVectorToXLColumn)
-
+31        Assign JuliaEval_LowLevel, UnserialiseFromFile(ResultFile, AllowNested, StringLengthLimit, JuliaVectorToXLColumn)
 32        Exit Function
 ErrHandler:
 33        Throw "#JuliaEval_LowLevel (line " & CStr(Erl) + "): " & Err.Description & "!"
@@ -479,7 +476,7 @@ Attribute JuliaCallVBA.VB_ProcData.VB_Invoke_Func = " \n14"
 10            Expression = JuliaFunction & "()"
 11        End If
 
-12        JuliaCallVBA = JuliaEval_LowLevel(Expression, AllowNested:=True, StringLengthLimit:=0, JuliaVectorToXLColumn:=False)
+12        Assign JuliaCallVBA, JuliaEval_LowLevel(Expression, AllowNested:=True, StringLengthLimit:=0, JuliaVectorToXLColumn:=False)
 
 13        Exit Function
 ErrHandler:
@@ -503,12 +500,27 @@ Attribute JuliaInclude.VB_ProcData.VB_Invoke_Func = " \n14"
 5         JuliaInclude = JuliaCall(gPackageName & ".include", Replace(FileName, "\", "/"))
 End Function
 
+Sub Assign(ByRef a, b)
+1         If IsObject(b) Then
+2             Set a = b
+3         Else
+4             Let a = b
+5         End If
+End Sub
+
+'--------------------------------------------------
 '05-Nov-2021 16:18:37        DESKTOP-0VD2AF0
-'Expression = Fill("xxx", 1000, 1000)
+'Expression = fill("xxx", 1000, 1000)
 'Average time in JuliaEval    1.47189380999916
+'--------------------------------------------------
 '06-Nov-2021 12:28:58        PHILIP-LAPTOP
-'Expression = Fill("xxx", 1000, 1000)
+'Expression = fill("xxx", 1000, 1000)
 'Average time in JuliaEval    1.9295860900078
+'--------------------------------------------------
+'30-Nov-2021 10:13:30        PHILIP-LAPTOP
+'Expression = fill("xxx", 1000, 1000)
+'Average time in JuliaEval    2.82354638000252  <--- Mmm, why the slowdown since 6-Nov version? Use of Assign?
+'--------------------------------------------------
 Private Sub SpeedTest()
 
           Const Expression As String = "fill(""xxx"",1000,1000)"
@@ -525,9 +537,9 @@ Private Sub SpeedTest()
 5         Next i
 6         t2 = ElapsedTime
 
-7         Debug.Print Format(Now(), "dd-mmm-yyyy hh:mm:ss"), Environ("ComputerName")
-8         Debug.Print "Expression = " & Expression
-9         Debug.Print "Average time in JuliaEval", (t2 - t1) / NumCalls
-
+7         Debug.Print "'" & Format(Now(), "dd-mmm-yyyy hh:mm:ss"), Environ("ComputerName")
+8         Debug.Print "'Expression = " & Expression
+9         Debug.Print "'Average time in JuliaEval", (t2 - t1) / NumCalls
+10        Debug.Print "'--------------------------------------------------"
 End Sub
 

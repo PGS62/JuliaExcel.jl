@@ -102,13 +102,13 @@ Function NumWindowsWithCaption(ByVal sCaption As String) As Long
 5             sStr = WindowTitleFromHandle(lhWndP)
 6             If InStr(1, sStr, sCaption) > 0 Then
 7                 NumWindowsWithCaption = NumWindowsWithCaption + 1
-10            End If
-11            lhWndP = GetWindow(lhWndP, GW_HWNDNEXT)
-12        Loop
+8             End If
+9             lhWndP = GetWindow(lhWndP, GW_HWNDNEXT)
+10        Loop
 
-13        Exit Function
+11        Exit Function
 ErrHandler:
-14        Throw "#NumWindowsWithCaption (line " & CStr(Erl) + "): " & Err.Description & "!"
+12        Throw "#NumWindowsWithCaption (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
