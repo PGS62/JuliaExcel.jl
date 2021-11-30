@@ -62,6 +62,8 @@ function srv_xl()
     catch e
         "#($e)!"
     end
+    println("setting ans2")
+    global ans2 = result   
 
     canencode = true
     encodedresult = try
@@ -81,6 +83,7 @@ function srv_xl()
     display(result)
     canencode || (println("");@error "Result of type $(typeof(result)) could not be " *
                                      "encoded for return to Excel.")
+                                       
     nothing
 end
 
