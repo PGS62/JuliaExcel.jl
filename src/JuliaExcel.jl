@@ -57,14 +57,11 @@ function srv_xl()
 
     expression = read_utf16(expressionfile())
 
-    result = try
+    global result = try
         Main.eval(Meta.parse(expression))
     catch e
         "#($e)!"
     end
-    println("setting Main.ans2")
-    global Main.ans2 = result   
-println(Main.ans2)
 
     canencode = true
     encodedresult = try
