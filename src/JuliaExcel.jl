@@ -64,6 +64,7 @@ function srv_xl()
     end
     println("setting ans2")
     global ans2 = result   
+println(ans2)
 
     canencode = true
     encodedresult = try
