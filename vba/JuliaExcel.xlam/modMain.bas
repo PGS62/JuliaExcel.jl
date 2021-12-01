@@ -56,7 +56,6 @@ Attribute JuliaLaunch.VB_ProcData.VB_Invoke_Func = " \n14"
 
           Dim Command As String
           Dim ErrorFile As String
-          Dim FlagFile As String
           Dim HwndJulia As LongPtr
           Dim LoadFile As String
           Dim LoadFileContents As String
@@ -97,11 +96,10 @@ Attribute JuliaLaunch.VB_ProcData.VB_Invoke_Func = " \n14"
 24            Exit Function
 25        End If
 
-26        FlagFile = LocalTemp() & "\Flag_" & CStr(GetCurrentProcessId()) & ".txt"
 27        ErrorFile = LocalTemp() & "\LoadError_" & CStr(GetCurrentProcessId()) & ".txt"
 28        If FileExists(ErrorFile) Then Kill ErrorFile
           
-29        SaveTextFile FlagFile, "", TristateFalse
+29        SaveTextFile JuliaFlagFile, "", TristateFalse
 30        LoadFile = LocalTemp() & "\StartUp_" & CStr(GetCurrentProcessId()) & ".jl"
 
 31        Command = """" & JuliaExe & """" & " " & Trim(CommandLineOptions) & " --load """ & LoadFile & """"
@@ -116,7 +114,7 @@ Attribute JuliaLaunch.VB_ProcData.VB_Invoke_Func = " \n14"
               "    setxlpid(" & CStr(GetCurrentProcessId) & ")" & vbLf & _
               "    println(""Julia $VERSION, using " & gPackageName & " to serve Excel running as process ID " & GetCurrentProcessId() & "."")" & vbLf & _
               "    println(""Julia launched with command: " & LiteralCommand & " "")" & vbLf & _
-              "    rm(""" & Replace(FlagFile, "\", "/") & """)" & vbLf & _
+              "    rm(""" & Replace(JuliaFlagFile, "\", "/") & """)" & vbLf & _
               "catch e" & vbLf & _
               "    theerror = ""$e""" & vbLf & _
               "    @error theerror " & vbLf & _
@@ -124,7 +122,7 @@ Attribute JuliaLaunch.VB_ProcData.VB_Invoke_Func = " \n14"
               "    io = open(errorfile, ""w"")" & vbLf & _
               "    write(io,theerror)" & vbLf & _
               "    close(io)" & vbLf & _
-              "    rm(""" & Replace(FlagFile, "\", "/") & """)" & vbLf & _
+              "    rm(""" & Replace(JuliaFlagFile, "\", "/") & """)" & vbLf & _
               "end"
 
 35        SaveTextFile LoadFile, LoadFileContents, TristateFalse
@@ -141,7 +139,7 @@ Attribute JuliaLaunch.VB_ProcData.VB_Invoke_Func = " \n14"
           'Unfortunately, if the CommandLineOptions are invalid then Julia does not launch, but the
           'call to wsh.Run does not throw an error. Work-around is to count the number of windows whose
           'caption contains "Julia 1." before and TIMEOUT seconds after the call to wsh.Run.
-40        While FileExists(FlagFile)
+40        While FileExists(JuliaFlagFile)
 41            Sleep 50
 42            If ElapsedTime() - StartTime > TIMEOUT Then
 43                If NumWindowsWithCaption(PartialCaption) <> NumBefore + 1 Then
@@ -277,13 +275,59 @@ ErrHandler:
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
+' Procedure : JuliaFlagFile
+' Purpose   : Returns the name of a sentinel file. The file is created (by VBA code) at the same time as
+'             the expression file and deleted (by Julia code) when Julia execution has finished.
+' -----------------------------------------------------------------------------------------------------------------------
+Function JuliaFlagFile() As String
+Attribute JuliaFlagFile.VB_Description = "Returns the name of a sentinel file. The file is created (by VBA code) at the same time as the expression file and deleted (by Julia code) when Julia execution has finished."
+Attribute JuliaFlagFile.VB_ProcData.VB_Invoke_Func = " \n14"
+          Static FlagFile As String
+1         If FlagFile = "" Then
+2             FlagFile = LocalTemp() & "\Flag_" & CStr(GetCurrentProcessId()) & ".txt"
+3         End If
+4         JuliaFlagFile = FlagFile
+End Function
+
+' -----------------------------------------------------------------------------------------------------------------------
+' Procedure : JuliaExpressionFile
+' Purpose   : Returns the name of the file containing the JuliaExpression that's passed to JuliaEval,
+'             JuliaCall etc.
+' -----------------------------------------------------------------------------------------------------------------------
+Function JuliaExpressionFile() As String
+Attribute JuliaExpressionFile.VB_Description = "Returns the name of the file containing the JuliaExpression that's passed to JuliaEval, JuliaCall etc."
+Attribute JuliaExpressionFile.VB_ProcData.VB_Invoke_Func = " \n14"
+          Static ExpressionFile As String
+1         If ExpressionFile = "" Then
+2             ExpressionFile = LocalTemp() & "\Expression_" & CStr(GetCurrentProcessId()) & ".txt"
+3         End If
+4         JuliaExpressionFile = ExpressionFile
+End Function
+
+' -----------------------------------------------------------------------------------------------------------------------
+' Procedure : JuliaResultFile
+' Purpose   : Returns the name of the file to which the results of calls to JuliaCall, JuliaEval etc.
+'             are written. The file may be unserialised with function JuliaUnserialiseFile.
+' -----------------------------------------------------------------------------------------------------------------------
+Function JuliaResultFile() As String
+Attribute JuliaResultFile.VB_Description = "Returns the name of the file to which the results of calls to JuliaCall, JuliaEval etc. are written. The file may be unserialised with function JuliaUnserialiseFile."
+Attribute JuliaResultFile.VB_ProcData.VB_Invoke_Func = " \n14"
+          Static ResultFile As String
+1         If ResultFile = "" Then
+2             ResultFile = LocalTemp() & "\Result_" & CStr(GetCurrentProcessId()) & ".txt"
+3         End If
+4         JuliaResultFile = ResultFile
+End Function
+
+' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : JuliaEval_LowLevel
-' Purpose    : Evaluate a Julia expression, exposing more arguments than we should show to the user
+' Purpose    : Evaluate a Julia expression, exposing more arguments than we should show to the user.
 ' Parameters :
 '  JuliaExpression      :
-'  AllowNested          : Should the function throw an error if it detects that the return from Julia is an array with
-'                         elements that are themselves an array. Should be False when calling from a worksheet since Excel
-'                         would otherwise display a single "#VALUE!" withj no hint as to what caused the problem.
+'  AllowNested          : Should the function throw an error if it detects that the return from Julia cannot be displayed
+'                         in a worksheet, for example if it's a dictionary or an array of arrays.
+'                         Should be False when calling from a worksheet since Excel would otherwise display a single
+'                         "#VALUE!" with no hint as to what caused the problem.
 '  StringLengthLimit    : The longest string allowed in (an element of) the return from Julia. If exceeded the function
 '                         throws an intelligible error. When calling from the worksheet, should be set to the return from
 '                         GetStringLengthLimit, which returns either 255 or 32767 according to the Excel version.
@@ -295,11 +339,7 @@ Private Function JuliaEval_LowLevel(ByVal JuliaExpression As Variant, _
           Optional AllowNested As Boolean, Optional StringLengthLimit As Long, _
           Optional JuliaVectorToXLColumn As Boolean = True)
           
-          Dim ExpressionFile As String
-          Dim FlagFile As String
-          Dim ResultFile As String
           Dim strJuliaExpression As String
-          Dim Tmp As String
           Dim WindowTitle As String
           Static HwndJulia As LongPtr
           Static JuliaExe As String
@@ -313,7 +353,7 @@ Private Function JuliaEval_LowLevel(ByVal JuliaExpression As Variant, _
 4             JuliaExe = JuliaExeLocation()
 5         End If
 6         If PID = 0 Then
-7             PID = GetCurrentProcessId
+7             PID = GetCurrentProcessId()
 8         End If
             
 9         If HwndJulia = 0 Or IsWindow(HwndJulia) = 0 Then
@@ -326,29 +366,23 @@ Private Function JuliaEval_LowLevel(ByVal JuliaExpression As Variant, _
 15            Exit Function
 16        End If
           
-17        Tmp = LocalTemp()
-          
-18        FlagFile = Tmp & "\Flag_" & CStr(PID) & ".txt"
-19        ResultFile = Tmp & "\Result_" & CStr(PID) & ".txt"
-20        ExpressionFile = Tmp & "\Expression_" & CStr(PID) & ".txt"
-
-21        SaveTextFile FlagFile, "", TristateTrue
-22        SaveTextFile ExpressionFile, strJuliaExpression, TristateTrue
+17        SaveTextFile JuliaFlagFile, "", TristateTrue
+18        SaveTextFile JuliaExpressionFile, strJuliaExpression, TristateTrue
 
           'Line below tells Julia to "do the work" by pasting "srv_xl()" to the REPL
-23        PostMessageToJulia HwndJulia
+19        PostMessageToJulia HwndJulia
 
-24        Do While FileExists(FlagFile)
-25            Sleep 1
-26            If IsWindow(HwndJulia) = 0 Then
-27                JuliaEval_LowLevel = "#Julia shut down while evaluating the expression!"
-28                Exit Function
-29            End If
-30        Loop
-31        Assign JuliaEval_LowLevel, UnserialiseFromFile(ResultFile, AllowNested, StringLengthLimit, JuliaVectorToXLColumn)
-32        Exit Function
+20        Do While FileExists(JuliaFlagFile)
+21            Sleep 1
+22            If IsWindow(HwndJulia) = 0 Then
+23                JuliaEval_LowLevel = "#Julia shut down while evaluating the expression!"
+24                Exit Function
+25            End If
+26        Loop
+27        Assign JuliaEval_LowLevel, UnserialiseFromFile(JuliaResultFile, AllowNested, StringLengthLimit, JuliaVectorToXLColumn)
+28        Exit Function
 ErrHandler:
-33        Throw "#JuliaEval_LowLevel (line " & CStr(Erl) + "): " & Err.Description & "!"
+29        Throw "#JuliaEval_LowLevel (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
@@ -508,6 +542,37 @@ Sub Assign(ByRef a, b)
 5         End If
 End Sub
 
+' -----------------------------------------------------------------------------------------------------------------------
+' Procedure : JuliaUnserialiseFile
+' Purpose   : Unserialises the contents of the JuliaResultsFile.
+' Arguments
+' FileName  : The name (including path) of the file to be unserialised. Optional and defaults to the file
+'             name returned by JuliaResultsFile.
+' ForWorksheet: Pass TRUE (the default) when calling from a worksheet, FALSE when calling from VBA. If
+'             FALSE, the function may return data structures that can exist in VBA but cannot be
+'             represented on a worksheet, such as a dictionary or an array of arrays.
+' -----------------------------------------------------------------------------------------------------------------------
+Function JuliaUnserialiseFile(Optional ByVal FileName As String, Optional ForWorksheet As Boolean = True)
+          Dim StringLengthLimit As Long
+          Dim JuliaVectorToXLColumn As Boolean
+
+1         On Error GoTo ErrHandler
+2         If FileName = "" Then
+3             FileName = JuliaResultFile()
+4         End If
+
+5         If ForWorksheet Then
+6             StringLengthLimit = GetStringLengthLimit()
+7             JuliaVectorToXLColumn = True
+8         End If
+
+9         Assign JuliaUnserialiseFile, UnserialiseFromFile(FileName, Not ForWorksheet, StringLengthLimit, JuliaVectorToXLColumn)
+
+10        Exit Function
+ErrHandler:
+11        JuliaUnserialiseFile = "#JuliaUnserialiseFile (line " & CStr(Erl) + "): " & Err.Description & "!"
+End Function
+
 '--------------------------------------------------
 '05-Nov-2021 16:18:37        DESKTOP-0VD2AF0
 'Expression = fill("xxx", 1000, 1000)
@@ -520,6 +585,10 @@ End Sub
 '30-Nov-2021 10:13:30        PHILIP-LAPTOP
 'Expression = fill("xxx", 1000, 1000)
 'Average time in JuliaEval    2.82354638000252  <--- Mmm, why the slowdown since 6-Nov version? Use of Assign?
+'--------------------------------------------------
+'01-Dec-2021 10:30:10       DESKTOP-0VD2AF0
+'Expression = fill("xxx",1000,1000)
+'Average time in JuliaEval   2.25666286000051   <-- also seeing slowdown on PC in the office
 '--------------------------------------------------
 Private Sub SpeedTest()
 

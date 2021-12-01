@@ -21,6 +21,13 @@ Option Base 1
 '- Note that arrays are written in column-major order.
 '- Nested arrays (arrays containing arrays) are supported by the format, and by VBA but
 '  cannot be returned to a worksheet.
+'- Dictionaries are written with a type indicator ^, then three sections separated by semi-colons:
+'  First section gives the number of items in the dictionary
+'  Second section gives the lengths of the encodings of the dictionary keys and items. The section
+'  is comma-delimited with a terminating comma. The first element is the length of the encoding of
+'  the first key, then the second item is the length of the encoding of the first item.
+'  Third section gives the encodings of the dictionary keys and items, interleaved
+'  first key, first item, second key second item etc.
 
 'Type indicator characters are as follows:
 ' # Double
@@ -53,6 +60,12 @@ Option Base 1
 'F
 '?Serialise(Array(1,2,3.0,True,False,"Hello","World"))
 '*1,7;2,2,2,1,1,6,6,;%1%2#3TF£Hello£World
+
+'Set foo = New Scripting.Dictionary
+'foo.add "a",10
+'foo.add "abc",1000
+'?serialise(foo)
+'^2;2,3,4,5,;£a%10£abc%1000
 
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : UnserialiseFromFile
@@ -164,15 +177,15 @@ Function Unserialise(Chars As String, AllowNesting As Boolean, ByRef Depth As Lo
               
 40                Select Case Mid$(Chars, 2, 1)
                       Case 1 '1 dimensional array
-                          Dim N As Long 'Num elements in array
-41                        N = Mid$(Chars, 4, p1 - 4)
-42                        If N = 0 Then
+                          Dim n As Long 'Num elements in array
+41                        n = Mid$(Chars, 4, p1 - 4)
+42                        If n = 0 Then
 43                            If Not AllowNesting Then Throw "Excel cannot display arrays with zero elements"
 44                            Unserialise = VBA.Split(vbNullString) 'See discussion at https://stackoverflow.com/questions/55123413/declare-a-0-length-string-array-in-vba-impossible
 45                        Else
 46                            If JuliaVectorToXLColumn Then
-47                                ReDim Ret(1 To N, 1 To 1)
-48                                For i = 1 To N
+47                                ReDim Ret(1 To n, 1 To 1)
+48                                For i = 1 To n
 49                                    m2 = InStr(m, Chars, ",") + 1
 50                                    thislength = Mid$(Chars, m, m2 - m - 1)
 51                                    Assign Ret(i, 1), Unserialise(Mid$(Chars, k, thislength), AllowNesting, Depth, StringLengthLimit, JuliaVectorToXLColumn)
@@ -180,8 +193,8 @@ Function Unserialise(Chars As String, AllowNesting As Boolean, ByRef Depth As Lo
 53                                    m = m2
 54                                Next i
 55                            Else
-56                                ReDim Ret(1 To N)
-57                                For i = 1 To N
+56                                ReDim Ret(1 To n)
+57                                For i = 1 To n
 58                                    m2 = InStr(m, Chars, ",") + 1
 59                                    thislength = Mid$(Chars, m, m2 - m - 1)
 60                                    Assign Ret(i), Unserialise(Mid$(Chars, k, thislength), AllowNesting, Depth, StringLengthLimit, JuliaVectorToXLColumn)
@@ -226,8 +239,8 @@ Function Unserialise(Chars As String, AllowNesting As Boolean, ByRef Depth As Lo
                   Dim ThisKey As Variant
                   Dim ThisValue As Variant
                   Dim valuelength As Long
-92                N = Mid$(Chars, 2, p1 - 2) 'Num elements in dictionary
-93                For i = 1 To N
+92                n = Mid$(Chars, 2, p1 - 2) 'Num elements in dictionary
+93                For i = 1 To n
 94                    m2 = InStr(m, Chars, ",") + 1
 95                    m3 = InStr(m2, Chars, ",") + 1
 96                    keylength = Mid$(Chars, m, m2 - m - 1)

@@ -35,7 +35,7 @@ function installme()
     nothing
 end
 
-localtemp() = joinpath(ENV["TEMP"], "JuliaExcel")
+localtemp() = joinpath(ENV["TEMP"], "@JuliaExcel")
 flagfile() = joinpath(localtemp(), "Flag_$(getxlpid()).txt")
 resultfile() = joinpath(localtemp(), "Result_$(getxlpid()).txt")
 expressionfile() = joinpath(localtemp(), "Expression_$(getxlpid()).txt")

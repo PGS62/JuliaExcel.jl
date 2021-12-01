@@ -1,4 +1,5 @@
 Version	Date	Time	Author	Comment
+22	01-Dec-2021	18:49	Philip Swannell	Cope with funcitons with zero arguments. The code in this workbook is shamefully hacky.
 21	17-Nov-2021	12:28	Philip Swannell	Function name changes: FromVBA --> VBA
 20	15-Nov-2021	17:38	Philip Swannell	Have ditched JuliaCall2 and argument PrecedentCell to the other functions.
 19	15-Nov-2021	10:23	Philip Swannell	Renamed to JuliaExcel-Documenter.

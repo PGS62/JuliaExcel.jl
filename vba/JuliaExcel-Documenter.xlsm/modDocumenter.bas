@@ -1,6 +1,21 @@
 Attribute VB_Name = "modDocumenter"
 Option Explicit
 
+Sub testGFIS()
+Dim Description As String, ArgNames(), ArgDescs(), AllFunctions(), rngFunctionsAndDescriptions As Range
+
+    On Error GoTo ErrHandler
+    GrabFromIntelliSenseSheet "JuliaResultFile", Description, ArgNames, ArgDescs, AllFunctions, rngFunctionsAndDescriptions
+
+
+
+    Exit Sub
+ErrHandler:
+    MsgBox "#testGFIS (line " & CStr(Erl) + "): " & Err.Description & "!"
+End Sub
+
+
+
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : GrabFromIntelliSenseSheet
 ' Purpose    : The methods in this module all get their data from the _IntelliSense_ worksheet of JuliaExcel.xlam
@@ -14,7 +29,7 @@ Option Explicit
 '  rngFunctionsAndDescriptions:
 ' -----------------------------------------------------------------------------------------------------------------------
 Private Sub GrabFromIntelliSenseSheet(FunctionName As String, ByRef Description As String, _
-          ByRef ArgNames() As Variant, ByRef ArgDescs() As Variant, ByRef AllFunctions() As Variant, _
+          ByRef ArgNames As Variant, ByRef ArgDescs As Variant, ByRef AllFunctions() As Variant, _
           Optional ByRef rngFunctionsAndDescriptions As Range)
 
           Dim c As Range
@@ -48,34 +63,40 @@ Private Sub GrabFromIntelliSenseSheet(FunctionName As String, ByRef Description 
 13            AllFunctions(i) = SourceRange.Cells(i, 1).Value
 14        Next i
             
-          Set rngFunctionsAndDescriptions = SourceRange.Resize(, 2)
+15        Set rngFunctionsAndDescriptions = SourceRange.Resize(, 2)
 
-15        If FunctionName = "" Then
-16            Exit Sub
-17        End If
+16        If FunctionName = "" Then
+17            Exit Sub
+18        End If
 
-18        For Each c In SourceRange.Cells
-19            If c.Value = FunctionName Then
-20                Set SourceCell = c
-21                Exit For
-22            End If
-23        Next c
-24        If SourceCell Is Nothing Then Throw "Cannot find function '" + FunctionName + "' listed on sheet '" + SourceSheetName + "' of workbook '" & SourceBookName + "'"
+19        For Each c In SourceRange.Cells
+20            If c.Value = FunctionName Then
+21                Set SourceCell = c
+22                Exit For
+23            End If
+24        Next c
+25        If SourceCell Is Nothing Then Throw "Cannot find function '" + FunctionName + "' listed on sheet '" + SourceSheetName + "' of workbook '" & SourceBookName + "'"
 
-25        Description = c.Offset(0, 1).Value
+26        Description = c.Offset(0, 1).Value
+27        If IsEmpty(c.Offset(0, 3)) Then
+28            Set rngArgsAndDescs = c.Offset(0, 3).Resize(, 2)
 
-26        Set rngArgsAndDescs = Range(c.Offset(0, 3), c.Offset(0, 3).End(xlToRight))
-27        N = rngArgsAndDescs.Cells.Count
-28        ReDim ArgNames(1 To N / 2)
-29        ReDim ArgDescs(1 To N / 2)
-30        For i = 1 To N / 2
-31            ArgNames(i) = rngArgsAndDescs.Cells(1, 2 * i - 1).Value
-32            ArgDescs(i) = rngArgsAndDescs.Cells(1, 2 * i).Value
-33        Next i
+29        Else
 
-34        Exit Sub
+
+30            Set rngArgsAndDescs = Range(c.Offset(0, 3), c.Offset(0, 3).End(xlToRight))
+31    End If
+32            N = rngArgsAndDescs.Cells.Count
+33            ReDim ArgNames(1 To N / 2)
+34            ReDim ArgDescs(1 To N / 2)
+35            For i = 1 To N / 2
+36                ArgNames(i) = rngArgsAndDescs.Cells(1, 2 * i - 1).Value
+37                ArgDescs(i) = rngArgsAndDescs.Cells(1, 2 * i).Value
+38            Next i
+
+40        Exit Sub
 ErrHandler:
-35        Throw "#GrabFromIntelliSenseSheet (line " & CStr(Erl) + "): " & Err.Description & "!"
+41        Throw "#GrabFromIntelliSenseSheet (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Sub
 
 Function MarkdownForSummaryOfFunctions()
@@ -196,34 +217,45 @@ Function HelpForVBE(FunctionName As String, FunctionDescription As String, ArgNa
 9         End If
 
 10        Hlp = Hlp & "' Purpose   :" & InsertBreaks(FunctionDescription, Len("Len(ArgNames(i))")) & vbLf
-11        Hlp = Hlp & "' Arguments" & vbLf
+11        NumArgs = UBound(ArgNames) - LBound(ArgNames) + 1
+12        If NumArgs = 1 Then
+13            If ArgNames(1) = "" Then
+14                NumArgs = 0
+15            End If
+16        End If
 
-12        NumArgs = UBound(ArgNames) - LBound(ArgNames) + 1
-13        For i = 1 To NumArgs
-14            Hlp = Hlp & "' " & ArgNames(i)
-15            If Len(ArgNames(i)) < 10 Then
-16                Spacers = String(10 - Len(ArgNames(i)), " ")
-17            Else
-18                Spacers = ""
-19            End If
+
+17        If NumArgs > 0 Then
+
+18            Hlp = Hlp & "' Arguments" & vbLf
+
+
+19            For i = 1 To NumArgs
+20                Hlp = Hlp & "' " & ArgNames(i)
+21                If Len(ArgNames(i)) < 10 Then
+22                    Spacers = String(10 - Len(ArgNames(i)), " ")
+23                Else
+24                    Spacers = ""
+25                End If
               
-20            Hlp = Hlp & Spacers
-21            Hlp = Hlp & ":" & InsertBreaks(ArgDescriptions(i), Len(ArgNames(i)) + Len(Spacers) + 2) + vbLf
-22        Next
-23        If Len(ExtraHelp) > 0 Then
-24            Do While (Left$(ExtraHelp, 1) = vbLf Or Left$(ExtraHelp, 1) = vbCr)
-25                ExtraHelp = Right$(ExtraHelp, Len(ExtraHelp) - 1)
-26            Loop
-27            Hlp = Hlp & ("'" & vbLf)
-28            Hlp = Hlp & "' Notes     :"
-29            Hlp = Hlp & InsertBreaks(ExtraHelp)
-30            Hlp = Hlp & vbLf
-31        End If
-32        Hlp = Hlp & "' " & String(119, "-")
-33        HelpForVBE = Application.WorksheetFunction.Transpose(VBA.Split(Hlp, vbLf))
-34        Exit Function
+26                Hlp = Hlp & Spacers
+27                Hlp = Hlp & ":" & InsertBreaks(ArgDescriptions(i), Len(ArgNames(i)) + Len(Spacers) + 2) + vbLf
+28            Next
+29        End If
+30        If Len(ExtraHelp) > 0 Then
+31            Do While (Left$(ExtraHelp, 1) = vbLf Or Left$(ExtraHelp, 1) = vbCr)
+32                ExtraHelp = Right$(ExtraHelp, Len(ExtraHelp) - 1)
+33            Loop
+34            Hlp = Hlp & ("'" & vbLf)
+35            Hlp = Hlp & "' Notes     :"
+36            Hlp = Hlp & InsertBreaks(ExtraHelp)
+37            Hlp = Hlp & vbLf
+38        End If
+39        Hlp = Hlp & "' " & String(119, "-")
+40        HelpForVBE = Application.WorksheetFunction.Transpose(VBA.Split(Hlp, vbLf))
+41        Exit Function
 ErrHandler:
-35        HelpForVBE = "#HelpForVBE (line " & CStr(Erl) + "): " & Err.Description & "!"
+42        HelpForVBE = "#HelpForVBE (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Function
 
 Function MarkdownHelpAll(SourceFile As String, Optional Replacements)
@@ -275,7 +307,7 @@ End Function
 ' Purpose    : Formats the help as a markdown table.
 ' -----------------------------------------------------------------------------------------------------------------------
 Function MarkdownHelp(SourceFile As String, FunctionName As String, ByVal FunctionDescription As String, _
-          ArgNames, ArgDescriptions, Replacements, AllFunctions() As Variant)
+          ByVal ArgNames, ByVal ArgDescriptions, Replacements, AllFunctions() As Variant)
 
           Dim Declaration As String
           Dim Hlp As String
@@ -286,6 +318,7 @@ Function MarkdownHelp(SourceFile As String, FunctionName As String, ByVal Functi
           Dim SourceCode As String
           Dim StringsToEncloseInBackTicks
           Dim ThisArgDescription As String
+          Dim NumArgs As Long
 
 1         On Error GoTo ErrHandler
 
@@ -306,62 +339,80 @@ Function MarkdownHelp(SourceFile As String, FunctionName As String, ByVal Functi
 
           Dim MatchPoint As Long
           Dim NextChars As String
+          
 
           'Bodge ParamArray() confuses my cheap and chearful language parsing
-13        If Mid(Declaration, Len(Declaration) - 1) = "()" Then
-14            Declaration = StringBetweenStrings(SourceCode, Declaration, ")", True, True)
-15        End If
+13        If Right(Declaration, Len(FunctionName) + 2) <> FunctionName + "()" Then
+14            If Mid(Declaration, Len(Declaration) - 1) = "()" Then
+15                Declaration = StringBetweenStrings(SourceCode, Declaration, ")", True, True)
+16            End If
+17        End If
 
           'Bodge - get the "As VarType"
-16        MatchPoint = InStr(SourceCode, Declaration)
-17        NextChars = Mid$(SourceCode, MatchPoint + Len(Declaration), 100)
-18        If Left$(NextChars, 4) = " As " Then
-19            NextChars = StringBetweenStrings(NextChars, " As ", vbLf, True, False)
-20            NextChars = " " & Trim(NextChars)
-21            Declaration = Declaration & NextChars
-22        End If
+18        MatchPoint = InStr(SourceCode, Declaration)
+19        NextChars = Mid$(SourceCode, MatchPoint + Len(Declaration), 100)
+20        If Left$(NextChars, 4) = " As " Then
+21            NextChars = StringBetweenStrings(NextChars, " As ", vbLf, True, False)
+22            NextChars = " " & Trim(NextChars)
+23            Declaration = Declaration & NextChars
+24        End If
 
-23        Hlp = "#### _" & FunctionName & "_" & vbLf
+25        Hlp = "#### _" & FunctionName & "_" & vbLf
 
-24        StringsToEncloseInBackTicks = VBA.Split(VBA.Join(ArgNames, ",") & "," & VBA.Join(AllFunctions, ","), ",")
+26        NumArgs = UBound(ArgNames)
+27        If NumArgs = 1 Then
+28            If ArgNames(1) = "" Then
+29                NumArgs = 0
+30            End If
+31        End If
 
-25        For j = LBound(StringsToEncloseInBackTicks) To UBound(StringsToEncloseInBackTicks)
-26            FunctionDescription = sRegExReplace(FunctionDescription, "\b" & StringsToEncloseInBackTicks(j) & "\b", "`" & StringsToEncloseInBackTicks(j) & "`", True)
-27        Next j
+32        If NumArgs > 0 Then
+33            StringsToEncloseInBackTicks = VBA.Split(VBA.Join(ArgNames, ",") & "," & VBA.Join(AllFunctions, ","), ",")
+34        Else
+35            StringsToEncloseInBackTicks = AllFunctions
+36        End If
 
-28        Hlp = Hlp & FunctionDescription & vbLf
+
+37        For j = LBound(StringsToEncloseInBackTicks) To UBound(StringsToEncloseInBackTicks)
+38            FunctionDescription = sRegExReplace(FunctionDescription, "\b" & StringsToEncloseInBackTicks(j) & "\b", "`" & StringsToEncloseInBackTicks(j) & "`", True)
+39        Next j
+
+40        Hlp = Hlp & FunctionDescription & vbLf
+
+42            Hlp = Hlp & "```vba" & vbLf & _
+                  Declaration & vbLf & _
+                  "```" & vbLf & vbLf
+                  
+41        If NumArgs > 0 Then
+                  
+                  Hlp = Hlp & "|Argument|Description|" & vbLf & _
+                  "|:-------|:----------|"
           
-29        Hlp = Hlp & "```vba" & vbLf & _
-              Declaration & vbLf & _
-              "```" & vbLf & vbLf & _
-              "|Argument|Description|" & vbLf & _
-              "|:-------|:----------|"
-          
-30        For i = LBound(ArgNames) To UBound(ArgNames)
-31            ThisArgDescription = ArgDescriptions(i)
-32            For j = LBound(StringsToEncloseInBackTicks) To UBound(StringsToEncloseInBackTicks)
-33                ThisArgDescription = sRegExReplace(ThisArgDescription, "\b" & StringsToEncloseInBackTicks(j) & "\b", "`" & StringsToEncloseInBackTicks(j) & "`", True)
-34            Next j
-35            ThisArgDescription = Replace(ThisArgDescription, vbCrLf, vbLf)
-36            ThisArgDescription = Replace(ThisArgDescription, vbCr, vbLf)
-37            ThisArgDescription = Replace(ThisArgDescription, vbLf, "<br/>")
-38            Hlp = Hlp & vbLf & "|`" & ArgNames(i) & "`|" & ThisArgDescription & "|"
-39        Next i
+43            For i = LBound(ArgNames) To UBound(ArgNames)
+44                ThisArgDescription = ArgDescriptions(i)
+45                For j = LBound(StringsToEncloseInBackTicks) To UBound(StringsToEncloseInBackTicks)
+46                    ThisArgDescription = sRegExReplace(ThisArgDescription, "\b" & StringsToEncloseInBackTicks(j) & "\b", "`" & StringsToEncloseInBackTicks(j) & "`", True)
+47                Next j
+48                ThisArgDescription = Replace(ThisArgDescription, vbCrLf, vbLf)
+49                ThisArgDescription = Replace(ThisArgDescription, vbCr, vbLf)
+50                ThisArgDescription = Replace(ThisArgDescription, vbLf, "<br/>")
+51                Hlp = Hlp & vbLf & "|`" & ArgNames(i) & "`|" & ThisArgDescription & "|"
+52            Next i
+53        End If
+54        If Not IsMissing(Replacements) Then
+55            If TypeName(Replacements) = "Range" Then
+56                Replacements = Replacements.Value
+57            End If
+58            For i = 1 To sNRows(Replacements)
+59                Hlp = Replace(Hlp, Replacements(i, 1), Replacements(i, 2))
+60            Next i
+61        End If
 
-40        If Not IsMissing(Replacements) Then
-41            If TypeName(Replacements) = "Range" Then
-42                Replacements = Replacements.Value
-43            End If
-44            For i = 1 To sNRows(Replacements)
-45                Hlp = Replace(Hlp, Replacements(i, 1), Replacements(i, 2))
-46            Next i
-47        End If
+62        MarkdownHelp = Application.Transpose(VBA.Split(Hlp, vbLf))
 
-48        MarkdownHelp = Application.Transpose(VBA.Split(Hlp, vbLf))
-
-49        Exit Function
+63        Exit Function
 ErrHandler:
-50        MarkdownHelp = "#MarkdownHelp (line " & CStr(Erl) + "): " & Err.Description & "!"
+64        MarkdownHelp = "#MarkdownHelp (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Function
 
 Private Function InsertBreaks(ByVal TheString As String, Optional FirstRowShorterBy As Long)

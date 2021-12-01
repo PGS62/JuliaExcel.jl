@@ -115,18 +115,37 @@ Function LocalTemp()
 4             Exit Function
 5         End If
 
-6         If Not FolderExists(Environ("TEMP") & "\" & gPackageName) Then
+          Const SubFolderName = "@" & gPackageName
+
+6         If Not FolderExists(Environ("TEMP") & "\" & SubFolderName) Then
               Dim F As Scripting.Folder
               Dim FSO As New FileSystemObject
 7             Set F = FSO.GetFolder(Environ("TEMP"))
-8             F.SubFolders.Add gPackageName
+8             F.SubFolders.Add SubFolderName
 9         End If
-10        Res = Environ("TEMP") & "\" & gPackageName
+10        Res = Environ("TEMP") & "\" & SubFolderName
 
-11        LocalTemp = Res
-12        Exit Function
+          'Arrgh. Windows 11 now uses long-form user names when creating folders under c:\Users but the _
+          TEMP environment variable still has the 8.3 contraction of the user name. So fix, with caution.
+          
+          Dim Tokenised, Res2 As String
+11        Tokenised = VBA.Split(Res, "\")
+12        If UBound(Tokenised) > 2 Then
+13            If InStr(Tokenised(2), "~") > 0 Then
+14                If LCase(Tokenised(2)) <> LCase(Environ("username")) Then
+15                    Tokenised(2) = Environ("username")
+16                    Res2 = VBA.Join(Tokenised, "\")
+17                    If FolderExists(Res2) Then
+18                        Res = Res2
+19                    End If
+20                End If
+21            End If
+22        End If
+
+23        LocalTemp = Res
+24        Exit Function
 ErrHandler:
-13        Throw "#LocalTemp (line " & CStr(Erl) + "): " & Err.Description & "!"
+25        Throw "#LocalTemp (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
@@ -140,17 +159,15 @@ Sub CleanLocalTemp()
           Dim Fld As Scripting.Folder
           Dim FSO As New Scripting.FileSystemObject
 1         On Error GoTo ErrHandler
-2         Set Fld = FSO.GetFolder(LocalTemp)
+2         Set Fld = FSO.GetFolder(LocalTemp())
 3         For Each F In Fld.Files
-4             If Left(F.Name, 10) = gPackageName Then
-5                 If (Now() - F.DateLastAccessed) > DeleteFilesOlderThan Then
-6                     F.Delete
-7                 End If
-8             End If
-9         Next
-10        Exit Sub
+4             If (Now() - F.DateLastAccessed) > DeleteFilesOlderThan Then
+5                 F.Delete
+6             End If
+7         Next
+8         Exit Sub
 ErrHandler:
-11        Throw "#CleanLocalTemp (line " & CStr(Erl) + "): " & Err.Description & "!"
+9         Throw "#CleanLocalTemp (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Sub
 
 ' -----------------------------------------------------------------------------------------------------------------------

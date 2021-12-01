@@ -1,4 +1,8 @@
 Version	Date	Time	Author	Comment
+69	01-Dec-2021	18:53	Philip Swannell	Improved docstrings.
+68	01-Dec-2021	15:42	Philip Swannell	Changed return from LocalTemp so that files are now saved at C:\Users\<UserName>\AppData\Local\Temp\@JuliaExcel\
+67	01-Dec-2021	15:23	Philip Swannell	Fix to JuliaUnserialiseFile.
+66	01-Dec-2021	14:27	Philip Swannell	Added functions JuliaExpressionFile, JuliaFlagFile, JuliaResultFile, JuliaUnserialiseFile.
 65	30-Nov-2021	10:04	Philip Swannell	Method Serialise (not currently used, but would be useful for tests) now handles input x of type Dictionary.
 64	29-Nov-2021	14:08	Philip Swannell	JuliaEvalVBA and JuliaCallVBA can now return arrays of dictionaries, dictionaries of arrays etc. etc.
 63	27-Nov-2021	19:44	Philip Swannell	JuliaEvalVBA and JuliaCallVBA can now return AbstractDictionary as Scripting.Dictionary.
