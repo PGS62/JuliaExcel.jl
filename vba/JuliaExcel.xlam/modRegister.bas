@@ -4,7 +4,16 @@ Attribute VB_Name = "modRegister"
 ' Document: https://github.com/PGS62/JuliaExcel.jl#readme
 
 Option Explicit
-Option Private Module
+
+Public Sub RegisterFunctions()
+1         On Error GoTo ErrHandler
+2         RegisterJuliaExcelFunctionsWithFunctionWizard
+3         AddIns("Excel-DNA IntelliSense Host").Installed = False
+4         AddIns("Excel-DNA IntelliSense Host").Installed = True
+5         Exit Sub
+ErrHandler:
+6         MsgBox "#RegisterFunctions (line " & CStr(Erl) + "): " & Err.Description & "!"
+End Sub
 
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : RegisterJuliaExcelFunctionsWithFunctionWizard
@@ -12,7 +21,7 @@ Option Private Module
 '              that is also parsed by Excel.DNA Intellisense add-in.
 '              This method does not need to be run at "Load Time", but at "add-in creation time"
 ' -----------------------------------------------------------------------------------------------------------------------
-Sub RegisterJuliaExcelFunctionsWithFunctionWizard()
+Private Sub RegisterJuliaExcelFunctionsWithFunctionWizard()
 
           Dim ArgDescs() As String
           Dim c As Range
@@ -70,5 +79,4 @@ Sub RegisterJuliaExcelFunctionsWithFunctionWizard()
 ErrHandler:
 35        Debug.Print "#RegisterJuliaExcelFunctionsWithFunctionWizard (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Sub
-
 

@@ -1,4 +1,8 @@
 Version	Date	Time	Author	Comment
+73	02-Dec-2021	17:26	Philip Swannell	Re-ordered methods in modMain.
+72	02-Dec-2021	17:16	Philip Swannell	Documentation only.
+71	02-Dec-2021	17:02	Philip Swannell	Changes to code to register functions with intellisense.
+70	02-Dec-2021	16:52	Philip Swannell	Made functions JuliaFlagFile and JuliaExpressionFile be Private.
 69	01-Dec-2021	18:53	Philip Swannell	Improved docstrings.
 68	01-Dec-2021	15:42	Philip Swannell	Changed return from LocalTemp so that files are now saved at C:\Users\<UserName>\AppData\Local\Temp\@JuliaExcel\
 67	01-Dec-2021	15:23	Philip Swannell	Fix to JuliaUnserialiseFile.

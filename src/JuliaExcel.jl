@@ -1,5 +1,5 @@
 module JuliaExcel
-export srv_xl, setxlpid
+export srv_xl, setxlpid, killflagfile
 
 using Dates, DataFrames
 import StringEncodings
@@ -39,7 +39,17 @@ localtemp() = joinpath(ENV["TEMP"], "@JuliaExcel")
 flagfile() = joinpath(localtemp(), "Flag_$(getxlpid()).txt")
 resultfile() = joinpath(localtemp(), "Result_$(getxlpid()).txt")
 expressionfile() = joinpath(localtemp(), "Expression_$(getxlpid()).txt")
-
+#=If things go wrong then Excel is locked up until either Julia exits or the flag file is 
+deleted, so make a function availble to do the latter (mainly for use when debuggingh). 
+=#
+function killflagfile() 
+    if isfile(flagfile())
+        rm(flagfile())
+        "File $(flagfile()) deleted"
+    else
+        "File $(flagfile()) not found"
+    end
+end
 """
     read_utf16(filename::String)
 Returns the contents of a UTF-16 encoded text file that has a byte option mark.
@@ -76,7 +86,7 @@ function srv_xl()
     write(io, StringEncodings.encode(encodedresult, "UTF-16"))
     close(io)
     
-    isfile(flagfile()) && rm(flagfile())
+    killflagfile()
     println(truncate(expression))
     display(result)
     canencode || (println("");@error "Result of type $(typeof(result)) could not be " *

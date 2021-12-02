@@ -35,6 +35,7 @@ The process is illustrated in the GIF below. F5 to replay.
 ## Functions
 JuliaExcel makes the following functions available from Excel worksheets and from VBA:
 
+
 |Name|Description|
 |----|-----------|
 |[JuliaLaunch](#julialaunch)|Launches a local Julia session which "listens" to the current Excel session and responds to calls to JuliaEval etc..|
@@ -42,8 +43,11 @@ JuliaExcel makes the following functions available from Excel worksheets and fro
 |[JuliaEval](#juliaeval)|Evaluate a Julia expression and return the result to an Excel worksheet.|
 |[JuliaCall](#juliacall)|Call a named Julia function, passing in data from the worksheet.|
 |[JuliaSetVar](#juliasetvar)|Set a global variable in the Julia process.|
-|[JuliaEvalVBA](#juliaevalfromvba)|Evaluate a Julia expression and return the result to VBA. Tuned for use from VBA rather than a worksheet.|
-|[JuliaCallVBA](#juliacallfromvba)|Call a named Julia function from VBA code. Tuned for use from VBA rather than a worksheet.|
+|[JuliaEvalVBA](#juliaevalvba)|Evaluate a Julia expression from VBA . Differs from JuliaCall in handling of 1-dimensional arrays, and strings longer than 32,767 characters. May return data of types that cannot be displayed on a worksheet, such as a dictionary or an array of arrays.|
+|[JuliaCallVBA](#juliacallvba)|Call a named Julia function from VBA. Differs from JuliaCall in handling of 1-dimensional arrays, and strings longer than 32,767 characters. May return data of types that cannot be displayed on a worksheet, such as a dictionary or an array of arrays.|
+|[JuliaResultFile](#juliaresultfile)|Returns the name of the file to which the results of calls to JuliaCall, JuliaEval etc. are written. The file may be unserialised with `JuliaUnserialiseFile`.|
+|[JuliaUnserialiseFile](#juliaunserialisefile)|Unserialises the contents of the JuliaResultsFile.|
+
 
 ## Demo
 Here's a quick demonstration of the functions in action.
@@ -78,19 +82,20 @@ End Sub
 #### _JuliaLaunch_
 Launches a local Julia session which "listens" to the current Excel session and responds to calls to `JuliaEval` etc..
 ```vba
-Function JuliaLaunch(Optional MinimiseWindow As Boolean, Optional ByVal JuliaExe As String)
+Function JuliaLaunch(Optional MinimiseWindow As Boolean, Optional ByVal JuliaExe As String, _
+          Optional ByVal CommandLineOptions As String)
 ```
 
 |Argument|Description|
 |:-------|:----------|
 |`MinimiseWindow`|If TRUE, then the Julia session window is minimised, if FALSE (the default) then the window is sized normally.|
 |`JuliaExe`|The location of julia.exe. If omitted, then the function searches for julia.exe, first on the path and then at the default locations for Julia installation on Windows, taking the most recently installed version if more than one is available.|
-
+|`CommandLineOptions`|Command line switches to be set when launching Julia.<br/>Example : `--threads=auto --banner=no`.<br/>https://docs.julialang.org/en/v1/manual/command-line-options/|
 
 #### _JuliaInclude_
 Load a Julia source file into the Julia process, to make additional functions available via `JuliaEval` and `JuliaCall`.
 ```vba
-Function JuliaInclude(FileName As String)
+Public Function JuliaInclude(FileName As String)
 ```
 
 |Argument|Description|
@@ -112,14 +117,13 @@ Function JuliaEval(ByVal JuliaExpression As Variant)
 #### _JuliaCall_
 Call a named Julia function, passing in data from the worksheet.
 ```vba
-Function JuliaCall(JuliaFunction As String, ParamArray Args())
+Public Function JuliaCall(JuliaFunction As String, ParamArray Args())
 ```
 
 |Argument|Description|
 |:-------|:----------|
 |`JuliaFunction`|The name of a Julia function that's defined in the Julia session, perhaps as a result of prior calls to `JuliaInclude`.|
 |`Args...`|Zero or more arguments. Each argument may be a number, string, Boolean value, empty cell, an array of such values or an Excel range.|
-
 
 #### _JuliaSetVar_
 Set a global variable in the Julia process.
@@ -133,7 +137,7 @@ Function JuliaSetVar(VariableName As String, RefersTo As Variant)
 |`RefersTo`|An Excel range (from which the .Value2 property is read) or more generally a number, string, Boolean, Empty or array of such types. When called from VBA, nested arrays are supported.|
 
 #### _JuliaEvalVBA_
-Evaluate a Julia expression and return the result to VBA. Designed for use from VBA rather than a worksheet and differs from `JuliaEval` in handling of 1-dimensional arrays, nested arrays and strings longer than 32,767 characters.
+Evaluate a Julia expression from VBA . Differs from `JuliaCall` in handling of 1-dimensional arrays, and strings longer than 32,767 characters. May return data of types that cannot be displayed on a worksheet, such as a dictionary or an array of arrays.
 ```vba
 Function JuliaEvalVBA(ByVal JuliaExpression As Variant)
 ```
@@ -142,16 +146,36 @@ Function JuliaEvalVBA(ByVal JuliaExpression As Variant)
 |:-------|:----------|
 |`JuliaExpression`|Any valid Julia code, as a string. Can also be a one-column range to evaluate multiple Julia statements.|
 
+
 #### _JuliaCallVBA_
-Call a named Julia function from VBA code. Designed for use from VBA rather than a worksheet and differs from `JuliaCall` in handling of 1-dimensional arrays, nested arrays and strings longer than 32,767 characters.
+Call a named Julia function from VBA. Differs from `JuliaCall` in handling of 1-dimensional arrays, and strings longer than 32,767 characters. May return data of types that cannot be displayed on a worksheet, such as a dictionary or an array of arrays.
 ```vba
-Function JuliaCallVBA(JuliaFunction As String, ParamArray Args())
+Public Function JuliaCallVBA(JuliaFunction As String, ParamArray Args())
 ```
 
 |Argument|Description|
 |:-------|:----------|
 |`JuliaFunction`|The name of a Julia function that's defined in the Julia session, perhaps as a result of prior calls to `JuliaInclude`.|
 |`Args...`|Zero or more arguments. Each argument may be a number, string, Boolean value, empty cell, an array of such values or an Excel range.|
+
+#### _JuliaResultFile_
+Returns the name of the file to which the results of calls to `JuliaCall`, `JuliaEval` etc. are written. The file may be unserialised with function `JuliaUnserialiseFile`.
+```vba
+Public Function JuliaResultFile() As String
+```
+
+#### _JuliaUnserialiseFile_
+Unserialises the contents of the JuliaResultsFile.
+```vba
+Public Function JuliaUnserialiseFile(Optional ByVal FileName As String, Optional ForWorksheet As Boolean = True)
+```
+
+|Argument|Description|
+|:-------|:----------|
+|`FileName`|The name (including path) of the file to be unserialised. Optional and defaults to the file name returned by JuliaResultsFile.|
+|`ForWorksheet`|Pass TRUE (the default) when calling from a worksheet, FALSE when calling from VBA. If FALSE, the function may return data structures that can exist in VBA but cannot be represented on a worksheet, such as a dictionary or an array of arrays.|
+
+
 
 ## Marshalling
 Two question arose during implementation:
@@ -209,7 +233,7 @@ JuliaExcel has been tested on Excel under Microsoft 365, both 32-bit and 64-bit.
 
 ## How JuliaExcel works
 The implementation of JuliaExcel is very "low-tech". When `JuliaEval` is called from a worksheet, the following happens:
-1) VBA code (in JuliaExcel.xlam) writes the expression to a file in the JuliaExcel sub-folder of the temporary folder.
+1) VBA code (in JuliaExcel.xlam) writes the expression to a file in the `@JuliaExcel` sub-folder of the temporary folder.
 2) VBA code then uses the Windows API `PostMessage` to send keystrokes `srv_xl()` to the Julia window.
 3) That causes the Julia function `srv_xl` (defined in JuliaExcel.jl) to execute. The function reads the expression from file, evaluates it and writes to a result file.
 4) The VBA code (in a wait loop since step 1) detects that the result file has been (completely) written, and unserialises its contents.
