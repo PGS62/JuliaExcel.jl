@@ -17,6 +17,26 @@ Option Explicit
 Public Const gPackageName As String = "JuliaExcel"
 
 ' -----------------------------------------------------------------------------------------------------------------------
+' Procedure  : JuliaIsRunning
+' Purpose    : Returns true if Julia is running in "listening to the current Excel" mode, having (presumably) been
+'              launched by a prior call to JuliaLaunch.
+' -----------------------------------------------------------------------------------------------------------------------
+Function JuliaIsRunning() As Boolean
+
+          Dim HwndJulia As LongPtr
+          Dim WindowPartialTitle As String
+
+1         On Error GoTo ErrHandler
+2         WindowPartialTitle = "serving Excel PID " & CStr(GetCurrentProcessId) 'Must be in synch with Julia function JuliaExcel.settitle
+3         GetHandleFromPartialCaption HwndJulia, WindowPartialTitle
+4         JuliaIsRunning = HwndJulia <> 0
+
+5         Exit Function
+ErrHandler:
+6         JuliaIsRunning = "#JuliaIsRunning (line " & CStr(Erl) + "): " & Err.Description & "!"
+End Function
+
+' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure : JuliaLaunch
 ' Purpose   : Launches a local Julia session which "listens" to the current Excel session and responds
 '             to calls to JuliaEval etc..
@@ -67,7 +87,7 @@ Function JuliaLaunch(Optional MinimiseWindow As Boolean, Optional ByVal JuliaExe
 17        End If
 
 18        PID = GetCurrentProcessId
-19        WindowPartialTitle = "serving Excel PID " & CStr(PID)
+19        WindowPartialTitle = "serving Excel PID " & CStr(PID) 'Must be in synch with Julia function JuliaExcel.settitle
 20        GetHandleFromPartialCaption HwndJulia, WindowPartialTitle
 
 21        If HwndJulia <> 0 Then
