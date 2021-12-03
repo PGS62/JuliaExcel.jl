@@ -79,7 +79,7 @@ End Sub
 
 ## Function Documentation
 
-#### _JuliaLaunch_
+### `JuliaLaunch`
 Launches a local Julia session which "listens" to the current Excel session and responds to calls to `JuliaEval` etc..
 ```vba
 Function JuliaLaunch(Optional MinimiseWindow As Boolean, Optional ByVal JuliaExe As String, _
