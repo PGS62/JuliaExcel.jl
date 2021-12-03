@@ -17,11 +17,11 @@ Option Explicit
 Public Const gPackageName As String = "JuliaExcel"
 
 ' -----------------------------------------------------------------------------------------------------------------------
-' Procedure  : JuliaIsRunning
-' Purpose    : Returns true if Julia is running in "listening to the current Excel" mode, having (presumably) been
-'              launched by a prior call to JuliaLaunch.
+' Procedure : JuliaIsRunning
+' Purpose   : Returns TRUE if an instance of Julia is running and "listening" to the current Excel
+'             session, or FALSE otherwise.
 ' -----------------------------------------------------------------------------------------------------------------------
-Function JuliaIsRunning() As Boolean
+Public Function JuliaIsRunning() As Boolean
 
           Dim HwndJulia As LongPtr
           Dim WindowPartialTitle As String
@@ -51,7 +51,7 @@ End Function
 '
 '             https://docs.julialang.org/en/v1/manual/command-line-options/
 ' -----------------------------------------------------------------------------------------------------------------------
-Function JuliaLaunch(Optional MinimiseWindow As Boolean, Optional ByVal JuliaExe As String, _
+Public Function JuliaLaunch(Optional MinimiseWindow As Boolean, Optional ByVal JuliaExe As String, _
           Optional ByVal CommandLineOptions As String)
 
           Dim Command As String
@@ -235,7 +235,7 @@ End Function
 ' JuliaExpression: Any valid Julia code, as a string. Can also be a one-column range to evaluate multiple
 '             Julia statements.
 ' -----------------------------------------------------------------------------------------------------------------------
-Function JuliaEval(ByVal JuliaExpression As Variant)
+Public Function JuliaEval(ByVal JuliaExpression As Variant)
 1         On Error GoTo ErrHandler
           
 2         If IsFunctionWizardActive() Then
@@ -259,7 +259,7 @@ End Function
 ' JuliaExpression: Any valid Julia code, as a string. Can also be a one-column range to evaluate multiple
 '             Julia statements.
 ' -----------------------------------------------------------------------------------------------------------------------
-Function JuliaEvalVBA(ByVal JuliaExpression As Variant)
+Public Function JuliaEvalVBA(ByVal JuliaExpression As Variant)
 1         On Error GoTo ErrHandler
 2         Assign JuliaEvalVBA, JuliaEval_LowLevel(JuliaExpression, AllowNested:=True, StringLengthLimit:=0, JuliaVectorToXLColumn:=False)
 3         Exit Function
@@ -275,7 +275,7 @@ End Function
 ' RefersTo  : An Excel range (from which the .Value2 property is read) or more generally a number, string,
 '             Boolean, Empty or array of such types. When called from VBA, nested arrays are supported.
 ' -----------------------------------------------------------------------------------------------------------------------
-Function JuliaSetVar(VariableName As String, RefersTo As Variant)
+Public Function JuliaSetVar(VariableName As String, RefersTo As Variant)
 1         On Error GoTo ErrHandler
 2         JuliaSetVar = JuliaCall(gPackageName & ".setvar", VariableName, RefersTo)
 

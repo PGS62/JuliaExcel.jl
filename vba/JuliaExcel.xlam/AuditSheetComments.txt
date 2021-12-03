@@ -1,4 +1,6 @@
 Version	Date	Time	Author	Comment
+76	03-Dec-2021	15:05	Philip Swannell	Made public functions explicitly Public.
+75	03-Dec-2021	14:41	Philip Swannell	Documented method JuliaIsRunning.
 74	03-Dec-2021	11:16	Philip Swannell	Added method JuliaIsRunning.
 73	02-Dec-2021	17:26	Philip Swannell	Re-ordered methods in modMain.
 72	02-Dec-2021	17:16	Philip Swannell	Documentation only.

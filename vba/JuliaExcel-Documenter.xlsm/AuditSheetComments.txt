@@ -1,4 +1,5 @@
 Version	Date	Time	Author	Comment
+24	03-Dec-2021	15:08	Philip Swannell	Tweaks to methods generating documentation.
 23	02-Dec-2021	17:46	Philip Swannell	Refreshed.
 22	01-Dec-2021	18:49	Philip Swannell	Cope with functions with zero arguments. The code in this workbook is shamefully hacky.
 21	17-Nov-2021	12:28	Philip Swannell	Function name changes: FromVBA --> VBA

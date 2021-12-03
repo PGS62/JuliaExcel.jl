@@ -105,19 +105,28 @@ Function MarkdownForSummaryOfFunctions()
           Dim ArgDescs()
           Dim ArgNames()
           Dim i As Long
+          Dim j As Long
           Dim rngFunctionsAndDescriptions As Range
           Dim STK As clsStacker
           Dim ThisHelp As Variant
+          Dim Table As Variant
 
 1         On Error GoTo ErrHandler
-2         On Error GoTo ErrHandler
-3         GrabFromIntelliSenseSheet "", "", ArgNames, ArgDescs, AllFunctions, rngFunctionsAndDescriptions
+2         GrabFromIntelliSenseSheet "", "", ArgNames, ArgDescs, AllFunctions, rngFunctionsAndDescriptions
 
-4         MarkdownForSummaryOfFunctions = AddPipes(rngFunctionsAndDescriptions.Value)
+3         Table = rngFunctionsAndDescriptions.Value
+          
+4         For i = 1 To UBound(Table, 1)
+5             For j = 1 To UBound(AllFunctions)
+6                 Table(i, 2) = sRegExReplace(Table(i, 2), "\b" & AllFunctions(j) & "\b", "`" & AllFunctions(j) & "`")
+7             Next j
+8         Next i
 
-5         Exit Function
+9         MarkdownForSummaryOfFunctions = AddPipes(Table)
+
+10        Exit Function
 ErrHandler:
-6         MarkdownForSummaryOfFunctions = "#MarkdownForSummaryOfFunctions (line " & CStr(Erl) + "): " & Err.Description & "!"
+11        MarkdownForSummaryOfFunctions = "#MarkdownForSummaryOfFunctions (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Function
 
 Private Function AddPipes(Data)
@@ -275,7 +284,6 @@ Function MarkdownHelpAll(SourceFile As String, Optional Replacements)
 5             ThisHelp = MarkdownHelp2(SourceFile, CStr(AllFunctions(i)), Replacements)
 6             STK.StackData ThisHelp
 7             STK.StackData ""
-8             STK.StackData ""
 9         Next i
 
 10        MarkdownHelpAll = STK.Report
@@ -339,7 +347,6 @@ Function MarkdownHelp(SourceFile As String, FunctionName As String, ByVal Functi
 
           Dim MatchPoint As Long
           Dim NextChars As String
-          
 
           'Bodge ParamArray() confuses my cheap and chearful language parsing
 13        If Right(Declaration, Len(FunctionName) + 2) <> FunctionName + "()" Then
@@ -357,7 +364,7 @@ Function MarkdownHelp(SourceFile As String, FunctionName As String, ByVal Functi
 23            Declaration = Declaration & NextChars
 24        End If
 
-25        Hlp = "#### _" & FunctionName & "_" & vbLf
+25        Hlp = "### `" & FunctionName & "`" & vbLf
 
 26        NumArgs = UBound(ArgNames)
 27        If NumArgs = 1 Then
@@ -372,7 +379,6 @@ Function MarkdownHelp(SourceFile As String, FunctionName As String, ByVal Functi
 35            StringsToEncloseInBackTicks = AllFunctions
 36        End If
 
-
 37        For j = LBound(StringsToEncloseInBackTicks) To UBound(StringsToEncloseInBackTicks)
 38            FunctionDescription = sRegExReplace(FunctionDescription, "\b" & StringsToEncloseInBackTicks(j) & "\b", "`" & StringsToEncloseInBackTicks(j) & "`", True)
 39        Next j
@@ -381,11 +387,11 @@ Function MarkdownHelp(SourceFile As String, FunctionName As String, ByVal Functi
 
 42            Hlp = Hlp & "```vba" & vbLf & _
                   Declaration & vbLf & _
-                  "```" & vbLf & vbLf
+                  "```"
                   
 41        If NumArgs > 0 Then
                   
-                  Hlp = Hlp & "|Argument|Description|" & vbLf & _
+                  Hlp = Hlp & vbLf & vbLf & "|Argument|Description|" & vbLf & _
                   "|:-------|:----------|"
           
 43            For i = LBound(ArgNames) To UBound(ArgNames)
