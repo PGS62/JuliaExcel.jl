@@ -35,19 +35,18 @@ The process is illustrated in the GIF below. F5 to replay.
 ## Functions
 JuliaExcel makes the following functions available from Excel worksheets and from VBA:
 
-
 |Name|Description|
 |----|-----------|
-|[JuliaLaunch](#julialaunch)|Launches a local Julia session which "listens" to the current Excel session and responds to calls to JuliaEval etc..|
-|[JuliaInclude](#juliainclude)|Load a Julia source file into the Julia process, to make additional functions available via JuliaEval and JuliaCall.|
+|[JuliaLaunch](#julialaunch)|Launches a local Julia session which "listens" to the current Excel session and responds to calls to `JuliaEval` etc..|
+|[JuliaInclude](#juliainclude)|Load a Julia source file into the Julia process, to make additional functions available via `JuliaEval` and `JuliaCall`.|
 |[JuliaEval](#juliaeval)|Evaluate a Julia expression and return the result to an Excel worksheet.|
 |[JuliaCall](#juliacall)|Call a named Julia function, passing in data from the worksheet.|
 |[JuliaSetVar](#juliasetvar)|Set a global variable in the Julia process.|
-|[JuliaEvalVBA](#juliaevalvba)|Evaluate a Julia expression from VBA . Differs from JuliaCall in handling of 1-dimensional arrays, and strings longer than 32,767 characters. May return data of types that cannot be displayed on a worksheet, such as a dictionary or an array of arrays.|
-|[JuliaCallVBA](#juliacallvba)|Call a named Julia function from VBA. Differs from JuliaCall in handling of 1-dimensional arrays, and strings longer than 32,767 characters. May return data of types that cannot be displayed on a worksheet, such as a dictionary or an array of arrays.|
-|[JuliaResultFile](#juliaresultfile)|Returns the name of the file to which the results of calls to JuliaCall, JuliaEval etc. are written. The file may be unserialised with `JuliaUnserialiseFile`.|
+|[JuliaEvalVBA](#juliaevalvba)|Evaluate a Julia expression from VBA . Differs from `JuliaCall` in handling of 1-dimensional arrays, and strings longer than 32,767 characters. May return data of types that cannot be displayed on a worksheet, such as a dictionary or an array of arrays.|
+|[JuliaCallVBA](#juliacallvba)|Call a named Julia function from VBA. Differs from `JuliaCall` in handling of 1-dimensional arrays, and strings longer than 32,767 characters. May return data of types that cannot be displayed on a worksheet, such as a dictionary or an array of arrays.|
+|[JuliaResultFile](#juliaresultfile)|Returns the name of the file to which the results of calls to `JuliaCall`, `JuliaEval` etc. are written. The file may be unserialised with function `JuliaUnserialiseFile`.|
 |[JuliaUnserialiseFile](#juliaunserialisefile)|Unserialises the contents of the JuliaResultsFile.|
-
+|[JuliaIsRunning](#juliaisrunning)|Returns TRUE if an instance of Julia is running and "listening" to the current Excel session, or FALSE otherwise.|
 
 ## Demo
 Here's a quick demonstration of the functions in action.
@@ -82,7 +81,7 @@ End Sub
 ### `JuliaLaunch`
 Launches a local Julia session which "listens" to the current Excel session and responds to calls to `JuliaEval` etc..
 ```vba
-Function JuliaLaunch(Optional MinimiseWindow As Boolean, Optional ByVal JuliaExe As String, _
+Public Function JuliaLaunch(Optional MinimiseWindow As Boolean, Optional ByVal JuliaExe As String, _
           Optional ByVal CommandLineOptions As String)
 ```
 
@@ -102,17 +101,15 @@ Public Function JuliaInclude(FileName As String)
 |:-------|:----------|
 |`FileName`|The full name of the file to be included.|
 
-
 ### `JuliaEval`
 Evaluate a Julia expression and return the result to an Excel worksheet.
 ```vba
-Function JuliaEval(ByVal JuliaExpression As Variant)
+Public Function JuliaEval(ByVal JuliaExpression As Variant)
 ```
 
 |Argument|Description|
 |:-------|:----------|
 |`JuliaExpression`|Any valid Julia code, as a string. Can also be a one-column range to evaluate multiple Julia statements.|
-
 
 ### `JuliaCall`
 Call a named Julia function, passing in data from the worksheet.
@@ -128,7 +125,7 @@ Public Function JuliaCall(JuliaFunction As String, ParamArray Args())
 ### `JuliaSetVar`
 Set a global variable in the Julia process.
 ```vba
-Function JuliaSetVar(VariableName As String, RefersTo As Variant)
+Public Function JuliaSetVar(VariableName As String, RefersTo As Variant)
 ```
 
 |Argument|Description|
@@ -139,13 +136,12 @@ Function JuliaSetVar(VariableName As String, RefersTo As Variant)
 ### `JuliaEvalVBA`
 Evaluate a Julia expression from VBA . Differs from `JuliaCall` in handling of 1-dimensional arrays, and strings longer than 32,767 characters. May return data of types that cannot be displayed on a worksheet, such as a dictionary or an array of arrays.
 ```vba
-Function JuliaEvalVBA(ByVal JuliaExpression As Variant)
+Public Function JuliaEvalVBA(ByVal JuliaExpression As Variant)
 ```
 
 |Argument|Description|
 |:-------|:----------|
 |`JuliaExpression`|Any valid Julia code, as a string. Can also be a one-column range to evaluate multiple Julia statements.|
-
 
 ### `JuliaCallVBA`
 Call a named Julia function from VBA. Differs from `JuliaCall` in handling of 1-dimensional arrays, and strings longer than 32,767 characters. May return data of types that cannot be displayed on a worksheet, such as a dictionary or an array of arrays.
@@ -172,8 +168,14 @@ Public Function JuliaUnserialiseFile(Optional ByVal FileName As String, Optional
 
 |Argument|Description|
 |:-------|:----------|
-|`FileName`|The name (including path) of the file to be unserialised. Optional and defaults to the file name returned by JuliaResultsFile.|
+|`FileName`|The name (including path) of the file to be unserialised. Optional and defaults to the file name returned by `JuliaResultFile`.|
 |`ForWorksheet`|Pass TRUE (the default) when calling from a worksheet, FALSE when calling from VBA. If FALSE, the function may return data structures that can exist in VBA but cannot be represented on a worksheet, such as a dictionary or an array of arrays.|
+
+### `JuliaIsRunning`
+Returns TRUE if an instance of Julia is running and "listening" to the current Excel session, or FALSE otherwise.
+```vba
+Public Function JuliaIsRunning() As Boolean
+```
 
 ## Marshalling
 Two question arose during implementation:
