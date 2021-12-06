@@ -1,4 +1,6 @@
 Version	Date	Time	Author	Comment
+78	06-Dec-2021	17:20	Philip Swannell	Deleted unused code.
+77	06-Dec-2021	17:05	Philip Swannell	Added UseLinux argument to JuliaLaunch.
 76	03-Dec-2021	15:05	Philip Swannell	Made public functions explicitly Public.
 75	03-Dec-2021	14:41	Philip Swannell	Documented method JuliaIsRunning.
 74	03-Dec-2021	11:16	Philip Swannell	Added method JuliaIsRunning.

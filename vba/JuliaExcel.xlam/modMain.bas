@@ -22,6 +22,8 @@ Public Const gPackageName As String = "JuliaExcel"
 '             session, or FALSE otherwise.
 ' -----------------------------------------------------------------------------------------------------------------------
 Public Function JuliaIsRunning() As Boolean
+Attribute JuliaIsRunning.VB_Description = "Returns TRUE if an instance of Julia is running and ""listening"" to the current Excel session, or FALSE otherwise."
+Attribute JuliaIsRunning.VB_ProcData.VB_Invoke_Func = " \n14"
 
           Dim HwndJulia As LongPtr
           Dim WindowPartialTitle As String
@@ -52,18 +54,24 @@ End Function
 '             https://docs.julialang.org/en/v1/manual/command-line-options/
 ' -----------------------------------------------------------------------------------------------------------------------
 Public Function JuliaLaunch(Optional MinimiseWindow As Boolean, Optional ByVal JuliaExe As String, _
-          Optional ByVal CommandLineOptions As String)
+          Optional ByVal CommandLineOptions As String, Optional UseLinux As Boolean)
+Attribute JuliaLaunch.VB_Description = "Launches a local Julia session which ""listens"" to the current Excel session and responds to calls to JuliaEval etc.."
+Attribute JuliaLaunch.VB_ProcData.VB_Invoke_Func = " \n14"
 
+          Const TIMEOUT = 30
           Dim Command As String
+          Dim CommsFolderX As String
           Dim ErrorFile As String
+          Dim ErrorFileX As String
+          Dim FlagFileX As String
           Dim HwndJulia As LongPtr
           Dim LoadFile As String
           Dim LoadFileContents As String
+          Dim LoadFileX As String
           Dim PID As Long
           Dim WindowPartialTitle As String
           Dim WindowTitle As String
           Dim wsh As WshShell
-          Const TIMEOUT = 30
 
 1         On Error GoTo ErrHandler
 
@@ -73,8 +81,8 @@ Public Function JuliaLaunch(Optional MinimiseWindow As Boolean, Optional ByVal J
 5         End If
 
 6         If JuliaExe = "" Then
-7             JuliaExe = JuliaExeLocation()
-8         Else
+7             JuliaExe = JuliaExeLocation(UseLinux)
+8         ElseIf Not UseLinux Then
 9             If LCase(Right(JuliaExe, 10)) <> "\julia.exe" Then
 10                Throw "Argument JuliaExe has been provided but is not the full path to a file with name julia.exe"
 11            ElseIf Not FileExists(JuliaExe) Then
@@ -96,70 +104,89 @@ Public Function JuliaLaunch(Optional MinimiseWindow As Boolean, Optional ByVal J
 24            Exit Function
 25        End If
 
-27        ErrorFile = LocalTemp() & "\LoadError_" & CStr(GetCurrentProcessId()) & ".txt"
-28        If FileExists(ErrorFile) Then Kill ErrorFile
+26        ErrorFile = LocalTemp() & "\LoadError_" & CStr(GetCurrentProcessId()) & ".txt"
+27        If FileExists(ErrorFile) Then Kill ErrorFile
           
-29        SaveTextFile JuliaFlagFile, "", TristateFalse
-30        LoadFile = LocalTemp() & "\StartUp_" & CStr(GetCurrentProcessId()) & ".jl"
+28        SaveTextFile JuliaFlagFile, "", TristateFalse
+29        LoadFile = LocalTemp() & "\StartUp_" & CStr(GetCurrentProcessId()) & ".jl"
 
-31        Command = """" & JuliaExe & """" & " " & Trim(CommandLineOptions) & " --load """ & LoadFile & """"
+30        If UseLinux Then
+31            ErrorFileX = WSLAddress(ErrorFile)
+32            FlagFileX = WSLAddress(JuliaFlagFile())
+33            CommsFolderX = WSLAddress(LocalTemp())
+34            LoadFileX = WSLAddress(LoadFile)
+35        Else
+36            FlagFileX = Replace(JuliaFlagFile(), "\", "/")
+37            CommsFolderX = Replace(LocalTemp(), "\", "/")
+38            ErrorFileX = Replace(ErrorFile, "\", "/")
+39            LoadFileX = Replace(LoadFile, "\", "/")
+40        End If
+
+41        If UseLinux Then
+42            Command = "wsl " & JuliaExe & " " & Trim(CommandLineOptions) & " --load """ & LoadFileX & """"
+43        Else
+44            Command = """" & JuliaExe & """" & " " & Trim(CommandLineOptions) & " --load """ & LoadFileX & """"
+45        End If
+          
           Dim LiteralCommand As String
-32        LiteralCommand = MakeJuliaLiteral(Command)
-33        LiteralCommand = Mid(LiteralCommand, 2, Len(LiteralCommand) - 2)
+46        LiteralCommand = MakeJuliaLiteral(Command)
+47        LiteralCommand = Mid(LiteralCommand, 2, Len(LiteralCommand) - 2)
 
-34        LoadFileContents = _
+48        LoadFileContents = _
               "try" & vbLf & _
+              "    using Revise" & vbLf & _
               "    using " & gPackageName & vbLf & _
               "    using Dates" & vbLf & _
               "    setxlpid(" & CStr(GetCurrentProcessId) & ")" & vbLf & _
+              "    JuliaExcel.setcommsfolder(""" & CommsFolderX & """)" & vbLf & _
               "    println(""Julia $VERSION, using " & gPackageName & " to serve Excel running as process ID " & GetCurrentProcessId() & "."")" & vbLf & _
               "    println(""Julia launched with command: " & LiteralCommand & " "")" & vbLf & _
-              "    rm(""" & Replace(JuliaFlagFile, "\", "/") & """)" & vbLf & _
+              "    rm(""" & FlagFileX & """)" & vbLf & _
               "catch e" & vbLf & _
               "    theerror = ""$e""" & vbLf & _
               "    @error theerror " & vbLf & _
-              "    errorfile = """ & Replace(ErrorFile, "\", "/") & """" & vbLf & _
+              "    errorfile = """ & ErrorFileX & """" & vbLf & _
               "    io = open(errorfile, ""w"")" & vbLf & _
               "    write(io,theerror)" & vbLf & _
               "    close(io)" & vbLf & _
-              "    rm(""" & Replace(JuliaFlagFile, "\", "/") & """)" & vbLf & _
+              "    rm(""" & FlagFileX & """)" & vbLf & _
               "end"
 
-35        SaveTextFile LoadFile, LoadFileContents, TristateFalse
+49        SaveTextFile LoadFile, LoadFileContents, TristateFalse
         
-36        Set wsh = New WshShell
+50        Set wsh = New WshShell
 
           Dim NumBefore As Long
           Dim StartTime As Double
-37        StartTime = ElapsedTime()
+51        StartTime = ElapsedTime()
           Const PartialCaption = "Julia 1."
-38        NumBefore = NumWindowsWithCaption(PartialCaption)
+52        NumBefore = NumWindowsWithCaption(PartialCaption)
 
-39        wsh.Run Command, IIf(MinimiseWindow, vbMinimizedFocus, vbNormalNoFocus), False
+53        wsh.Run Command, IIf(MinimiseWindow, vbMinimizedFocus, vbNormalNoFocus), False
           'Unfortunately, if the CommandLineOptions are invalid then Julia does not launch, but the
           'call to wsh.Run does not throw an error. Work-around is to count the number of windows whose
           'caption contains "Julia 1." before and TIMEOUT seconds after the call to wsh.Run.
-40        While FileExists(JuliaFlagFile)
-41            Sleep 50
-42            If ElapsedTime() - StartTime > TIMEOUT Then
-43                If NumWindowsWithCaption(PartialCaption) <> NumBefore + 1 Then
-44                    Throw "Julia failed to launch after " + CStr(TIMEOUT) + " seconds. Check the CommandLineOptions are valid (https://docs.julialang.org/en/v1/manual/command-line-options/)"
-45                End If
-46            End If
-47        Wend
-48        CleanLocalTemp
-49        If FileExists(ErrorFile) Then
-50            Throw "Julia launched but encountered an error when executing '" & LoadFile & "' the error was: " & ReadTextFile(ErrorFile, TristateFalse)
-51        End If
+54        While FileExists(JuliaFlagFile)
+55            Sleep 50
+56            If ElapsedTime() - StartTime > TIMEOUT Then
+57                If NumWindowsWithCaption(PartialCaption) <> NumBefore + 1 Then
+58                    Throw "Julia failed to launch after " + CStr(TIMEOUT) + " seconds. Check the CommandLineOptions are valid (https://docs.julialang.org/en/v1/manual/command-line-options/)"
+59                End If
+60            End If
+61        Wend
+62        CleanLocalTemp
+63        If FileExists(ErrorFile) Then
+64            Throw "Julia launched but encountered an error when executing '" & LoadFile & "' the error was: " & ReadTextFile(ErrorFile, TristateFalse)
+65        End If
           
-52        GetHandleFromPartialCaption HwndJulia, WindowPartialTitle
-53        WindowTitle = WindowTitleFromHandle(HwndJulia)
+66        GetHandleFromPartialCaption HwndJulia, WindowPartialTitle
+67        WindowTitle = WindowTitleFromHandle(HwndJulia)
           
-54        JuliaLaunch = "Julia launched in window """ & WindowTitle & """"
+68        JuliaLaunch = "Julia launched in window """ & WindowTitle & """"
 
-55        Exit Function
+69        Exit Function
 ErrHandler:
-56        JuliaLaunch = "#JuliaLaunch (line " & CStr(Erl) + "): " & Err.Description & "!"
+70        JuliaLaunch = "#JuliaLaunch (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
@@ -236,6 +263,8 @@ End Function
 '             Julia statements.
 ' -----------------------------------------------------------------------------------------------------------------------
 Public Function JuliaEval(ByVal JuliaExpression As Variant)
+Attribute JuliaEval.VB_Description = "Evaluate a Julia expression and return the result to an Excel worksheet."
+Attribute JuliaEval.VB_ProcData.VB_Invoke_Func = " \n14"
 1         On Error GoTo ErrHandler
           
 2         If IsFunctionWizardActive() Then
@@ -260,6 +289,8 @@ End Function
 '             Julia statements.
 ' -----------------------------------------------------------------------------------------------------------------------
 Public Function JuliaEvalVBA(ByVal JuliaExpression As Variant)
+Attribute JuliaEvalVBA.VB_Description = "Evaluate a Julia expression from VBA . Differs from JuliaCall in handling of 1-dimensional arrays, and strings longer than 32,767 characters. May return data of types that cannot be displayed on a worksheet, such as a dictionary or an array of arrays."
+Attribute JuliaEvalVBA.VB_ProcData.VB_Invoke_Func = " \n14"
 1         On Error GoTo ErrHandler
 2         Assign JuliaEvalVBA, JuliaEval_LowLevel(JuliaExpression, AllowNested:=True, StringLengthLimit:=0, JuliaVectorToXLColumn:=False)
 3         Exit Function
@@ -276,6 +307,8 @@ End Function
 '             Boolean, Empty or array of such types. When called from VBA, nested arrays are supported.
 ' -----------------------------------------------------------------------------------------------------------------------
 Public Function JuliaSetVar(VariableName As String, RefersTo As Variant)
+Attribute JuliaSetVar.VB_Description = "Set a global variable in the Julia process."
+Attribute JuliaSetVar.VB_ProcData.VB_Invoke_Func = " \n14"
 1         On Error GoTo ErrHandler
 2         JuliaSetVar = JuliaCall(gPackageName & ".setvar", VariableName, RefersTo)
 
@@ -294,6 +327,8 @@ End Function
 '             array of such values or an Excel range.
 ' -----------------------------------------------------------------------------------------------------------------------
 Public Function JuliaCall(JuliaFunction As String, ParamArray Args())
+Attribute JuliaCall.VB_Description = "Call a named Julia function, passing in data from the worksheet."
+Attribute JuliaCall.VB_ProcData.VB_Invoke_Func = " \n14"
           Dim Expression As String
           Dim i As Long
           Dim Tmp() As String
@@ -336,6 +371,8 @@ End Function
 '             array of such values or an Excel range.
 ' -----------------------------------------------------------------------------------------------------------------------
 Public Function JuliaCallVBA(JuliaFunction As String, ParamArray Args())
+Attribute JuliaCallVBA.VB_Description = "Call a named Julia function from VBA. Differs from JuliaCall in handling of 1-dimensional arrays, and strings longer than 32,767 characters. May return data of types that cannot be displayed on a worksheet, such as a dictionary or an array of arrays."
+Attribute JuliaCallVBA.VB_ProcData.VB_Invoke_Func = " \n14"
           Dim Expression As String
           Dim i As Long
           Dim Tmp() As String
@@ -367,6 +404,8 @@ End Function
 ' FileName  : The full name of the file to be included.
 ' -----------------------------------------------------------------------------------------------------------------------
 Public Function JuliaInclude(FileName As String)
+Attribute JuliaInclude.VB_Description = "Load a Julia source file into the Julia process, to make additional functions available via JuliaEval and JuliaCall."
+Attribute JuliaInclude.VB_ProcData.VB_Invoke_Func = " \n14"
 1         If IsFunctionWizardActive() Then
 2             JuliaInclude = "#Disabled in Function Wizard!"
 3             Exit Function
@@ -385,6 +424,8 @@ End Function
 '             represented on a worksheet, such as a dictionary or an array of arrays.
 ' -----------------------------------------------------------------------------------------------------------------------
 Public Function JuliaUnserialiseFile(Optional ByVal FileName As String, Optional ForWorksheet As Boolean = True)
+Attribute JuliaUnserialiseFile.VB_Description = "Unserialises the contents of the JuliaResultsFile."
+Attribute JuliaUnserialiseFile.VB_ProcData.VB_Invoke_Func = " \n14"
           Dim StringLengthLimit As Long
           Dim JuliaVectorToXLColumn As Boolean
 
@@ -437,6 +478,8 @@ End Function
 '             are written. The file may be unserialised with function JuliaUnserialiseFile.
 ' -----------------------------------------------------------------------------------------------------------------------
 Public Function JuliaResultFile() As String
+Attribute JuliaResultFile.VB_Description = "Returns the name of the file to which the results of calls to JuliaCall, JuliaEval etc. are written. The file may be unserialised with function JuliaUnserialiseFile."
+Attribute JuliaResultFile.VB_ProcData.VB_Invoke_Func = " \n14"
           Static ResultFile As String
 1         If ResultFile = "" Then
 2             ResultFile = LocalTemp() & "\Result_" & CStr(GetCurrentProcessId()) & ".txt"
@@ -450,7 +493,7 @@ End Function
 '              locations to which Julia is (by default) installed. If more than one version is found then returns the
 '              most recently installed.
 ' -----------------------------------------------------------------------------------------------------------------------
-Private Function JuliaExeLocation()
+Private Function JuliaExeLocation(Optional UseLinux As Boolean)
 
           Dim ChildFolder As Scripting.Folder
           Dim ChosenExe As String
@@ -465,52 +508,68 @@ Private Function JuliaExeLocation()
           Dim Path As String
           Dim Paths() As String
           Dim ThisCreatedDate As Double
+          Dim JuliaLinuxExeWindowsAddress As String
 
 1         On Error GoTo ErrHandler
+          
+2         If UseLinux Then
+              'This is fragile. Assumes Ubuntu, not some other Linux distribution.
 
+              Const JuliaExeOnWSL = "/usr/local/bin/julia"
+              Const WSLRoot = "\\wsl$\Ubuntu" 'should work both on Wiondows 10 and Windows 11 (which uses \\wsl.localhost, but seems to support \\wsl$)
+
+3             JuliaLinuxExeWindowsAddress = WSLRoot + Replace(JuliaExeOnWSL, "/", "\")
+          
+4             If Not FileExists(JuliaLinuxExeWindowsAddress) Then
+5                 Throw "Cannot find the Julia executable on Windows Subsystem for Linux. Expected to find a file (or more likely a symbolic link) at '" & JuliaLinuxExeWindowsAddress & "'"
+6             End If
+7             JuliaExeLocation = JuliaExeOnWSL
+8             Exit Function
+9         End If
+          
           'First search on PATH
-2         Path = Environ("PATH")
-3         Paths = VBA.Split(Path, ";")
-4         For i = LBound(Paths) To UBound(Paths)
-5             Folder = Paths(i)
-6             If Right(Folder, 1) <> "\" Then Folder = Folder + "\"
-7             ExeFile = Folder + "julia.exe"
-8             If FileExists(ExeFile) Then
-9                 JuliaExeLocation = ExeFile
-10                Exit Function
-11            End If
-12        Next i
+10        Path = Environ("PATH")
+11        Paths = VBA.Split(Path, ";")
+12        For i = LBound(Paths) To UBound(Paths)
+13            Folder = Paths(i)
+14            If Right(Folder, 1) <> "\" Then Folder = Folder + "\"
+15            ExeFile = Folder + "julia.exe"
+16            If FileExists(ExeFile) Then
+17                JuliaExeLocation = ExeFile
+18                Exit Function
+19            End If
+20        Next i
 
           'If not found on path, search in the locations to which the windows installer installs
           'julia (if the user accepts defaults) and choose the most recently installed
 
-13        ParentFolderName = Environ("LOCALAPPDATA") & "\Programs"
-14        Set ParentFolder = FSO.GetFolder(ParentFolderName)
+21        ParentFolderName = Environ("LOCALAPPDATA") & "\Programs"
+22        Set ParentFolder = FSO.GetFolder(ParentFolderName)
 
-15        For Each ChildFolder In ParentFolder.SubFolders
-16            If Left(ChildFolder.Name, 5) = "Julia" Then
-17                ExeFile = ParentFolder & "\" & ChildFolder.Name & "\bin\julia.exe"
-18                If FileExists(ExeFile) Then
-19                    ThisCreatedDate = ChildFolder.DateCreated
-20                    If ThisCreatedDate > CreatedDate Then
-21                        CreatedDate = ThisCreatedDate
-22                        ChosenExe = ExeFile
-23                    End If
-24                End If
-25            End If
-26        Next
+23        For Each ChildFolder In ParentFolder.SubFolders
+24            If Left(ChildFolder.Name, 5) = "Julia" Then
+25                ExeFile = ParentFolder & "\" & ChildFolder.Name & "\bin\julia.exe"
+26                If FileExists(ExeFile) Then
+27                    ThisCreatedDate = ChildFolder.DateCreated
+28                    If ThisCreatedDate > CreatedDate Then
+29                        CreatedDate = ThisCreatedDate
+30                        ChosenExe = ExeFile
+31                    End If
+32                End If
+33            End If
+34        Next
           
-27        If ChosenExe = "" Then
-28            ErrString = "Julia executable not found, after looking on the path and then in sub-folders of " + _
+35        If ChosenExe = "" Then
+36            ErrString = "Julia executable not found, after looking on the path and then in sub-folders of " + _
                   ParentFolderName + " which is the default location for Julia on Windows"
-29            Throw ErrString
-30        Else
-31            JuliaExeLocation = ChosenExe
-32        End If
+37            Throw ErrString
+38        Else
+39            JuliaExeLocation = ChosenExe
+40        End If
 
-33        Exit Function
+41        Exit Function
 ErrHandler:
-34        Throw "#JuliaExeLocation (line " & CStr(Erl) + "): " & Err.Description & "!"
+42        Throw "#JuliaExeLocation (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
@@ -597,13 +656,14 @@ End Function
 Private Sub SpeedTest()
 
           Const Expression As String = "fill(""xxx"",1000,1000)"
+          Const UseLinux As Boolean = True
           Const NumCalls = 10
           Dim i As Long
           Dim Res
           Dim t1 As Double
           Dim t2 As Double
 
-1         JuliaLaunch
+1         JuliaLaunch , , , UseLinux
 2         t1 = ElapsedTime
 3         For i = 1 To NumCalls
 4             Res = JuliaEval(Expression)

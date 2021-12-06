@@ -28,4 +28,5 @@ using Test
    @test JuliaExcel.encode_for_xl(Any[1,2,3.0]) == "*1,3;2,2,4,;&1&2#3.0"
    @test JuliaExcel.encode_for_xl([1,true,"x"]) == "*1,3;2,1,2,;&1T£x"
    @test JuliaExcel.encode_for_xl([1,[2,3]]) == "*1,2;2,14,;&1*1,2;2,2,;&2&3"
+   @test JuliaExcel.encode_for_xl(Dict("a"=>1,"b"=>2)) == "^2;2,2,2,2,;£b&2£a&1"
 end

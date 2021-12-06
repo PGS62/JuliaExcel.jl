@@ -311,7 +311,6 @@ Function Serialise(x As Variant) As String
           Dim i As Long
           Dim j As Long
           Dim k As Long
-          Dim KeysArray() As String
           Dim LengthsArray() As String
           Dim NC As Long
           Dim NR As Long

@@ -1,5 +1,5 @@
 module JuliaExcel
-export srv_xl, setxlpid, killflagfile
+export srv_xl, setxlpid, killflagfile, getcommsfolder
 
 using Dates, DataFrames
 import StringEncodings
@@ -25,6 +25,11 @@ function getxlpid()
     xlpid[]
 end
 
+"""
+    getcommsfolder()
+Returns the name of the folder to which request files are written by VBA code in 
+JuliaExcel.xlam and to which `srv_xl` writes results. See also `setcommsfolder`.
+"""
 function getcommsfolder()
     if commsfolder[] == ""
         throw("commsfolder has not been set")
@@ -33,6 +38,11 @@ function getcommsfolder()
     end
 end
 
+"""
+    setcommsfolder()
+Sets the name of the folder to which request files are written by VBA code in 
+JuliaExcel.xlam and to which `srv_xl` writes results. See also `getcommsfolder`.
+"""
 function setcommsfolder(folder::String)
     commsfolder[] = folder
 end
@@ -52,9 +62,13 @@ flagfile() = joinpath(getcommsfolder(), "Flag_$(getxlpid()).txt")
 resultfile() = joinpath(getcommsfolder(), "Result_$(getxlpid()).txt")
 expressionfile() = joinpath(getcommsfolder(), "Expression_$(getxlpid()).txt")
 
-#=If things go wrong then Excel is locked up until either Julia exits or the flag file is 
-deleted, so make a function available to do the latter (mainly for use when debuggingh). 
-=#
+"""
+    killflagfile()
+Deletes the "flag file" whose existence indicates to VBA code in JuliaExcel.xlam that 
+`srv_xl()` has not yet completed its evaluation of the contents of the expression to be
+evaluated. `killflagfile` can thus be used manually from the REPL if (for example) the
+expression to be evaluated includes an infinite loop.
+"""
 function killflagfile() 
     if isfile(flagfile())
         rm(flagfile())
@@ -73,8 +87,8 @@ read_utf16(filename::String) = transcode(String, reinterpret(UInt16, read(filena
 """
     srv_xl()
 Read the expression file created by JuliaExcel.xlam, evaluate it and write the result to
-file, to be unserialised by JuliaExcel.xlam. Files are written to the `JuliaExcel` 
-sub-folder of the TEMP folder.
+file, to be unserialised by JuliaExcel.xlam. Files are read from and written to the folder
+given by `getcommsfolder`.
 """
 function srv_xl()
 
@@ -155,7 +169,13 @@ end
 
 # https://docs.microsoft.com/en-us/windows/terminal/tutorials/tab-title
 function settitle()
-    print("\033]0;Julia $VERSION PID $(getpid()) serving Excel PID $(getxlpid())\a")
+    if Sys.islinux()
+        os = "Linux"
+    elseif Sys.iswindows()
+        os = "Windows"
+    end
+
+    print("\033]0;Julia $VERSION on $os serving Excel PID $(getxlpid())\a")
 end
 
 """

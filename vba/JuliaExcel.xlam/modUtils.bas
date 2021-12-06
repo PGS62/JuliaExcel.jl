@@ -104,6 +104,26 @@ ErrHandler:
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
+' Procedure  : WSLAddress
+' Author     : Philip Swannell
+' Date       : 06-Dec-2021
+' Purpose    : Convert the (Windows) address of a file into the address which references that file from within Windows
+'              subsystem for Linux. e.g. WSLAddress("c:\Temp\foo.txt") = "/mnt/c/temp/foo.tmp"
+' -----------------------------------------------------------------------------------------------------------------------
+Function WSLAddress(WindowsAddress As String)
+1         On Error GoTo ErrHandler
+2         Select Case Mid(WindowsAddress, 2, 2)
+           Case ":/", ":\"
+3             WSLAddress = "/mnt/" & LCase(Left(WindowsAddress, 1)) & Replace(Mid(WindowsAddress, 3), "\", "/")
+4         Case Else
+5             Throw "WindowsAddress must start with characters ""x:\"" for some drive-letter x"
+6         End Select
+7         Exit Function
+ErrHandler:
+8         Throw "#WSLAddress (line " & CStr(Erl) + "): " & Err.Description & "!"
+End Function
+
+' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : LocalTemp
 ' Purpose    : Return a writable directory for saving results files to be communicated to Julia.
 ' -----------------------------------------------------------------------------------------------------------------------

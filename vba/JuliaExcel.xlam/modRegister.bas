@@ -8,6 +8,7 @@ Option Explicit
 Public Sub RegisterFunctions()
 1         On Error GoTo ErrHandler
 2         RegisterJuliaExcelFunctionsWithFunctionWizard
+On Error Resume Next
 3         AddIns("Excel-DNA IntelliSense Host").Installed = False
 4         AddIns("Excel-DNA IntelliSense Host").Installed = True
 5         Exit Sub
