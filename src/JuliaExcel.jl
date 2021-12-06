@@ -4,6 +4,7 @@ export srv_xl, setxlpid, killflagfile
 using Dates, DataFrames
 import StringEncodings
 global const xlpid = Ref(0)
+global const commsfolder = Ref("")
 
 """
     setxlpid(pid::Int64)
@@ -24,6 +25,18 @@ function getxlpid()
     xlpid[]
 end
 
+function getcommsfolder()
+    if commsfolder[] == ""
+        throw("commsfolder has not been set")
+    else
+        commsfolder[]
+    end
+end
+
+function setcommsfolder(folder::String)
+    commsfolder[] = folder
+end
+
 function installme()
     Sys.iswindows() || throw("JuliaExcel can only be installed on Windows")
     installscript = normpath(joinpath(@__DIR__,"..","installer","install.vbs"))
@@ -35,12 +48,12 @@ function installme()
     nothing
 end
 
-localtemp() = joinpath(ENV["TEMP"], "@JuliaExcel")
-flagfile() = joinpath(localtemp(), "Flag_$(getxlpid()).txt")
-resultfile() = joinpath(localtemp(), "Result_$(getxlpid()).txt")
-expressionfile() = joinpath(localtemp(), "Expression_$(getxlpid()).txt")
+flagfile() = joinpath(getcommsfolder(), "Flag_$(getxlpid()).txt")
+resultfile() = joinpath(getcommsfolder(), "Result_$(getxlpid()).txt")
+expressionfile() = joinpath(getcommsfolder(), "Expression_$(getxlpid()).txt")
+
 #=If things go wrong then Excel is locked up until either Julia exits or the flag file is 
-deleted, so make a function availble to do the latter (mainly for use when debuggingh). 
+deleted, so make a function available to do the latter (mainly for use when debuggingh). 
 =#
 function killflagfile() 
     if isfile(flagfile())
