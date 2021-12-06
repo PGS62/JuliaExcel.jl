@@ -1,4 +1,5 @@
 Version	Date	Time	Author	Comment
+79	06-Dec-2021	17:37	Philip Swannell	Updated docstrings.
 78	06-Dec-2021	17:20	Philip Swannell	Deleted unused code.
 77	06-Dec-2021	17:05	Philip Swannell	Added UseLinux argument to JuliaLaunch.
 76	03-Dec-2021	15:05	Philip Swannell	Made public functions explicitly Public.

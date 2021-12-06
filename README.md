@@ -82,7 +82,7 @@ End Sub
 Launches a local Julia session which "listens" to the current Excel session and responds to calls to `JuliaEval` etc..
 ```vba
 Public Function JuliaLaunch(Optional MinimiseWindow As Boolean, Optional ByVal JuliaExe As String, _
-          Optional ByVal CommandLineOptions As String)
+          Optional ByVal CommandLineOptions As String, Optional UseLinux As Boolean)
 ```
 
 |Argument|Description|
@@ -90,6 +90,7 @@ Public Function JuliaLaunch(Optional MinimiseWindow As Boolean, Optional ByVal J
 |`MinimiseWindow`|If TRUE, then the Julia session window is minimised, if FALSE (the default) then the window is sized normally.|
 |`JuliaExe`|The location of julia.exe. If omitted, then the function searches for julia.exe, first on the path and then at the default locations for Julia installation on Windows, taking the most recently installed version if more than one is available.|
 |`CommandLineOptions`|Command line switches to be set when launching Julia.<br/>Example : `--threads=auto --banner=no`.<br/>https://docs.julialang.org/en/v1/manual/command-line-options/|
+|`UseLinux`|Experimental. If True then Julia is launched as a Linux process under Windows Subsystem for Linux (WSL). Requires Windows 11 with WSL, an Ubuntu Linux distribution and the JuliaExcel package installed in Julia's default environment.|
 
 ### `JuliaInclude`
 Load a Julia source file into the Julia process, to make additional functions available via `JuliaEval` and `JuliaCall`.
