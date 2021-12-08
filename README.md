@@ -4,7 +4,7 @@ Call [Julia](https://julialang.org/) from Microsoft Excel worksheets and from VB
 
 Compatible with Excel's [dynamic array formulas](https://support.microsoft.com/en-us/office/dynamic-array-formulas-and-spilled-array-behavior-205c6b06-03ba-4151-89a1-87a7eb36e531).
 
-Windows only.
+Support Excel for Windows (not Mac). Julia can be run under Windows or Linux (via [WSL](https://docs.microsoft.com/en-us/windows/wsl/about)).
 
 ## Contents
 [Installation](#installation)  
