@@ -88,16 +88,19 @@ End Sub
 ### `JuliaLaunch`
 Launches a local Julia session which "listens" to the current Excel session and responds to calls to `JuliaEval` etc..
 ```vba
-Public Function JuliaLaunch(Optional MinimiseWindow As Boolean, Optional ByVal JuliaExe As String, _
-          Optional ByVal CommandLineOptions As String, Optional UseLinux As Boolean)
+Public Function JuliaLaunch(Optional UseLinux As Boolean, Optional MinimiseWindow As Boolean, _
+    Optional ByVal CommandLineOptions As String, Optional ByVal Packages As String, _
+    Optional ByVal BashStatements As String, Optional TimeOut As Long = 30)
 ```
 
 |Argument|Description|
 |:-------|:----------|
-|`MinimiseWindow`|If TRUE, then the Julia session window is minimised, if FALSE (the default) then the window is sized normally.|
-|`JuliaExe`|The location of julia.exe. If omitted, then the function searches for julia.exe, first on the path and then at the default locations for Julia installation on Windows, taking the most recently installed version if more than one is available.|
-|`CommandLineOptions`|Command line switches to be set when launching Julia.<br/>Example : `--threads=auto --banner=no`.<br/>https://docs.julialang.org/en/v1/manual/command-line-options/|
-|`UseLinux`|Experimental. If True then Julia is launched as a Linux process under Windows Subsystem for Linux (WSL). Requires Windows 11 with WSL, an Ubuntu Linux distribution and the JuliaExcel package installed in Julia's default environment.|
+|`UseLinux`|TRUE to run Julia as a Linux process under Windows Subsystem for Linux; FALSE (the default) to run as a Windows process.|
+|`MinimiseWindow`|If TRUE, then the Julia session window is minimised; if FALSE (the default) then the window is sized normally.|
+|`CommandLineOptions`|Command line options set when launching Julia.<br/>Example : `--threads=auto --banner=no`.<br/>https://docs.julialang.org/en/v1/manual/command-line-options/|
+|`Packages`|`Packages` to load, which must be available in the default Julia environment (or environment set via the `--project` command line option). Delimit multiple packages with commas.|
+|`BashStatements`|Relevant only when `UseLinux` is TRUE. Bash statements executed prior to launching Julia, which can be used to set environment variables. Example `export JULIA_PKG_DEVDIR=/mnt/c/Projects`. Delimit multiple statements with the line feed character.|
+|`TimeOut`|The number of seconds to wait for Julia to launch before the function assumes that launch has failed (perhaps because of mal-formed `CommandLineOptions`). Optional and defaults to 30.|
 
 ### `JuliaInclude`
 Load a Julia source file into the Julia process, to make additional functions available via `JuliaEval` and `JuliaCall`.
@@ -268,4 +271,4 @@ Other, perhaps less obvious shortcomings are:
 &nbsp;
 
 Philip Swannell  
-16 November 2021
+8 December 2021
