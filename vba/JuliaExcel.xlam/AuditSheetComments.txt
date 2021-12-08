@@ -1,4 +1,6 @@
 Version	Date	Time	Author	Comment
+81	08-Dec-2021	17:14	Philip Swannell	Non-backwards compatible changes to JuliaLaunch. Can no longer specify the location of the JuliaExecutable (seemed not useful in practice, can always edit the PATH) and can specify packages to load. Turns out that packages should be "used" (via `using PackageName`) before the call to `using JuliaExcel`. That (seems to, fingers crossed) avoid "world age" problems that can be encountered when using Julia's eval function. We want to avoid defining the functions of JuliaEval (notably `encode_for_xl`) before we define the types it may operate on.
+80	07-Dec-2021	15:19	Philip Swannell	Added exportStatements as arg to JuliaLaunch.
 79	06-Dec-2021	17:37	Philip Swannell	Updated docstrings.
 78	06-Dec-2021	17:20	Philip Swannell	Deleted unused code.
 77	06-Dec-2021	17:05	Philip Swannell	Added UseLinux argument to JuliaLaunch.

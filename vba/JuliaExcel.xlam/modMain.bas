@@ -43,30 +43,36 @@ End Function
 ' Purpose   : Launches a local Julia session which "listens" to the current Excel session and responds
 '             to calls to JuliaEval etc..
 ' Arguments
-' MinimiseWindow: If TRUE, then the Julia session window is minimised, if FALSE (the default) then the
+' UseLinux  : TRUE to run Julia as a Linux process under Windows Subsystem for Linux; FALSE (the default) to
+'             run as a Windows process.
+' MinimiseWindow: If TRUE, then the Julia session window is minimised; if FALSE (the default) then the
 '             window is sized normally.
-' JuliaExe  : The location of julia.exe. If omitted, then the function searches for julia.exe, first on the
-'             path and then at the default locations for Julia installation on Windows, taking the most
-'             recently installed version if more than one is available.
-' CommandLineOptions: Command line switches to be set when launching Julia.
+' CommandLineOptions: Command line options set when launching Julia.
 '             Example : `--threads=auto --banner=no`.
 '             https://docs.julialang.org/en/v1/manual/command-line-options/
-' UseLinux  : Experimental. If True then Julia is launched as a Linux process under Windows Subsystem for
-'             Linux (WSL). Requires Windows 11 with WSL, an Ubuntu Linux distribution and the JuliaExcel
-'             package installed in Julia's default environment.
+' Packages  : Packages to load, which must be available in the default Julia environment (or environment set
+'             via the `--project` command line option). Delimit multiple packages with commas.
+' BashStatements: Relevant only when UseLinux is TRUE. Bash statements executed prior to launching Julia,
+'             which can be used to set environment variables. Example `export
+'             JULIA_PKG_DEVDIR=/mnt/c/Projects`. Delimit multiple statements with the line feed character.
+' TimeOut   : The number of seconds to wait for Julia to launch before the function assumes that launch has
+'             failed (perhaps because of mal-formed CommandLineOptions). Optional and defaults to 30.
 ' -----------------------------------------------------------------------------------------------------------------------
-Public Function JuliaLaunch(Optional MinimiseWindow As Boolean, Optional ByVal JuliaExe As String, _
-          Optional ByVal CommandLineOptions As String, Optional UseLinux As Boolean)
-Attribute JuliaLaunch.VB_Description = "Launches a local Julia session which ""listens"" to the current Excel session and responds to calls to JuliaEval etc.."
-Attribute JuliaLaunch.VB_ProcData.VB_Invoke_Func = " \n14"
+Public Function JuliaLaunch(Optional UseLinux As Boolean, Optional MinimiseWindow As Boolean, _
+    Optional ByVal CommandLineOptions As String, Optional ByVal Packages As String, _
+    Optional ByVal BashStatements As String, Optional TimeOut As Long = 30)
 
-          Const TIMEOUT = 30
           Dim Command As String
           Dim CommsFolderX As String
           Dim ErrorFile As String
           Dim ErrorFileX As String
           Dim FlagFileX As String
           Dim HwndJulia As LongPtr
+          Dim JuliaExe As String
+          Dim LaunchFile As String
+          Dim LaunchFileContents As String
+          Dim LaunchFileNecessary As Boolean
+          Dim LaunchFileX As String
           Dim LoadFile As String
           Dim LoadFileContents As String
           Dim LoadFileX As String
@@ -74,6 +80,7 @@ Attribute JuliaLaunch.VB_ProcData.VB_Invoke_Func = " \n14"
           Dim WindowPartialTitle As String
           Dim WindowTitle As String
           Dim wsh As WshShell
+          Dim usingStatements As String
 
 1         On Error GoTo ErrHandler
 
@@ -82,41 +89,44 @@ Attribute JuliaLaunch.VB_ProcData.VB_Invoke_Func = " \n14"
 4             Exit Function
 5         End If
 
-6         If JuliaExe = "" Then
-7             JuliaExe = JuliaExeLocation(UseLinux)
-8         ElseIf Not UseLinux Then
-9             If LCase(Right(JuliaExe, 10)) <> "\julia.exe" Then
-10                Throw "Argument JuliaExe has been provided but is not the full path to a file with name julia.exe"
-11            ElseIf Not FileExists(JuliaExe) Then
-12                Throw "Cannot find file '" + JuliaExe + "'"
-13            End If
-14        End If
+6         JuliaExe = JuliaExeLocation(UseLinux)
 
-15        If InStr(CommandLineOptions, "-L") > 0 Or InStr(CommandLineOptions, "--load ") > 0 Then
-16            Throw "CommandLineOptions cannot include the -L or --load options. Instead use JuliaLaunch without that option and then use JuliaCall(""include"",""path_to_file"")"
+7         If InStr(CommandLineOptions, "-L") > 0 Or InStr(CommandLineOptions, "--load ") > 0 Then
+8             Throw "CommandLineOptions cannot include the -L or --load options. Instead use JuliaLaunch without that option and then use JuliaCall(""include"",""path_to_file"")"
+9         End If
+
+10        PID = GetCurrentProcessId
+11        WindowPartialTitle = "serving Excel PID " & CStr(PID) 'Must be in synch with Julia function JuliaExcel.settitle
+12        GetHandleFromPartialCaption HwndJulia, WindowPartialTitle
+
+13        If HwndJulia <> 0 Then
+14            WindowTitle = WindowTitleFromHandle(HwndJulia)
+15            JuliaLaunch = "Julia is already running in window """ & WindowTitle & """"
+16            Exit Function
 17        End If
 
-18        PID = GetCurrentProcessId
-19        WindowPartialTitle = "serving Excel PID " & CStr(PID) 'Must be in synch with Julia function JuliaExcel.settitle
-20        GetHandleFromPartialCaption HwndJulia, WindowPartialTitle
-
-21        If HwndJulia <> 0 Then
-22            WindowTitle = WindowTitleFromHandle(HwndJulia)
-23            JuliaLaunch = "Julia is already running in window """ & WindowTitle & """"
-24            Exit Function
-25        End If
-
-26        ErrorFile = LocalTemp() & "\LoadError_" & CStr(GetCurrentProcessId()) & ".txt"
-27        If FileExists(ErrorFile) Then Kill ErrorFile
+18        ErrorFile = LocalTemp() & "\LoadError_" & CStr(GetCurrentProcessId()) & ".txt"
+19        If FileExists(ErrorFile) Then Kill ErrorFile
           
-28        SaveTextFile JuliaFlagFile, "", TristateFalse
-29        LoadFile = LocalTemp() & "\StartUp_" & CStr(GetCurrentProcessId()) & ".jl"
+20        SaveTextFile JuliaFlagFile, "", TristateFalse
+21        LoadFile = LocalTemp() & "\StartUp_" & CStr(GetCurrentProcessId()) & ".jl"
 
-30        If UseLinux Then
-31            ErrorFileX = WSLAddress(ErrorFile)
-32            FlagFileX = WSLAddress(JuliaFlagFile())
-33            CommsFolderX = WSLAddress(LocalTemp())
-34            LoadFileX = WSLAddress(LoadFile)
+22        If UseLinux Then
+23            ErrorFileX = WSLAddress(ErrorFile)
+24            FlagFileX = WSLAddress(JuliaFlagFile())
+25            CommsFolderX = WSLAddress(LocalTemp())
+26            LoadFileX = WSLAddress(LoadFile)
+27            If BashStatements <> "" Then
+28                LaunchFileNecessary = True
+29                BashStatements = BashStatements & vbLf
+30                LaunchFile = LocalTemp & "\launchjulia.sh"
+31                LaunchFileX = WSLAddress(LaunchFile)
+32                LaunchFileContents = _
+                      "#!/bin/bash" & vbLf & _
+                      BashStatements & _
+                      JuliaExe & " " & Trim(CommandLineOptions) & " --load """ & LoadFileX & """"
+33                SaveTextFile LaunchFile, LaunchFileContents, TristateFalse
+34            End If
 35        Else
 36            FlagFileX = Replace(JuliaFlagFile(), "\", "/")
 37            CommsFolderX = Replace(LocalTemp(), "\", "/")
@@ -125,20 +135,41 @@ Attribute JuliaLaunch.VB_ProcData.VB_Invoke_Func = " \n14"
 40        End If
 
 41        If UseLinux Then
-42            Command = "wsl " & JuliaExe & " " & Trim(CommandLineOptions) & " --load """ & LoadFileX & """"
-43        Else
-44            Command = """" & JuliaExe & """" & " " & Trim(CommandLineOptions) & " --load """ & LoadFileX & """"
-45        End If
+42            If LaunchFileNecessary Then
+43                Command = "wsl """ & LaunchFileX & """ && exit"
+44            Else
+45                Command = "wsl " & JuliaExe & " " & Trim(CommandLineOptions) & " --load """ & LoadFileX & """"
+46            End If
+47        Else
+48            Command = """" & JuliaExe & """" & " " & Trim(CommandLineOptions) & " --load """ & LoadFileX & """"
+49        End If
           
           Dim LiteralCommand As String
-46        LiteralCommand = MakeJuliaLiteral(Command)
-47        LiteralCommand = Mid(LiteralCommand, 2, Len(LiteralCommand) - 2)
+50        LiteralCommand = MakeJuliaLiteral(Command)
+51        LiteralCommand = Mid(LiteralCommand, 2, Len(LiteralCommand) - 2)
 
-48        LoadFileContents = _
+          Dim PackagesArray() As String, i As Long
+
+          'PGS 8 Dec 2021. It's important to make using JuliaExcel be the last "using" statement as I believe that helps avoid "world-age" problems
+52        If Packages = "" Then
+53        Packages = "Revise,Dates," & gPackageName
+54        Else
+55        Packages = "Revise,Dates," & Packages & "," & gPackageName
+56        End If
+57        PackagesArray = VBA.Split(Packages, ",")
+
+58        For i = LBound(PackagesArray) To UBound(PackagesArray)
+59            Select Case PackagesArray(i)
+                  Case Else
+60                    usingStatements = usingStatements & _
+                          "    println(""using " & Trim(PackagesArray(i)) & """)" & vbLf & _
+                          "    using " & Trim(PackagesArray(i)) & vbLf
+61            End Select
+62        Next
+
+63        LoadFileContents = _
               "try" & vbLf & _
-              "    using Revise" & vbLf & _
-              "    using " & gPackageName & vbLf & _
-              "    using Dates" & vbLf & _
+              usingStatements & _
               "    setxlpid(" & CStr(GetCurrentProcessId) & ")" & vbLf & _
               "    JuliaExcel.setcommsfolder(""" & CommsFolderX & """)" & vbLf & _
               "    println(""Julia $VERSION, using " & gPackageName & " to serve Excel running as process ID " & GetCurrentProcessId() & "."")" & vbLf & _
@@ -154,41 +185,42 @@ Attribute JuliaLaunch.VB_ProcData.VB_Invoke_Func = " \n14"
               "    rm(""" & FlagFileX & """)" & vbLf & _
               "end"
 
-49        SaveTextFile LoadFile, LoadFileContents, TristateFalse
+64        SaveTextFile LoadFile, LoadFileContents, TristateFalse
         
-50        Set wsh = New WshShell
+65        Set wsh = New WshShell
 
           Dim NumBefore As Long
           Dim StartTime As Double
-51        StartTime = ElapsedTime()
-          Const PartialCaption = "Julia 1."
-52        NumBefore = NumWindowsWithCaption(PartialCaption)
+66        StartTime = ElapsedTime()
+          Dim PartialCaption As String
+67        PartialCaption = "serving Excel PID " & CStr(PID)
+68        NumBefore = NumWindowsWithCaption(PartialCaption)
 
-53        wsh.Run Command, IIf(MinimiseWindow, vbMinimizedFocus, vbNormalNoFocus), False
+69        wsh.Run Command, IIf(MinimiseWindow, vbMinimizedFocus, vbNormalNoFocus), False
           'Unfortunately, if the CommandLineOptions are invalid then Julia does not launch, but the
           'call to wsh.Run does not throw an error. Work-around is to count the number of windows whose
           'caption contains "Julia 1." before and TIMEOUT seconds after the call to wsh.Run.
-54        While FileExists(JuliaFlagFile)
-55            Sleep 50
-56            If ElapsedTime() - StartTime > TIMEOUT Then
-57                If NumWindowsWithCaption(PartialCaption) <> NumBefore + 1 Then
-58                    Throw "Julia failed to launch after " + CStr(TIMEOUT) + " seconds. Check the CommandLineOptions are valid (https://docs.julialang.org/en/v1/manual/command-line-options/)"
-59                End If
-60            End If
-61        Wend
-62        CleanLocalTemp
-63        If FileExists(ErrorFile) Then
-64            Throw "Julia launched but encountered an error when executing '" & LoadFile & "' the error was: " & ReadTextFile(ErrorFile, TristateFalse)
-65        End If
+70        While FileExists(JuliaFlagFile)
+71            Sleep 50
+72            If ElapsedTime() - StartTime > TimeOut Then
+73                If NumWindowsWithCaption(PartialCaption) <> NumBefore + 1 Then
+74                    Throw "Julia failed to launch after " + CStr(TimeOut) + " seconds. Check the CommandLineOptions are valid (https://docs.julialang.org/en/v1/manual/command-line-options/)"
+75                End If
+76            End If
+77        Wend
+78        CleanLocalTemp
+79        If FileExists(ErrorFile) Then
+80            Throw "Julia launched but encountered an error when executing '" & LoadFile & "' the error was: " & ReadTextFile(ErrorFile, TristateFalse)
+81        End If
           
-66        GetHandleFromPartialCaption HwndJulia, WindowPartialTitle
-67        WindowTitle = WindowTitleFromHandle(HwndJulia)
+82        GetHandleFromPartialCaption HwndJulia, WindowPartialTitle
+83        WindowTitle = WindowTitleFromHandle(HwndJulia)
           
-68        JuliaLaunch = "Julia launched in window """ & WindowTitle & """"
+84        JuliaLaunch = "Julia launched in window """ & WindowTitle & """"
 
-69        Exit Function
+85        Exit Function
 ErrHandler:
-70        JuliaLaunch = "#JuliaLaunch (line " & CStr(Erl) + "): " & Err.Description & "!"
+86        JuliaLaunch = "#JuliaLaunch (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------

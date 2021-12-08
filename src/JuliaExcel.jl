@@ -38,6 +38,7 @@ function getcommsfolder()
     end
 end
 
+#JuliaExcel.setcommsfolder("C:/Users/PhilipSwannell/AppData/Local/Temp/@JuliaExcel")
 """
     setcommsfolder()
 Sets the name of the folder to which request files are written by VBA code in 
@@ -93,7 +94,7 @@ given by `getcommsfolder`.
 function srv_xl()
 
     expression = read_utf16(expressionfile())
-
+    
     global result = try
         Main.eval(Meta.parse(expression))
     catch e
@@ -294,9 +295,29 @@ function encode_for_xl(x::Union{Float16,Float32})
     end
 end
 
+#=PGS 8 Dec 2021 Seeing problem:
+The applicable method may be too new: running in world age 31344, while current world is 31485.
+Closest candidates are:
+  size(::SentinelArrays.MissingVector) at ~/.julia/packages/SentinelArrays/iHRpO/src/missingvector.jl:6 (method too new to be called from this world context.)
+
+  Solutions tried
+1)  
+Used Base.invokelatest(size,x). Bit surprised this did not work...
+2) write method of encode_for_xl(x::SentinelArrays.MissingVector), which
+    a) requires SentinelArrays be a dependency of JuliaExcel :(
+    b) solves the problem for SentinelArrays.MissingVector, but the same problem pops up
+    but for NamedArrays.NamedArray
+=#
+
+#function encode_for_xl(x::SentinelArrays.MissingVector)
+#    l = x.len
+#    "*1,$l;$("1,"^l);$("E"^l)"
+#end
+
 function encode_for_xl(x::T) where T <: AbstractArray
 
-    dimssection = string(length(size(x))) * "," * join(size(x), ",")
+    sx = size(x)
+    dimssection = string(length(sx)) * "," * join(sx, ",")
     lengths_buf = IOBuffer()
     contents_buf = IOBuffer()
 
