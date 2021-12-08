@@ -8,7 +8,8 @@ Windows only.
 
 ## Contents
 [Installation](#installation)  
-[Functions](#functions)  
+[Installation (Linux)](#installation-linux)  
+[Functions](#functions)   
 [Demo](#demo)  
 [Example VBA](#example-vba)  
 [Function Documentation](#function-documentation)  
@@ -31,6 +32,12 @@ Installation does not require admin rights on the PC.
 The process is illustrated in the GIF below. F5 to replay.
 
 ![installation](images/install-take3.gif)
+
+## Installation (Linux)
+JuliaExcel can call Julia running in a Linux process under Windows Subsystem for Linux (WSL). If that's your preference you need to:
+ * Install [WSL](https://docs.microsoft.com/en-us/windows/wsl/install)
+ * Install [Ubuntu from the Microsoft Store](https://www.microsoft.com/en-us/p/ubuntu/9nblggh4msv6#activetab=pivot:overviewtab)
+ * Install Julia under WSL, as explained [here](https://julialang.org/downloads/platform/#linux_and_freebsd), or in a bit more detail [here](https://ferrolho.github.io/blog/2019-01-26/how-to-install-julia-on-ubuntu).
 
 ## Functions
 JuliaExcel makes the following functions available from Excel worksheets and from VBA:
