@@ -37,7 +37,7 @@ The process is illustrated in the GIF below. F5 to replay.
 As an alternative to calling Julia running in a Windows process, JuliaExcel can call Julia running in a Linux process under Windows Subsystem for Linux (WSL). If that's your preference, then in addition to the steps described above, you need to:
  * Install [WSL](https://docs.microsoft.com/en-us/windows/wsl/install).
  * Install [Ubuntu from the Microsoft Store](https://www.microsoft.com/en-us/p/ubuntu/9nblggh4msv6#activetab=pivot:overviewtab).
- * Install Julia under WSL, as explained [here](https://julialang.org/downloads/platform/#linux_and_freebsd), or in a bit more detail [here](https://ferrolho.github.io/blog/2019-01-26/how-to-install-julia-on-ubuntu).
+ * Install Julia under WSL, as explained [here](https://ferrolho.github.io/blog/2019-01-26/how-to-install-julia-on-ubuntu). The last step in these instructions, to create a symbolic link to `julia` inside the `/usr/local/bin` folder is necessary.
 
 ## Functions
 JuliaExcel makes the following functions available from Excel worksheets and from VBA:
