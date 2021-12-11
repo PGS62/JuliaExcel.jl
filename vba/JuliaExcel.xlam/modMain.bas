@@ -59,8 +59,10 @@ End Function
 '             failed (perhaps because of mal-formed CommandLineOptions). Optional and defaults to 30.
 ' -----------------------------------------------------------------------------------------------------------------------
 Public Function JuliaLaunch(Optional UseLinux As Boolean, Optional MinimiseWindow As Boolean, _
-    Optional ByVal CommandLineOptions As String, Optional ByVal Packages As String, _
-    Optional ByVal BashStatements As String, Optional TimeOut As Long = 30)
+          Optional ByVal CommandLineOptions As String, Optional ByVal Packages As String, _
+          Optional ByVal BashStatements As String, Optional TimeOut As Long = 30)
+Attribute JuliaLaunch.VB_Description = "Launches a local Julia session which ""listens"" to the current Excel session and responds to calls to JuliaEval etc.."
+Attribute JuliaLaunch.VB_ProcData.VB_Invoke_Func = " \n14"
 
           Dim Command As String
           Dim CommsFolderX As String
@@ -77,10 +79,10 @@ Public Function JuliaLaunch(Optional UseLinux As Boolean, Optional MinimiseWindo
           Dim LoadFileContents As String
           Dim LoadFileX As String
           Dim PID As Long
+          Dim usingStatements As String
           Dim WindowPartialTitle As String
           Dim WindowTitle As String
           Dim wsh As WshShell
-          Dim usingStatements As String
 
 1         On Error GoTo ErrHandler
 
@@ -148,13 +150,14 @@ Public Function JuliaLaunch(Optional UseLinux As Boolean, Optional MinimiseWindo
 50        LiteralCommand = MakeJuliaLiteral(Command)
 51        LiteralCommand = Mid(LiteralCommand, 2, Len(LiteralCommand) - 2)
 
-          Dim PackagesArray() As String, i As Long
+          Dim i As Long
+          Dim PackagesArray() As String
 
           'PGS 8 Dec 2021. It's important to make using JuliaExcel be the last "using" statement as I believe that helps avoid "world-age" problems
 52        If Packages = "" Then
-53        Packages = "Revise,Dates," & gPackageName
+53            Packages = "Dates," & gPackageName
 54        Else
-55        Packages = "Revise,Dates," & Packages & "," & gPackageName
+55            Packages = "Dates," & Packages & "," & gPackageName
 56        End If
 57        PackagesArray = VBA.Split(Packages, ",")
 
@@ -460,8 +463,8 @@ End Function
 Public Function JuliaUnserialiseFile(Optional ByVal FileName As String, Optional ForWorksheet As Boolean = True)
 Attribute JuliaUnserialiseFile.VB_Description = "Unserialises the contents of the JuliaResultsFile."
 Attribute JuliaUnserialiseFile.VB_ProcData.VB_Invoke_Func = " \n14"
-          Dim StringLengthLimit As Long
           Dim JuliaVectorToXLColumn As Boolean
+          Dim StringLengthLimit As Long
 
 1         On Error GoTo ErrHandler
 2         If FileName = "" Then
@@ -537,12 +540,12 @@ Private Function JuliaExeLocation(Optional UseLinux As Boolean)
           Dim Folder As String
           Dim FSO As New FileSystemObject
           Dim i As Long
+          Dim JuliaLinuxExeWindowsAddress As String
           Dim ParentFolder As Scripting.Folder
           Dim ParentFolderName As String
           Dim Path As String
           Dim Paths() As String
           Dim ThisCreatedDate As Double
-          Dim JuliaLinuxExeWindowsAddress As String
 
 1         On Error GoTo ErrHandler
           
@@ -709,4 +712,5 @@ Private Sub SpeedTest()
 9         Debug.Print "'Average time in JuliaEval", (t2 - t1) / NumCalls
 10        Debug.Print "'--------------------------------------------------"
 End Sub
+
 

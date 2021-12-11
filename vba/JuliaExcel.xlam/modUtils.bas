@@ -148,7 +148,8 @@ Function LocalTemp()
           'Arrgh. Windows 11 now uses long-form user names when creating folders under c:\Users but the _
           TEMP environment variable still has the 8.3 contraction of the user name. So fix, with caution.
           
-          Dim Tokenised, Res2 As String
+          Dim Res2 As String
+          Dim Tokenised
 11        Tokenised = VBA.Split(Res, "\")
 12        If UBound(Tokenised) > 2 Then
 13            If InStr(Tokenised(2), "~") > 0 Then
@@ -231,4 +232,5 @@ Sub MenuButton()
 ErrHandler:
 4         MsgBox "#MenuButton (line " & CStr(Erl) + "): " & Err.Description & "!", vbCritical
 End Sub
+
 

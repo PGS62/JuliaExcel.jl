@@ -218,7 +218,6 @@ Function Unserialise(Chars As String, AllowNesting As Boolean, ByRef Depth As Lo
 75                                m2 = InStr(m, Chars, ",") + 1
 76                                thislength = Mid$(Chars, m, m2 - m - 1)
 77                                Assign Ret(i, j), Unserialise(Mid$(Chars, k, thislength), AllowNesting, Depth, StringLengthLimit, JuliaVectorToXLColumn)
-                                '  Ret(i, j) = Unserialise(Mid$(Chars, k, thislength), AllowNesting, Depth, StringLengthLimit, JuliaVectorToXLColumn)
 78                                k = k + thislength
 79                                m = m2
 80                            Next i
@@ -392,4 +391,3 @@ Function Serialise(x As Variant) As String
 ErrHandler:
 69        Throw "#Serialise (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Function
-
