@@ -540,7 +540,6 @@ Private Function JuliaExeLocation(Optional UseLinux As Boolean)
           Dim Folder As String
           Dim FSO As New FileSystemObject
           Dim i As Long
-          Dim JuliaLinuxExeWindowsAddress As String
           Dim ParentFolder As Scripting.Folder
           Dim ParentFolderName As String
           Dim Path As String
@@ -550,17 +549,7 @@ Private Function JuliaExeLocation(Optional UseLinux As Boolean)
 1         On Error GoTo ErrHandler
           
 2         If UseLinux Then
-              'This is fragile. Assumes Ubuntu, not some other Linux distribution.
-
-              Const JuliaExeOnWSL = "/usr/local/bin/julia"
-              Const WSLRoot = "\\wsl$\Ubuntu" 'should work both on Wiondows 10 and Windows 11 (which uses \\wsl.localhost, but seems to support \\wsl$)
-
-3             JuliaLinuxExeWindowsAddress = WSLRoot + Replace(JuliaExeOnWSL, "/", "\")
-          
-4             If Not FileExists(JuliaLinuxExeWindowsAddress) Then
-5                 Throw "Cannot find the Julia executable on Windows Subsystem for Linux. Expected to find a file (or more likely a symbolic link) at '" & JuliaLinuxExeWindowsAddress & "'"
-6             End If
-7             JuliaExeLocation = JuliaExeOnWSL
+7             JuliaExeLocation = "julia"
 8             Exit Function
 9         End If
           
