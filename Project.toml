@@ -1,7 +1,7 @@
 name = "JuliaExcel"
 uuid = "661490ff-676f-49f7-9f60-bdb0e4e6656a"
 authors = ["Philip Swannell"]
-version = "0.2.4"
+version = "0.2.5"
 
 [deps]
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
