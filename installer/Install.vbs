@@ -224,7 +224,7 @@ End Function
 '---------------------------------------------------------------------------------------
 Function GetAltStartupPath() 'App)
     GetAltStartupPath = RegistryRead("HKEY_CURRENT_USER\Software\Microsoft\Office\" & _
-    OfficeVersion(1) & "\Excel\Options\AltStartup", "Not found")
+    gOfficeVersion & "\Excel\Options\AltStartup", "Not found")
 End Function
 
 '---------------------------------------------------------------------------------------
@@ -233,7 +233,7 @@ End Function
 '             GetAltStartupPath
 '---------------------------------------------------------------------------------------
 Function SetAltStartupPath(Path) '(App,Path)
-    RegistryWrite "HKEY_CURRENT_USER\Software\Microsoft\Office\" & OfficeVersion(1) & _
+    RegistryWrite "HKEY_CURRENT_USER\Software\Microsoft\Office\" & gOfficeVersion & _
     "\Excel\Options\AltStartup", Path
 End Function
 
@@ -282,19 +282,6 @@ Function RegistryDelete(RegKey)
     myWS.regDelete RegKey
 End Function
 
-Function OfficeVersion(NumDecimalsAfterPoint)
-    Dim i, RegKey
-    For i = 20 To 11 Step -1
-        RegKey = "HKEY_CURRENT_USER\Software\Microsoft\Office\" & FormatNumber(i, 1) & _
-        "\Excel\"
-        If RegistryKeyExists(RegKey) Then
-            OfficeVersion = FormatNumber(i, NumDecimalsAfterPoint)
-            Exit Function
-        End If
-    Next
-    OfficeVersion = "Office Not found"
-End Function
-
 Function IIf( expr, truepart, falsepart )
    IIf = falsepart
    If expr Then IIf = truepart
@@ -315,7 +302,7 @@ Sub InstallExcelAddin(AddinFullName, WithSlashR)
     Dim RegValue
 
     RegKeyBranch = "HKEY_CURRENT_USER\Software\Microsoft\Office\" & _
-                    OfficeVersion(1) & "\Excel\Options\"
+                    gOfficeVersion & "\Excel\Options\"
     i = 0
     Do
         i = i + 1
@@ -342,27 +329,39 @@ Sub InstallExcelAddin(AddinFullName, WithSlashR)
 End Sub
 
 ' -----------------------------------------------------------------------------------------------------------------------
-' Procedure  : OfficeBitness
-' Purpose    : Stackoverflow has a long discussion on determining the bitness of office via the registry, with 27(!) answers
-'             This function is based on the solution suggested by stackoverflow user uflrob
-'              See https://stackoverflow.com/questions/2203980/detect-whether-office-is-32bit-or-64bit-via-the-registry
+' Procedure  : GetOfficeVersionAndBitness
+' Author     : Philip Swannell
+' Date       : 14-Dec-2021
+' Notes      : Previously was trying to determine office version and bitness by reading the registry, which turns out to
+'              be hard to do, for example when a PC has had various versions of Office installed. So reverted to 
+'              launching Excel via CreateObject.
+'              I posted something along these lines at
+'              https://stackoverflow.com/questions/2203980/detect-whether-office-is-32bit-or-64bit-via-the-registry
 ' -----------------------------------------------------------------------------------------------------------------------
-Function OfficeBitness()
-	Dim ExcelPath
-	ExcelPath = RegistryRead("HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\excel.exe\Path","Not found")
-	If ExcelPath = "Not found" Then
-		OfficeBitness = 0
-		gErrorsEncountered = True
-		MsgBox "Cannot determine if Microsoft Excel is 64 bit or 32 bit",vbOKOnly + vbExclamation, MsgBoxTitleBad
-		Exit function
-	Else
-		OfficeBitness = 32
-		If Environ("PROCESSOR_ARCHITECTURE") = "AMD64" Then
-			If Instr(ExcelPath,"x86")= 0 Then
-				OfficeBitness = 64
-			End If
-		End If
-	End If
+Function GetOfficeVersionAndBitness(OfficeVersion,OfficeBitness)
+    Dim Excel, EN
+
+    On Error Resume Next
+    Set Excel = CreateObject("Excel.Application")
+    EN = Err.Number
+    Excel.Visible = False
+    On Error GoTo 0
+
+    If EN = 0 Then
+        If InStr(Excel.OperatingSystem,"64") > 0 Then
+            OfficeBitness = 64
+            OfficeVersion = Excel.Version
+        Else
+            OfficeBitness = 32
+            OfficeVersion = Excel.Version
+        End if
+        Excel.Quit
+    Else
+        OfficeBitness = 0
+        OfficeVersion = "Office Not found"
+    End If
+
+    Set Excel = Nothing
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
@@ -381,7 +380,7 @@ Sub DeleteExcelAddinFromRegistry(AddinName)
     Dim NumAddins
     Dim Found
 
-    RegKey = "HKEY_CURRENT_USER\Software\Microsoft\Office\" & OfficeVersion(1) & "\Excel\Options\"
+    RegKey = "HKEY_CURRENT_USER\Software\Microsoft\Office\" & gOfficeVersion & "\Excel\Options\"
     i = 0
     Do
         i = i + 1
@@ -409,7 +408,6 @@ Sub DeleteExcelAddinFromRegistry(AddinName)
 
     For i = 0 To NumAddins - 1
         RegistryDelete RegKey & AllKeys(i, 0)
-        'Debug.Print "Deleting " + RegKey & AllKeys(i, 0) + " with value " + AllKeys(i, 1)
     Next
 
     j = 0
@@ -437,8 +435,11 @@ If (WScript.Arguments.length = 0) And ElevateToAdmin Then
    objShell.ShellExecute "wscript.exe", Chr(34) & _
       ThisFileName & Chr(34) & " uac", "", "runas", 1
 Else
+    Dim gOfficeVersion, gOfficeBitness
     Set myWS = CreateObject("WScript.Shell")
     
+    GetOfficeVersionAndBitness gOfficeVersion, gOfficeBitness
+
     GIFRecordingMode = FileExists(GIFRecordingFlagFile)
 
     gErrorsEncountered = False
@@ -446,16 +447,16 @@ Else
         CheckProcess "Excel.exe"
     End If
 
-    If OfficeVersion(0) = "Office Not found" Then
-        MsgBox "Installation cannot proceed because no version of Microsoft Office has " & _
+    If gOfficeVersion = "Office Not found" Then
+    Prompt = "Installation cannot proceed because no version of Microsoft Office has " & _
                "been detected on this PC." & vblf  & vblf & _
-               "The script attempts to detect installed versions of Office by looking " & _
-               "in the Windows Registry for a key:" & vblf & vblf & _ 
-               "'HKEY_CURRENT_USER\Software\Microsoft\Office\<OFFICE_VERSION_NUMBER>\Excel\Options\'" & _
-               vblf & vblf & " but that key was not found." & vblf & vbLf & _
-               "One possible cause of this problem is that you have just installed " & _
-               "Office, but not yet used Excel under user account '" & Environ("USERNAME") & "'." _
-               ,vbCritical,MsgBoxTitleBad
+               "The script attempts to detect the installed versions of Office by " & _
+               "executing the code `CreateObject(""Excel.Application"")` which should " & _
+               "launch Excel so that its version can be determined." & _ 
+               vblf & vblf & "However, that didn't work. So it seems you need to " & _
+               "install Microsoft Office before installing JuliaExcel."
+
+        MsgBox Prompt,vbCritical,MsgBoxTitleBad
         WScript.Quit
     End If    
 
@@ -468,7 +469,7 @@ Else
     IntellisenseSource = Left(IntellisenseSource, InStrRev(IntellisenseSource, "\"))
     IntellisenseSource = IntellisenseSource & "ExcelDNA\"
 
-        Select Case OfficeBitness()
+        Select Case gOfficeBitness
         Case 32
             IntellisenseName = "ExcelDna.IntelliSense.xll"
             InstallIntellisense = True
