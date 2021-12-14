@@ -94,26 +94,24 @@ End Function
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : GetStringLengthLimit
 ' Purpose    : Different versions of Excel have different limits for the longest string that can be an element of an
-'              array passed from a VBA UDF back to Excel. I know the limit is 255 for Excel 2010 and earlier, and is
-'              32,767 for Excel 365 (as of Sep 2021). But don't yet know the limit for Excel 2013, 2016 and 2019.
+'              array passed from a VBA UDF back to Excel. I know the limit is 255 for Excel 2013 and earlier, and is
+'              32,767 for Excel 365 (as of Sep 2021). But don't yet know the limit for Excel 2016 and 2019.
 ' Tried to get info from StackOverflow, without much joy:
 ' https://stackoverflow.com/questions/69303804/excel-versions-and-limits-on-the-length-of-string-elements-in-arrays-returned-by
-' Note that this function returns 1 more than the maximum allowed string length
+' Note that this function returns 1 more than the maximum allowed string length, i.e. the minimum not-allowed string length.
 ' -----------------------------------------------------------------------------------------------------------------------
 Function GetStringLengthLimit() As Long
           Static Res As Long
 1         If Res = 0 Then
 2             Select Case Val(Application.Version)
-                  Case Is <= 14 'Excel 2010
+                  Case Is <= 15 'Excel 2010
 3                     Res = 256
-4                 Case 15
-5                     Res = 32768 'Don't yet know if this is correct for Excel 2013
-6                 Case Else
-7                     Res = 32768 'Excel 2016, 2019, 365. Hopefully these versions (which all _
+4                 Case Else
+5                     Res = 32768 'Excel 2016, 2019, 365. Hopefully these versions (which all _
                                    return 16 as Application.Version) have the same limit.
-8             End Select
-9         End If
-10        GetStringLengthLimit = Res
+6             End Select
+7         End If
+8         GetStringLengthLimit = Res
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------

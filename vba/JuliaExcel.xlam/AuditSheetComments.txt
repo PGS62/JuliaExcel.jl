@@ -1,4 +1,5 @@
 Version	Date	Time	Author	Comment
+84	14-Dec-2021	19:33	Philip Swannell	Amended method GetStringLengthLimit. Now returns 256 on Excel 2013.
 83	11-Dec-2021	20:09	Philip Swannell	No longer test from VBA code if Julie executable is available within WSL.
 82	11-Dec-2021	15:25	Philip Swannell	No longer assume Revise is available as a package.
 81	08-Dec-2021	17:14	Philip Swannell	Non-backwards compatible changes to JuliaLaunch. Can no longer specify the location of the JuliaExecutable (seemed not useful in practice, can always edit the PATH) and can specify packages to load. Turns out that packages should be "used" (via `using PackageName`) before the call to `using JuliaExcel`. That (seems to, fingers crossed) avoid "world age" problems that can be encountered when using Julia's eval function. We want to avoid defining the functions of JuliaEval (notably `encode_for_xl`) before we define the types it may operate on.
