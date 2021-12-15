@@ -112,13 +112,14 @@ Function GetStringLengthLimit() As Long
 6             End Select
 7         End If
 8         GetStringLengthLimit = Res
-End Function
+9     End Function
 
-' -----------------------------------------------------------------------------------------------------------------------
-' Procedure  : Unserialise
-' Purpose    : Unserialises the contents of the results file saved by JuliaExcel julia code.
-' -----------------------------------------------------------------------------------------------------------------------
-Function Unserialise(Chars As String, AllowNesting As Boolean, ByRef Depth As Long, StringLengthLimit As Long, JuliaVectorToXLColumn As Boolean)
+      ' -----------------------------------------------------------------------------------------------------------------------
+      ' Procedure  : Unserialise
+      ' Purpose    : Unserialises the contents of the results file saved by JuliaExcel julia code.
+      ' -----------------------------------------------------------------------------------------------------------------------
+Function Unserialise(Chars As String, AllowNesting As Boolean, ByRef Depth As Long, StringLengthLimit As Long, _
+          JuliaVectorToXLColumn As Boolean)
 
 1         On Error GoTo ErrHandler
 2         Depth = Depth + 1
@@ -126,38 +127,46 @@ Function Unserialise(Chars As String, AllowNesting As Boolean, ByRef Depth As Lo
               Case 35    '# vbDouble
 4                 Unserialise = CDbl(Mid$(Chars, 2))
 5             Case 163    '£ (pound sterling) vbString
-6                 If StringLengthLimit > 0 Then
-7                     If Len(Chars) > StringLengthLimit Then
-8                         Throw "Data contains a string of length " & Format(Len(Chars) - 1, "###,###") & _
-                              ", too long to display in Excel version " + Application.Version() + " (the limit is " _
-                              & Format(StringLengthLimit - 1, "###,###") + ")"
-9                     End If
-10                End If
-11                Unserialise = Mid$(Chars, 2)
-12            Case 84     'T Boolean True
-13                Unserialise = True
-14            Case 70     'F Boolean False
-15                Unserialise = False
-16            Case 68     'D vbDate
-17                Unserialise = CDate(Mid$(Chars, 2))
-18            Case 69     'E vbEmpty
-19                Unserialise = Empty
-20            Case 78     'N vbNull
-21                Unserialise = Null
-22            Case 37     '% vbInteger
-23                Unserialise = CInt(Mid$(Chars, 2))
-24            Case 38     '& Int64 converts to LongLong on 64bit, Double on 32bit
-25                Unserialise = parseInt64(Mid$(Chars, 2))
-26            Case 83     'S vbSingle
-27                Unserialise = CSng(Mid$(Chars, 2))
-28            Case 67    'C vbCurrency
-29                Unserialise = CCur(Mid$(Chars, 2))
-30            Case 33     '! vbError
-31                Unserialise = CVErr(Mid$(Chars, 2))
-32            Case 64     '@ vbDecimal
-33                Unserialise = CDec(Mid$(Chars, 2))
-34            Case 42     '* vbArray
-35                If Depth > 1 Then If Not AllowNesting Then Throw "Excel cannot display arrays containing arrays"
+6                 If StringLengthLimit >= 0 Then 'Calling from worksheet formula, StringLengthLimit applies to elements of an array
+7                     If Len(Chars) > IIf(Depth = 1, 32768, StringLengthLimit) Then 'Remember Chars includes an initial type indicator character of "£"
+8                         If StringLengthLimit = 32768 Then
+9                             Throw "Data contains a string of length " & Format(Len(Chars) - 1, "###,###") & _
+                                  ", too long to be returned to an Excel worksheet in Excel version " + _
+                                  Application.Version() + ", for which the limit is 32,767"
+10                        Else
+11                            Throw "Data contains a string of length " & Format(Len(Chars) - 1, "###,###") & _
+                                  ", too long to be returned to an Excel worksheet in Excel version " + _
+                                  Application.Version() + ", for which the limit is " & _
+                                  "32,767 for a string and " & Format(StringLengthLimit - 1, "###,###") + _
+                                  " for string elements of an array"
+12                        End If
+13                    End If
+14                End If
+15                Unserialise = Mid$(Chars, 2)
+16            Case 84     'T Boolean True
+17                Unserialise = True
+18            Case 70     'F Boolean False
+19                Unserialise = False
+20            Case 68     'D vbDate
+21                Unserialise = CDate(Mid$(Chars, 2))
+22            Case 69     'E vbEmpty
+23                Unserialise = Empty
+24            Case 78     'N vbNull
+25                Unserialise = Null
+26            Case 37     '% vbInteger
+27                Unserialise = CInt(Mid$(Chars, 2))
+28            Case 38     '& Int64 converts to LongLong on 64bit, Double on 32bit
+29                Unserialise = parseInt64(Mid$(Chars, 2))
+30            Case 83     'S vbSingle
+31                Unserialise = CSng(Mid$(Chars, 2))
+32            Case 67    'C vbCurrency
+33                Unserialise = CCur(Mid$(Chars, 2))
+34            Case 33     '! vbError
+35                Unserialise = CVErr(Mid$(Chars, 2))
+36            Case 64     '@ vbDecimal
+37                Unserialise = CDec(Mid$(Chars, 2))
+38            Case 42     '* vbArray
+39                If Depth > 1 Then If Not AllowNesting Then Throw "Excel cannot display arrays containing arrays"
                   Dim Ret() As Variant
                   Dim p1 As Long 'Position of first semi-colon
                   Dim p2 As Long 'Position of second semi-colon
@@ -168,95 +177,95 @@ Function Unserialise(Chars As String, AllowNesting As Boolean, ByRef Depth As Lo
                   Dim i As Long ' Index into Ret
                   Dim j As Long 'Index into Ret
               
-36                p1 = InStr(Chars, ";")
-37                p2 = InStr(p1 + 1, Chars, ";")
-38                m = p1 + 1
-39                k = p2 + 1
+40                p1 = InStr(Chars, ";")
+41                p2 = InStr(p1 + 1, Chars, ";")
+42                m = p1 + 1
+43                k = p2 + 1
               
-40                Select Case Mid$(Chars, 2, 1)
+44                Select Case Mid$(Chars, 2, 1)
                       Case 1 '1 dimensional array
                           Dim n As Long 'Num elements in array
-41                        n = Mid$(Chars, 4, p1 - 4)
-42                        If n = 0 Then
-43                            If Not AllowNesting Then Throw "Excel cannot display arrays with zero elements"
-44                            Unserialise = VBA.Split(vbNullString) 'See discussion at https://stackoverflow.com/questions/55123413/declare-a-0-length-string-array-in-vba-impossible
-45                        Else
-46                            If JuliaVectorToXLColumn Then
-47                                ReDim Ret(1 To n, 1 To 1)
-48                                For i = 1 To n
-49                                    m2 = InStr(m, Chars, ",") + 1
-50                                    thislength = Mid$(Chars, m, m2 - m - 1)
-51                                    Assign Ret(i, 1), Unserialise(Mid$(Chars, k, thislength), AllowNesting, Depth, StringLengthLimit, JuliaVectorToXLColumn)
-52                                    k = k + thislength
-53                                    m = m2
-54                                Next i
-55                            Else
-56                                ReDim Ret(1 To n)
-57                                For i = 1 To n
-58                                    m2 = InStr(m, Chars, ",") + 1
-59                                    thislength = Mid$(Chars, m, m2 - m - 1)
-60                                    Assign Ret(i), Unserialise(Mid$(Chars, k, thislength), AllowNesting, Depth, StringLengthLimit, JuliaVectorToXLColumn)
-61                                    k = k + thislength
-62                                    m = m2
-63                                Next i
-64                            End If
-65                            Unserialise = Ret
-66                        End If
-67                    Case 2 '2 dimensional array
+45                        n = Mid$(Chars, 4, p1 - 4)
+46                        If n = 0 Then
+47                            If Not AllowNesting Then Throw "Excel cannot display arrays with zero elements"
+48                            Unserialise = VBA.Split(vbNullString) 'See discussion at https://stackoverflow.com/questions/55123413/declare-a-0-length-string-array-in-vba-impossible
+49                        Else
+50                            If JuliaVectorToXLColumn Then
+51                                ReDim Ret(1 To n, 1 To 1)
+52                                For i = 1 To n
+53                                    m2 = InStr(m, Chars, ",") + 1
+54                                    thislength = Mid$(Chars, m, m2 - m - 1)
+55                                    Assign Ret(i, 1), Unserialise(Mid$(Chars, k, thislength), AllowNesting, Depth, StringLengthLimit, JuliaVectorToXLColumn)
+56                                    k = k + thislength
+57                                    m = m2
+58                                Next i
+59                            Else
+60                                ReDim Ret(1 To n)
+61                                For i = 1 To n
+62                                    m2 = InStr(m, Chars, ",") + 1
+63                                    thislength = Mid$(Chars, m, m2 - m - 1)
+64                                    Assign Ret(i), Unserialise(Mid$(Chars, k, thislength), AllowNesting, Depth, StringLengthLimit, JuliaVectorToXLColumn)
+65                                    k = k + thislength
+66                                    m = m2
+67                                Next i
+68                            End If
+69                            Unserialise = Ret
+70                        End If
+71                    Case 2 '2 dimensional array
                           Dim commapos As Long
                           Dim NC As Long
                           Dim NR As Long
-68                        commapos = InStr(4, Chars, ",")
-69                        NR = Mid$(Chars, 4, commapos - 4)
-70                        NC = Mid$(Chars, commapos + 1, p1 - commapos - 1)
-71                        If NR = 0 Or NC = 0 Then Throw "Cannot create array of size zero"
-72                        ReDim Ret(1 To NR, 1 To NC)
-73                        For j = 1 To NC
-74                            For i = 1 To NR
-75                                m2 = InStr(m, Chars, ",") + 1
-76                                thislength = Mid$(Chars, m, m2 - m - 1)
-77                                Assign Ret(i, j), Unserialise(Mid$(Chars, k, thislength), AllowNesting, Depth, StringLengthLimit, JuliaVectorToXLColumn)
-78                                k = k + thislength
-79                                m = m2
-80                            Next i
-81                        Next j
-82                        Unserialise = Ret
-83                    Case Else
-84                        Throw "Cannot unserialise arrays with more than 2 dimensions"
-85                End Select
-86            Case 94 '^ Dictionary
-87                If Not AllowNesting Then Throw "Excel cannot display variables of type Dictionary"
-88                p1 = InStr(Chars, ";")
-89                p2 = InStr(p1 + 1, Chars, ";")
-90                m = p1 + 1 '"pointer" to read from lengths section. Points to the first character after each comma.
-91                k = p2 + 1 '"pointer" to read from contents section. Points to the first character of each "chunk".
+72                        commapos = InStr(4, Chars, ",")
+73                        NR = Mid$(Chars, 4, commapos - 4)
+74                        NC = Mid$(Chars, commapos + 1, p1 - commapos - 1)
+75                        If NR = 0 Or NC = 0 Then Throw "Cannot create array of size zero"
+76                        ReDim Ret(1 To NR, 1 To NC)
+77                        For j = 1 To NC
+78                            For i = 1 To NR
+79                                m2 = InStr(m, Chars, ",") + 1
+80                                thislength = Mid$(Chars, m, m2 - m - 1)
+81                                Assign Ret(i, j), Unserialise(Mid$(Chars, k, thislength), AllowNesting, Depth, StringLengthLimit, JuliaVectorToXLColumn)
+82                                k = k + thislength
+83                                m = m2
+84                            Next i
+85                        Next j
+86                        Unserialise = Ret
+87                    Case Else
+88                        Throw "Cannot unserialise arrays with more than 2 dimensions"
+89                End Select
+90            Case 94 '^ Dictionary
+91                If Not AllowNesting Then Throw "Excel cannot display variables of type Dictionary"
+92                p1 = InStr(Chars, ";")
+93                p2 = InStr(p1 + 1, Chars, ";")
+94                m = p1 + 1 '"pointer" to read from lengths section. Points to the first character after each comma.
+95                k = p2 + 1 '"pointer" to read from contents section. Points to the first character of each "chunk".
                   Dim DictRet As New Scripting.Dictionary
                   Dim keylength As Long
                   Dim m3 As Long
                   Dim ThisKey As Variant
                   Dim ThisValue As Variant
                   Dim valuelength As Long
-92                n = Mid$(Chars, 2, p1 - 2) 'Num elements in dictionary
-93                For i = 1 To n
-94                    m2 = InStr(m, Chars, ",") + 1
-95                    m3 = InStr(m2, Chars, ",") + 1
-96                    keylength = Mid$(Chars, m, m2 - m - 1)
-97                    valuelength = Mid$(Chars, m2, m3 - m2 - 1)
-98                    Assign ThisKey, Unserialise(Mid$(Chars, k, keylength), AllowNesting, Depth, StringLengthLimit, JuliaVectorToXLColumn)
-99                    k = k + keylength
-100                   Assign ThisValue, Unserialise(Mid$(Chars, k, valuelength), AllowNesting, Depth, StringLengthLimit, JuliaVectorToXLColumn)
-101                   k = k + valuelength
-102                   m = m3
-103                   DictRet.Add ThisKey, ThisValue
-104               Next i
-105               Set Unserialise = DictRet
-106           Case Else
-107               Throw "Character '" & Left$(Chars, 1) & "' is not recognised as a type identifier"
-108       End Select
+96                n = Mid$(Chars, 2, p1 - 2) 'Num elements in dictionary
+97                For i = 1 To n
+98                    m2 = InStr(m, Chars, ",") + 1
+99                    m3 = InStr(m2, Chars, ",") + 1
+100                   keylength = Mid$(Chars, m, m2 - m - 1)
+101                   valuelength = Mid$(Chars, m2, m3 - m2 - 1)
+102                   Assign ThisKey, Unserialise(Mid$(Chars, k, keylength), AllowNesting, Depth, StringLengthLimit, JuliaVectorToXLColumn)
+103                   k = k + keylength
+104                   Assign ThisValue, Unserialise(Mid$(Chars, k, valuelength), AllowNesting, Depth, StringLengthLimit, JuliaVectorToXLColumn)
+105                   k = k + valuelength
+106                   m = m3
+107                   DictRet.Add ThisKey, ThisValue
+108               Next i
+109               Set Unserialise = DictRet
+110           Case Else
+111               Throw "Character '" & Left$(Chars, 1) & "' is not recognised as a type identifier"
+112       End Select
 
-109       Exit Function
+113       Exit Function
 ErrHandler:
-110       Throw "#Unserialise (line " & CStr(Erl) + "): " & Err.Description & "!"
+114       Throw "#Unserialise (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Function
 
 'Values of type Int64 in Julia must be handled differently on Excel 32-bit and Excel 64bit
