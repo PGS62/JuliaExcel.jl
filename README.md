@@ -24,7 +24,7 @@ Support Excel for Windows (not Mac). Julia can be run under Windows or Linux (vi
 Installation does not require admin rights on the PC.
  * Both Julia and Microsoft Office must be installed on your PC, with Excel not running.
  * Launch Julia, and copy-paste the following command into the REPL:  
-   `using Pkg; Pkg.add(url="https://github.com/PGS62/JuliaExcel.jl",version="0.2");using JuliaExcel;JuliaExcel.installme()`  
+   `using Pkg; Pkg.add(url="https://github.com/PGS62/JuliaExcel.jl",rev="0.2.5");using JuliaExcel;JuliaExcel.installme()`  
    (paste into the REPL is via mouse right-click).
  * Click through a couple of dialogs.
  * Launch Excel. Check that the JuliaExcel functions are available by typing `=Julia` into a worksheet cell and checking that the auto-complete offers `JuliaCall`, `JuliaEval`, `JuliaInclude` etc.
@@ -38,7 +38,7 @@ As an alternative to calling Julia running in a Windows process, JuliaExcel can 
  * If necessary, install [WSL](https://docs.microsoft.com/en-us/windows/wsl/install) with the default Linux distribution, Ubuntu.
  * Install Julia under WSL, as explained [here](https://ferrolho.github.io/blog/2019-01-26/how-to-install-julia-on-ubuntu). The last step in these instructions, to create a symbolic link to `julia` inside the `/usr/local/bin` folder is necessary.
  * At the Julia prompt (under WSL) install JuliaExcel by copy-pasting   
-  `using Pkg; Pkg.add(url="https://github.com/PGS62/JuliaExcel.jl",version="0.2")` into the REPL. 
+  `using Pkg; Pkg.add(url="https://github.com/PGS62/JuliaExcel.jl",rev="0.2.5")` into the REPL. 
 
 ## Functions
 JuliaExcel makes the following functions available from Excel worksheets and from VBA:
