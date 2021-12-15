@@ -49,7 +49,8 @@ function setcommsfolder(folder::String)
 end
 
 function installme()
-    Sys.iswindows() || throw("JuliaExcel can only be installed on Windows")
+    Sys.iswindows() || throw("JuliaExcel.installme (which installs a Microsoft Excel " *
+                              "addin) can only be run from Julia on Windows")   
     installscript = normpath(joinpath(@__DIR__,"..","installer","install.vbs"))
     exefile = "C:/Windows/System32/wscript.exe"
     isfile(exefile) || throw("Cannot find Windows Script Host at '$exefile'")
