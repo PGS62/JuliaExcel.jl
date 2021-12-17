@@ -22,6 +22,8 @@ end
 Returns the process id of the instance of Excel that the current Julia process is serving.
 """
 function getxlpid()
+    xlpid[]==0 && throw("setxlpid has not been called in this Julia session, it must be" *
+                        " called to set the process id of the active Excel session")
     xlpid[]
 end
 
@@ -38,13 +40,29 @@ function getcommsfolder()
     end
 end
 
-#JuliaExcel.setcommsfolder("C:/Users/PhilipSwannell/AppData/Local/Temp/@JuliaExcel")
 """
-    setcommsfolder()
+    setcommsfolder(folder::String="")
 Sets the name of the folder to which request files are written by VBA code in 
 JuliaExcel.xlam and to which `srv_xl` writes results. See also `getcommsfolder`.
+Argument folder can be omitted as a convenience when developing this package.
 """
-function setcommsfolder(folder::String)
+function setcommsfolder(folder::String="")
+    if folder == ""
+        if Sys.iswindows()
+            folder = joinpath(ENV["TEMP"],"@JuliaExcel")
+        elseif Sys.islinux()
+            trythese = ["phili","philip","PhilipSwannell"]
+            for trythis = trythese
+                f = joinpath("/mnt/c/Users",trythis,"AppData/Local/Temp/@JuliaExcel")
+                if isdir(f)
+                    return(commsfolder[] = f)
+                end
+            end
+            throw("Cannot find commsfolder")
+        else
+            throw("operating system not supported")
+        end
+    end
     commsfolder[] = folder
 end
 
@@ -95,7 +113,6 @@ given by `getcommsfolder`.
 function srv_xl()
 
     expression = read_utf16(expressionfile())
-    
     global result = try
         Main.eval(Meta.parse(expression))
     catch e
