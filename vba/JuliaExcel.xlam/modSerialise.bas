@@ -127,7 +127,7 @@ Function Unserialise(Chars As String, AllowNesting As Boolean, ByRef Depth As Lo
               Case 35    '# vbDouble
 4                 Unserialise = CDbl(Mid$(Chars, 2))
 5             Case 163    '£ (pound sterling) vbString
-6                 If StringLengthLimit >= 0 Then 'Calling from worksheet formula, StringLengthLimit applies to elements of an array
+6                 If StringLengthLimit > 0 Then 'Calling from worksheet formula, StringLengthLimit applies to elements of an array
 7                     If Len(Chars) > IIf(Depth = 1, 32768, StringLengthLimit) Then 'Remember Chars includes an initial type indicator character of "£"
 8                         If StringLengthLimit = 32768 Then
 9                             Throw "Data contains a string of length " & Format(Len(Chars) - 1, "###,###") & _

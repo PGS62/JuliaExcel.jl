@@ -1,4 +1,5 @@
 Version	Date	Time	Author	Comment
+87	18-Dec-2021	18:39	Philip Swannell	Fixed bug in JuliaEvalVBA - bug was introduced by previous change and made JuliaEvalVBA fail whenever returning strings.
 86	15-Dec-2021	16:17	Philip Swannell	Improved handling of string length limits.
 85	15-Dec-2021	12:31	Philip Swannell	JuliaLaunch now checks for existence of wsl.exe
 84	14-Dec-2021	19:33	Philip Swannell	Amended method GetStringLengthLimit. Now returns 256 on Excel 2013.
