@@ -1,5 +1,5 @@
 ' Installer for JuliaExcel.xlam
-' Philip Swannell 4 Nov 2021
+' Philip Swannell 19 Dec 2021
 
 'To Debug this file, install visual studio set up for debugging 
 'Then run from a command prompt (in the appropriate folder)
@@ -282,9 +282,14 @@ Function RegistryDelete(RegKey)
     myWS.regDelete RegKey
 End Function
 
+'Apparently VBScript has no in-line if. So create one, but note that unlike
+'VB6/VBA's Iif this one does not evaluate both truepart and falsepart.
 Function IIf( expr, truepart, falsepart )
-   IIf = falsepart
-   If expr Then IIf = truepart
+    If expr Then
+        IIf = truepart
+    Else
+        IIf = falsepart
+    End If
 End Function
 
 Function Environ(Expression)
@@ -437,15 +442,16 @@ If (WScript.Arguments.length = 0) And ElevateToAdmin Then
 Else
     Dim gOfficeVersion, gOfficeBitness
     Set myWS = CreateObject("WScript.Shell")
-    
-    GetOfficeVersionAndBitness gOfficeVersion, gOfficeBitness
-
-    GIFRecordingMode = FileExists(GIFRecordingFlagFile)
 
     gErrorsEncountered = False
     If Not GIFRecordingMode Then
+        'CheckProcess must be called BEFORE GetOfficeVersionAndBitness
         CheckProcess "Excel.exe"
     End If
+
+    GetOfficeVersionAndBitness gOfficeVersion, gOfficeBitness
+
+    GIFRecordingMode = FileExists(GIFRecordingFlagFile)
 
     If gOfficeVersion = "Office Not found" Then
     Prompt = "Installation cannot proceed because no version of Microsoft Office has " & _
