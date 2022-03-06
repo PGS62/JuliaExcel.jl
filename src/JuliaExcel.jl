@@ -116,7 +116,17 @@ function srv_xl()
     global result = try
         Main.eval(Meta.parse(expression))
     catch e
-        "#($e)!"
+       println("="^100)
+       if length(expression)>500
+        println("Something went wrong evaluating the contents of $(expressionfile())")
+       else
+        println("Something went wrong evaluating the expression:")
+        println(expression)
+       end
+       showerror(stdout, e, catch_backtrace())
+       println("")
+       println("="^100)
+       truncate("#($e)!",10000)
     end
 
     canencode = true
@@ -133,7 +143,7 @@ function srv_xl()
     close(io)
     
     killflagfile()
-    println(truncate(expression))
+    println(truncate(expression,120))
     display(result)
     canencode || (println("");@error "Result of type $(typeof(result)) could not be " *
                                      "encoded for return to Excel.")
@@ -199,11 +209,11 @@ end
 
 """
     truncate(x::String)
-Abbreviate a string to show only 120 characters, the usual width of the REPL.
+Abbreviate a string to show only `maxlength` characters.
 """
-function truncate(x::String)
-    if (length(x)) > 120
-        first(x,58) * " … " * last(x,58)
+function truncate(x::String,maxlength::Int)
+    if (length(x)) > maxlength
+        first(x,maxlength ÷ 2 ) * " … " * last(x,maxlength-(maxlength ÷ 2)-1)
     else
         x
     end
