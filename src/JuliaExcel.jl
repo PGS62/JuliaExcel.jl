@@ -143,8 +143,8 @@ function srv_xl()
     close(io)
     
     killflagfile()
-    println(truncate(expression,120))
-    display(result)
+  #  println(truncate(expression,120))
+  #  display(result)
     canencode || (println("");@error "Result of type $(typeof(result)) could not be " *
                                      "encoded for return to Excel.")
                                        
