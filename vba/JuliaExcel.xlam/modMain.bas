@@ -258,27 +258,22 @@ Private Function JuliaEval_LowLevel(ByVal JuliaExpression As Variant, _
 1         On Error GoTo ErrHandler
 
 2         strJuliaExpression = ConcatenateExpressions(JuliaExpression)
-
 3         If JuliaExe = "" Then
 4             JuliaExe = JuliaExeLocation()
 5         End If
 6         If PID = 0 Then
 7             PID = GetCurrentProcessId()
 8         End If
-            
 9         If HwndJulia = 0 Or IsWindow(HwndJulia) = 0 Then
 10            WindowTitle = "serving Excel PID " & CStr(PID)
 11            GetHandleFromPartialCaption HwndJulia, WindowTitle
 12        End If
-
 13        If HwndJulia = 0 Or IsWindow(HwndJulia) = 0 Then
 14            JuliaEval_LowLevel = "#Please call JuliaLaunch before calling JuliaEval or JuliaCall!"
 15            Exit Function
 16        End If
-          
 17        SaveTextFile JuliaFlagFile, "", TristateTrue
 18        SaveTextFile JuliaExpressionFile, strJuliaExpression, TristateTrue
-
           'Line below tells Julia to "do the work" by pasting "srv_xl()" to the REPL
 19        PostMessageToJulia HwndJulia
 
@@ -552,53 +547,57 @@ Private Function JuliaExeLocation(Optional UseLinux As Boolean)
 1         On Error GoTo ErrHandler
           
 2         If UseLinux Then
-7             JuliaExeLocation = "julia"
-8             Exit Function
-9         End If
+3             JuliaExeLocation = "julia"
+4             Exit Function
+5         End If
           
           'First search on PATH
-10        Path = Environ("PATH")
-11        Paths = VBA.Split(Path, ";")
-12        For i = LBound(Paths) To UBound(Paths)
-13            Folder = Paths(i)
-14            If Right(Folder, 1) <> "\" Then Folder = Folder + "\"
-15            ExeFile = Folder + "julia.exe"
-16            If FileExists(ExeFile) Then
-17                JuliaExeLocation = ExeFile
-18                Exit Function
-19            End If
-20        Next i
+6         Path = Environ("PATH")
+7         Paths = VBA.Split(Path, ";")
+8         For i = LBound(Paths) To UBound(Paths)
+9             Folder = Paths(i)
+10            If Right(Folder, 1) <> "\" Then Folder = Folder + "\"
+11            ExeFile = Folder + "julia.exe"
+12            If FileExists(ExeFile) Then
+13                JuliaExeLocation = ExeFile
+14                Exit Function
+15            End If
+16        Next i
 
           'If not found on path, search in the locations to which the windows installer installs
           'julia (if the user accepts defaults) and choose the most recently installed
-
-21        ParentFolderName = Environ("LOCALAPPDATA") & "\Programs"
-22        Set ParentFolder = FSO.GetFolder(ParentFolderName)
-
-23        For Each ChildFolder In ParentFolder.SubFolders
-24            If Left(ChildFolder.Name, 5) = "Julia" Then
-25                ExeFile = ParentFolder & "\" & ChildFolder.Name & "\bin\julia.exe"
-26                If FileExists(ExeFile) Then
-27                    ThisCreatedDate = ChildFolder.DateCreated
-28                    If ThisCreatedDate > CreatedDate Then
-29                        CreatedDate = ThisCreatedDate
-30                        ChosenExe = ExeFile
-31                    End If
-32                End If
-33            End If
-34        Next
+17        For i = 1 To 2
+18            If i = 1 Then
+19                ParentFolderName = Environ("LOCALAPPDATA") & "\Programs"
+20            Else
+21                ParentFolderName = Environ("LOCALAPPDATA")
+22            End If
+23            Set ParentFolder = FSO.GetFolder(ParentFolderName)
+24            For Each ChildFolder In ParentFolder.SubFolders
+25                If Left(ChildFolder.Name, 5) = "Julia" Then
+26                    ExeFile = ParentFolder & "\" & ChildFolder.Name & "\bin\julia.exe"
+27                    If FileExists(ExeFile) Then
+28                        ThisCreatedDate = ChildFolder.DateCreated
+29                        If ThisCreatedDate > CreatedDate Then
+30                            CreatedDate = ThisCreatedDate
+31                            ChosenExe = ExeFile
+32                        End If
+33                    End If
+34                End If
+35            Next
+36        Next i
           
-35        If ChosenExe = "" Then
-36            ErrString = "Julia executable not found, after looking on the path and then in sub-folders of " + _
-                  ParentFolderName + " which is the default location for Julia on Windows"
-37            Throw ErrString
-38        Else
-39            JuliaExeLocation = ChosenExe
-40        End If
+37        If ChosenExe = "" Then
+38            ErrString = "Julia executable not found, after looking on the path and in folders to which Julia " & _
+                  "is typically installed on Windows. When installing Julia check the ""Add Julia to Path"" option."
+39            Throw ErrString
+40        Else
+41            JuliaExeLocation = ChosenExe
+42        End If
 
-41        Exit Function
+43        Exit Function
 ErrHandler:
-42        Throw "#JuliaExeLocation (line " & CStr(Erl) + "): " & Err.Description & "!"
+44        Throw "#JuliaExeLocation (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
@@ -685,14 +684,14 @@ End Function
 Private Sub SpeedTest()
 
           Const Expression As String = "fill(""xxx"",1000,1000)"
-          Const UseLinux As Boolean = True
+          Const UseLinux As Boolean = False
           Const NumCalls = 10
           Dim i As Long
           Dim Res
           Dim t1 As Double
           Dim t2 As Double
 
-1         JuliaLaunch , , , UseLinux
+1         JuliaLaunch UseLinux
 2         t1 = ElapsedTime
 3         For i = 1 To NumCalls
 4             Res = JuliaEval(Expression)
