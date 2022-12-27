@@ -48,23 +48,32 @@ Function IsProcessRunning(strComputer, strProcess)
     Next
 End Function
 
-Function CheckProcess(TheProcessName)
+'---------------------------------------------------------------------------------------
+' Procedure : CheckExcel
+' Purpose   : Invite user to shut down Excel, exits once the user does so or quits the
+'             script if they decline.
+'---------------------------------------------------------------------------------------
+Function CheckExcel()
+    Const ProcessName = "Excel.exe"
+    Const FriendlyName = "Microsoft Excel"
     Dim exc, result
-    exc = IsProcessRunning(".", TheProcessName)
+    exc = IsProcessRunning(".", ProcessName)
     If (exc = True) Then
-        result = MsgBox(TheProcessName & _
-        " is running. Please close it and then click OK to continue.", _
+        result = MsgBox(FriendlyName & " is running. Please close it and then click OK to continue.", _
         vbOKOnly + vbExclamation, MsgBoxTitle)
-        exc = IsProcessRunning(".", TheProcessName)
-        If (exc = True) Then
-            result = MsgBox(TheProcessName & " is still running. Please close the " & _
-                    "program and restart the installation." + vbLf + vbLf + _
-                    "Can't see " & TheProcessName & "?" & vbLf & "Use Windows Task " & _
-                    "Manager to check for a ""ghost"" process." & vblf & vbLf & _
-                    "Also check that no other user of this PC is logged in and using Excel.", _
-                    vbOKOnly + vbExclamation, MsgBoxTitle)
-            WScript.Quit
-        End If
+        While True      
+            exc = IsProcessRunning(".", ProcessName)
+            If (exc = True) Then
+                result = MsgBox(FriendlyName & " is still running. Please close it and then click OK to continue, or click Cancel to quit." & vbLf & vbLf & _
+                 "Can't see " & FriendlyName & "?" & vbLf & "Use Windows Task Manager to check if " & FriendlyName & _
+                 " is running as a ""background process"", and if so use the right-click menu to ""End task"" the process.", vbOKCancel + vbExclamation, MsgBoxTitle)
+                If result <> vbOK Then
+                    WScript.Quit
+                End If
+            Else
+                Exit Function
+            End If
+        Wend
     End If
 End Function
 
@@ -445,8 +454,8 @@ Else
 
     gErrorsEncountered = False
     If Not GIFRecordingMode Then
-        'CheckProcess must be called BEFORE GetOfficeVersionAndBitness
-        CheckProcess "Excel.exe"
+        'CheckExcel must be called BEFORE GetOfficeVersionAndBitness
+        CheckExcel
     End If
 
     GetOfficeVersionAndBitness gOfficeVersion, gOfficeBitness
