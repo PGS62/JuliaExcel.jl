@@ -1,4 +1,4 @@
-Version	Date	Time	Author	Comment
+﻿Version	Date	Time	Author	Comment
 88	12-Jul-2022	15:33	Philip Swannell	Tweak to method JuliaExcelLocation to search in additional locations.
 87	18-Dec-2021	18:39	Philip Swannell	Fixed bug in JuliaEvalVBA - bug was introduced by previous change and made JuliaEvalVBA fail whenever returning strings.
 86	15-Dec-2021	16:17	Philip Swannell	Improved handling of string length limits.

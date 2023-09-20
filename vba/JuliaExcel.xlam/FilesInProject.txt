@@ -1,8 +1,9 @@
+﻿JuliaExcel.xlam
+VBA\modMain.bas
+VBA\modPostMessage.bas
+VBA\modUtils.bas
+VBA\modSerialise.bas
+VBA\modJuliaLiteral.bas
+VBA\modRegister.bas
 AuditSheetComments.txt
-JuliaExcel.xlam
-modJuliaLiteral.bas
-modMain.bas
-modPostMessage.bas
-modRegister.bas
-modSerialise.bas
-modUtils.bas
+Intellisense.txt
