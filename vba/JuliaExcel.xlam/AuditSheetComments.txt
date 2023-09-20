@@ -1,4 +1,5 @@
 ﻿Version	Date	Time	Author	Comment
+90	20-Sep-2023	16:36	Philip Swannell	Code comments only.
 89	20-Sep-2023	16:27	Philip Swannell	Launch Julia with -i command line option. Plays nice with OhMyREPL.
 88	12-Jul-2022	15:33	Philip Swannell	Tweak to method JuliaExcelLocation to search in additional locations.
 87	18-Dec-2021	18:39	Philip Swannell	Fixed bug in JuliaEvalVBA - bug was introduced by previous change and made JuliaEvalVBA fail whenever returning strings.

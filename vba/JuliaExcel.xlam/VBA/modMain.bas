@@ -685,6 +685,10 @@ End Function
 'Expression = fill("xxx",1000,1000)
 'Average time in JuliaEval   2.25666286000051   <-- also seeing slowdown on PC in the office
 '--------------------------------------------------
+'20-Sep-2023 16:34:52       DESKTOP-HSGAM5S
+'Expression = fill("xxx",1000,1000)
+'Average time in JuliaEval   1.42395350000006  <-- higher spec PC
+'--------------------------------------------------
 Private Sub SpeedTest()
 
           Const Expression As String = "fill(""xxx"",1000,1000)"
