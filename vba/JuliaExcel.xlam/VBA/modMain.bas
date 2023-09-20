@@ -94,86 +94,90 @@ Public Function JuliaLaunch(Optional UseLinux As Boolean, Optional MinimiseWindo
 
 7         If InStr(CommandLineOptions, "-L") > 0 Or InStr(CommandLineOptions, "--load ") > 0 Then
 8             Throw "CommandLineOptions cannot include the -L or --load options. Instead use JuliaLaunch without that option and then use JuliaCall(""include"",""path_to_file"")"
-9         End If
+9         ElseIf InStr(CommandLineOptions, "-i") = 0 Then
+              'It's convenient if Julia package OhMyREPL works correctly in the REPL, but that requires the -i (interactive) command line option.
+              'https://github.com/KristofferC/OhMyREPL.jl/issues/271
+10            CommandLineOptions = Trim$(CommandLineOptions) & " -i"
+11        End If
 
-10        PID = GetCurrentProcessId
-11        WindowPartialTitle = "serving Excel PID " & CStr(PID) 'Must be in synch with Julia function JuliaExcel.settitle
-12        GetHandleFromPartialCaption HwndJulia, WindowPartialTitle
+12        PID = GetCurrentProcessId
+13        WindowPartialTitle = "serving Excel PID " & CStr(PID) 'Must be in synch with Julia function JuliaExcel.settitle
+14        GetHandleFromPartialCaption HwndJulia, WindowPartialTitle
 
-13        If HwndJulia <> 0 Then
-14            WindowTitle = WindowTitleFromHandle(HwndJulia)
-15            JuliaLaunch = "Julia is already running in window """ & WindowTitle & """"
-16            Exit Function
-17        End If
+15        If HwndJulia <> 0 Then
+16            WindowTitle = WindowTitleFromHandle(HwndJulia)
+17            JuliaLaunch = "Julia is already running in window """ & WindowTitle & """"
+18            Exit Function
+19        End If
 
-18        ErrorFile = LocalTemp() & "\LoadError_" & CStr(GetCurrentProcessId()) & ".txt"
-19        If FileExists(ErrorFile) Then Kill ErrorFile
+20        ErrorFile = LocalTemp() & "\LoadError_" & CStr(GetCurrentProcessId()) & ".txt"
+21        If FileExists(ErrorFile) Then Kill ErrorFile
           
-20        SaveTextFile JuliaFlagFile, "", TristateFalse
-21        LoadFile = LocalTemp() & "\StartUp_" & CStr(GetCurrentProcessId()) & ".jl"
+22        SaveTextFile JuliaFlagFile, "", TristateFalse
+23        LoadFile = LocalTemp() & "\StartUp_" & CStr(GetCurrentProcessId()) & ".jl"
 
-22        If UseLinux Then
-23            If Not FileExists(WSLExecutable) Then
-24                Throw "Cannot find the WSL executable at '" + WSLExecutable + "'. Check if the file exists and whether read and execute permissions are set user '" & Environ$("USERNAME") & "'"
-25            End If
+24        If UseLinux Then
+25            If Not FileExists(WSLExecutable) Then
+26                Throw "Cannot find the WSL executable at '" + WSLExecutable + "'. Check if the file exists and whether read and execute permissions are set user '" & Environ$("USERNAME") & "'"
+27            End If
 
-26            ErrorFileX = WSLAddress(ErrorFile)
-27            FlagFileX = WSLAddress(JuliaFlagFile())
-28            CommsFolderX = WSLAddress(LocalTemp())
-29            LoadFileX = WSLAddress(LoadFile)
-30            If BashStatements <> "" Then
-31                LaunchFileNecessary = True
-32                BashStatements = BashStatements & vbLf
-33                LaunchFile = LocalTemp & "\launchjulia.sh"
-34                LaunchFileX = WSLAddress(LaunchFile)
-35                LaunchFileContents = _
+28            ErrorFileX = WSLAddress(ErrorFile)
+29            FlagFileX = WSLAddress(JuliaFlagFile())
+30            CommsFolderX = WSLAddress(LocalTemp())
+31            LoadFileX = WSLAddress(LoadFile)
+32            If BashStatements <> "" Then
+33                LaunchFileNecessary = True
+34                BashStatements = BashStatements & vbLf
+35                LaunchFile = LocalTemp & "\launchjulia.sh"
+36                LaunchFileX = WSLAddress(LaunchFile)
+37                LaunchFileContents = _
                       "#!/bin/bash" & vbLf & _
                       BashStatements & _
                       JuliaExe & " " & Trim(CommandLineOptions) & " --load """ & LoadFileX & """"
-36                SaveTextFile LaunchFile, LaunchFileContents, TristateFalse
-37            End If
-38        Else
-39            FlagFileX = Replace(JuliaFlagFile(), "\", "/")
-40            CommsFolderX = Replace(LocalTemp(), "\", "/")
-41            ErrorFileX = Replace(ErrorFile, "\", "/")
-42            LoadFileX = Replace(LoadFile, "\", "/")
-43        End If
+38                SaveTextFile LaunchFile, LaunchFileContents, TristateFalse
+39            End If
+40        Else
+41            FlagFileX = Replace(JuliaFlagFile(), "\", "/")
+42            CommsFolderX = Replace(LocalTemp(), "\", "/")
+43            ErrorFileX = Replace(ErrorFile, "\", "/")
+44            LoadFileX = Replace(LoadFile, "\", "/")
+45        End If
 
-44        If UseLinux Then
-45            If LaunchFileNecessary Then
-46                Command = "wsl """ & LaunchFileX & """ && exit"
-47            Else
-48                Command = "wsl " & JuliaExe & " " & Trim(CommandLineOptions) & " --load """ & LoadFileX & """"
-49            End If
-50        Else
-51            Command = """" & JuliaExe & """" & " " & Trim(CommandLineOptions) & " --load """ & LoadFileX & """"
-52        End If
+46        If UseLinux Then
+47            If LaunchFileNecessary Then
+48                Command = "wsl """ & LaunchFileX & """ && exit"
+49            Else
+50                Command = "wsl " & JuliaExe & " " & Trim(CommandLineOptions) & " --load """ & LoadFileX & """"
+51            End If
+52        Else
+53            Command = """" & JuliaExe & """" & " " & Trim(CommandLineOptions) & " --load """ & LoadFileX & """"
+54        End If
           
           Dim LiteralCommand As String
-53        LiteralCommand = MakeJuliaLiteral(Command)
-54        LiteralCommand = Mid(LiteralCommand, 2, Len(LiteralCommand) - 2)
+55        LiteralCommand = MakeJuliaLiteral(Command)
+56        LiteralCommand = Mid(LiteralCommand, 2, Len(LiteralCommand) - 2)
 
           Dim i As Long
           Dim PackagesArray() As String
 
           'PGS 8 Dec 2021. It's important to make using JuliaExcel be the last "using" statement as I believe that helps avoid "world-age" problems
-55        If Packages = "" Then
-56            Packages = "Dates," & gPackageName
-57        Else
-58            Packages = "Dates," & Packages & "," & gPackageName
-59        End If
-60        PackagesArray = VBA.Split(Packages, ",")
+57        If Packages = "" Then
+58            Packages = "Dates," & gPackageName
+59        Else
+60            Packages = "Dates," & Packages & "," & gPackageName
+61        End If
+62        PackagesArray = VBA.Split(Packages, ",")
 
-61        For i = LBound(PackagesArray) To UBound(PackagesArray)
-62            Select Case PackagesArray(i)
+63        For i = LBound(PackagesArray) To UBound(PackagesArray)
+64            Select Case PackagesArray(i)
                   Case Else
-63                    usingStatements = usingStatements & _
+65                    usingStatements = usingStatements & _
                           "    println(""using " & Trim(PackagesArray(i)) & """)" & vbLf & _
                           "    using " & Trim(PackagesArray(i)) & vbLf
-64            End Select
-65        Next
+66            End Select
+67        Next
 
-66        LoadFileContents = _
+68        LoadFileContents = _
               "try" & vbLf & _
               usingStatements & _
               "    setxlpid(" & CStr(GetCurrentProcessId) & ")" & vbLf & _
@@ -191,42 +195,42 @@ Public Function JuliaLaunch(Optional UseLinux As Boolean, Optional MinimiseWindo
               "    rm(""" & FlagFileX & """)" & vbLf & _
               "end"
 
-67        SaveTextFile LoadFile, LoadFileContents, TristateFalse
+69        SaveTextFile LoadFile, LoadFileContents, TristateFalse
         
-68        Set wsh = New WshShell
+70        Set wsh = New WshShell
 
           Dim NumBefore As Long
           Dim StartTime As Double
-69        StartTime = ElapsedTime()
+71        StartTime = ElapsedTime()
           Dim PartialCaption As String
-70        PartialCaption = "serving Excel PID " & CStr(PID)
-71        NumBefore = NumWindowsWithCaption(PartialCaption)
+72        PartialCaption = "serving Excel PID " & CStr(PID)
+73        NumBefore = NumWindowsWithCaption(PartialCaption)
 
-72        wsh.Run Command, IIf(MinimiseWindow, vbMinimizedFocus, vbNormalNoFocus), False
+74        wsh.Run Command, IIf(MinimiseWindow, vbMinimizedFocus, vbNormalNoFocus), False
           'Unfortunately, if the CommandLineOptions are invalid then Julia does not launch, but the
           'call to wsh.Run does not throw an error. Work-around is to count the number of windows whose
           'caption contains "Julia 1." before and TIMEOUT seconds after the call to wsh.Run.
-73        While FileExists(JuliaFlagFile)
-74            Sleep 50
-75            If ElapsedTime() - StartTime > TimeOut Then
-76                If NumWindowsWithCaption(PartialCaption) <> NumBefore + 1 Then
-77                    Throw "Julia failed to launch after " + CStr(TimeOut) + " seconds. Check the CommandLineOptions are valid (https://docs.julialang.org/en/v1/manual/command-line-options/)"
-78                End If
-79            End If
-80        Wend
-81        CleanLocalTemp
-82        If FileExists(ErrorFile) Then
-83            Throw "Julia launched but encountered an error when executing '" & LoadFile & "' the error was: " & ReadTextFile(ErrorFile, TristateFalse)
-84        End If
+75        While FileExists(JuliaFlagFile)
+76            Sleep 50
+77            If ElapsedTime() - StartTime > TimeOut Then
+78                If NumWindowsWithCaption(PartialCaption) <> NumBefore + 1 Then
+79                    Throw "Julia failed to launch after " + CStr(TimeOut) + " seconds. Check the CommandLineOptions are valid (https://docs.julialang.org/en/v1/manual/command-line-options/)"
+80                End If
+81            End If
+82        Wend
+83        CleanLocalTemp
+84        If FileExists(ErrorFile) Then
+85            Throw "Julia launched but encountered an error when executing '" & LoadFile & "' the error was: " & ReadTextFile(ErrorFile, TristateFalse)
+86        End If
           
-85        GetHandleFromPartialCaption HwndJulia, WindowPartialTitle
-86        WindowTitle = WindowTitleFromHandle(HwndJulia)
+87        GetHandleFromPartialCaption HwndJulia, WindowPartialTitle
+88        WindowTitle = WindowTitleFromHandle(HwndJulia)
           
-87        JuliaLaunch = "Julia launched in window """ & WindowTitle & """"
+89        JuliaLaunch = "Julia launched in window """ & WindowTitle & """"
 
-88        Exit Function
+90        Exit Function
 ErrHandler:
-89        JuliaLaunch = "#JuliaLaunch (line " & CStr(Erl) + "): " & Err.Description & "!"
+91        JuliaLaunch = "#JuliaLaunch (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------

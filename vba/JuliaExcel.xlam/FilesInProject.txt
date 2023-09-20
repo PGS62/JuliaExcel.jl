@@ -1,9 +1,9 @@
 ﻿JuliaExcel.xlam
-VBA\modMain.bas
 VBA\modPostMessage.bas
 VBA\modUtils.bas
 VBA\modSerialise.bas
 VBA\modJuliaLiteral.bas
 VBA\modRegister.bas
+VBA\modMain.bas
 AuditSheetComments.txt
 Intellisense.txt
