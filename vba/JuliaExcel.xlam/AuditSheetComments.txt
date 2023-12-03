@@ -1,4 +1,5 @@
 ﻿Version	Date	Time	Author	Comment
+91	03-Dec-2023	17:56	Philip Swannell	Windows API functions GetCurrentProcessID and IsWindow now declared Private so no longer visible from Excel.
 90	20-Sep-2023	16:36	Philip Swannell	Code comments only.
 89	20-Sep-2023	16:27	Philip Swannell	Launch Julia with -i command line option. Plays nice with OhMyREPL.
 88	12-Jul-2022	15:33	Philip Swannell	Tweak to method JuliaExcelLocation to search in additional locations.

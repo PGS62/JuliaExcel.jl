@@ -7,3 +7,5 @@ VBA\modRegister.bas
 VBA\modMain.bas
 AuditSheetComments.txt
 Intellisense.txt
+Values\Audit.csv
+Values\_IntelliSense_.csv

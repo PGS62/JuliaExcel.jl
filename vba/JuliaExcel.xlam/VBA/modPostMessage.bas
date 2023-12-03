@@ -19,6 +19,7 @@ Private Const GW_HWNDNEXT = 2
     Private Declare PtrSafe Function GetWindow Lib "USER32" (ByVal hWnd As LongPtr, ByVal wCmd As Long) As LongPtr
     Private Declare PtrSafe Function GetWindowThreadProcessId Lib "user32.dll" _
         (ByVal hWnd As LongPtr, ByRef lpdwProcessId As Long) As Long
+    Private Declare PtrSafe Function GetCurrentProcessId Lib "kernel32" () As Long
 #Else
     Private Declare Function PostMessage Lib "user32" Alias "PostMessageA" (ByVal hwnd As Long, _
         ByVal wMsg As Long, ByVal wParam As Long, lParam As Any) As Long
@@ -31,6 +32,7 @@ Private Const GW_HWNDNEXT = 2
     Private Declare Function GetWindow Lib "user32" (ByVal hwnd As Long, ByVal wCmd As Long) As Long
     Private Declare Function GetWindowThreadProcessId Lib "user32.dll" _
         (ByVal hWnd As Long, ByRef lpdwProcessId As Long) As Long
+    Private Declare Function GetCurrentProcessId Lib "kernel32" () As Long
 #End If
 
 ' -----------------------------------------------------------------------------------------------------------------------

@@ -5,13 +5,13 @@ Attribute VB_Name = "modMain"
 
 Option Explicit
 #If VBA7 And Win64 Then
-    Declare PtrSafe Function GetCurrentProcessId Lib "kernel32" () As Long
-    Public Declare PtrSafe Sub Sleep Lib "kernel32" (ByVal Milliseconds As Long)
-    Public Declare PtrSafe Function IsWindow Lib "USER32" (ByVal hWnd As LongPtr) As Long
+    Private Declare PtrSafe Function GetCurrentProcessId Lib "kernel32" () As Long
+    Private Declare PtrSafe Sub Sleep Lib "kernel32" (ByVal Milliseconds As Long)
+    Private Declare PtrSafe Function IsWindow Lib "USER32" (ByVal hWnd As LongPtr) As Long
 #Else
-    Declare Function GetCurrentProcessId Lib "kernel32" () As Long
-    Public Declare Sub Sleep Lib "kernel32" (ByVal Milliseconds As Long)
-    Public Declare Function IsWindow Lib "user32" (ByVal hwnd As Long) As Long
+    Private Declare Function GetCurrentProcessId Lib "kernel32" () As Long
+    Private Declare Sub Sleep Lib "kernel32" (ByVal Milliseconds As Long)
+    Private Declare Function IsWindow Lib "user32" (ByVal hwnd As Long) As Long
 #End If
 
 Public Const gPackageName As String = "JuliaExcel"
