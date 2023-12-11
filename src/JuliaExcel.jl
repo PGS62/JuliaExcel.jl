@@ -3,18 +3,18 @@ export srv_xl, setxlpid, killflagfile, getcommsfolder
 
 using Dates, DataFrames
 import StringEncodings
-global const xlpid = Ref(0)
-global const commsfolder = Ref("")
+const global xlpid = Ref(0)
+const global commsfolder = Ref("")
 
 """
     setxlpid(pid::Int64)
 Set the process id of the instance of Excel that the current Julia process is serving.
 """
 function setxlpid(pid::Int64)
-  xlpid[] = pid
-  settitle()
-  println("xlpid set to $pid")
-  nothing
+    xlpid[] = pid
+    settitle()
+    println("xlpid set to $pid")
+    nothing
 end
 
 """
@@ -22,8 +22,8 @@ end
 Returns the process id of the instance of Excel that the current Julia process is serving.
 """
 function getxlpid()
-    xlpid[]==0 && throw("setxlpid has not been called in this Julia session, it must be" *
-                        " called to set the process id of the active Excel session")
+    xlpid[] == 0 && throw("setxlpid has not been called in this Julia session, it must be" *
+                          " called to set the process id of the active Excel session")
     xlpid[]
 end
 
@@ -49,13 +49,13 @@ Argument folder can be omitted as a convenience when developing this package.
 function setcommsfolder(folder::String="")
     if folder == ""
         if Sys.iswindows()
-            folder = joinpath(ENV["TEMP"],"@JuliaExcel")
+            folder = joinpath(ENV["TEMP"], "@JuliaExcel")
         elseif Sys.islinux()
-            trythese = ["phili","philip","PhilipSwannell"]
+            trythese = ["phili", "philip", "PhilipSwannell"]
             for trythis = trythese
-                f = joinpath("/mnt/c/Users",trythis,"AppData/Local/Temp/@JuliaExcel")
+                f = joinpath("/mnt/c/Users", trythis, "AppData/Local/Temp/@JuliaExcel")
                 if isdir(f)
-                    return(commsfolder[] = f)
+                    return (commsfolder[] = f)
                 end
             end
             throw("Cannot find commsfolder")
@@ -68,12 +68,12 @@ end
 
 function installme()
     Sys.iswindows() || throw("JuliaExcel.installme (which installs a Microsoft Excel " *
-                              "addin) can only be run from Julia on Windows")   
-    installscript = normpath(joinpath(@__DIR__,"..","installer","install.vbs"))
+                             "addin) can only be run from Julia on Windows")
+    installscript = normpath(joinpath(@__DIR__, "..", "installer", "install.vbs"))
     exefile = "C:/Windows/System32/wscript.exe"
     isfile(exefile) || throw("Cannot find Windows Script Host at '$exefile'")
     isfile(installscript) || throw("Cannot find install script at '$installscript'")
-    run(`$exefile $installscript`,wait = false)
+    run(`$exefile $installscript`, wait=false)
     println("Installer script has been launched, please respond to the dialogs there.")
     nothing
 end
@@ -89,7 +89,7 @@ Deletes the "flag file" whose existence indicates to VBA code in JuliaExcel.xlam
 evaluated. `killflagfile` can thus be used manually from the REPL if (for example) the
 expression to be evaluated includes an infinite loop.
 """
-function killflagfile() 
+function killflagfile()
     if isfile(flagfile())
         rm(flagfile())
         "File $(flagfile()) deleted"
@@ -116,17 +116,17 @@ function srv_xl()
     global result = try
         Main.eval(Meta.parse(expression))
     catch e
-       println("="^100)
-       if length(expression)>500
-        println("Something went wrong evaluating the contents of $(expressionfile())")
-       else
-        println("Something went wrong evaluating the expression:")
-        println(expression)
-       end
-       showerror(stdout, e, catch_backtrace())
-       println("")
-       println("="^100)
-       truncate("#($e)!",10000)
+        println("="^100)
+        if length(expression) > 500
+            println("Something went wrong evaluating the contents of $(expressionfile())")
+        else
+            println("Something went wrong evaluating the expression:")
+            println(expression)
+        end
+        showerror(stdout, e, catch_backtrace())
+        println("")
+        println("="^100)
+        truncate("#($e)!", 10000)
     end
 
     canencode = true
@@ -141,13 +141,14 @@ function srv_xl()
     io = open(resultfile(), "w")
     write(io, StringEncodings.encode(encodedresult, "UTF-16"))
     close(io)
-    
+
     killflagfile()
-  #  println(truncate(expression,120))
-  #  display(result)
-    canencode || (println("");@error "Result of type $(typeof(result)) could not be " *
-                                     "encoded for return to Excel.")
-                                       
+    #  println(truncate(expression,120))
+    #  display(result)
+    canencode || (println("");
+    @error "Result of type $(typeof(result)) could not be " *
+           "encoded for return to Excel.")
+
     nothing
 end
 
@@ -171,11 +172,11 @@ function setvar(name::String, arg)
 
         numdims = length(thesize)
         if numdims == 0
-             sizedesc = ""   
+            sizedesc = ""
         elseif numdims == 1
-            sizedesc =  "$(thesize[1])-element "
+            sizedesc = "$(thesize[1])-element "
         elseif numdims > 1
-            sizedesc = join(thesize,"x") * " "
+            sizedesc = join(thesize, "x") * " "
         end
         "Set global variable `$name` to $sizedesc$thetype"
 
@@ -211,9 +212,9 @@ end
     truncate(x::String)
 Abbreviate a string to show only `maxlength` characters.
 """
-function truncate(x::String,maxlength::Int)
+function truncate(x::String, maxlength::Int)
     if (length(x)) > maxlength
-        first(x,maxlength ÷ 2 ) * " … " * last(x,maxlength-(maxlength ÷ 2)-1)
+        first(x, maxlength ÷ 2) * " … " * last(x, maxlength - (maxlength ÷ 2) - 1)
     else
         x
     end
@@ -280,7 +281,7 @@ encode_for_xl(x::AbstractChar) = "£" * x           # String in VBA/Excel
 encode_for_xl(x::Int8) = string("S", x)   # Integer in VBA
 encode_for_xl(x::Int16) = string("S", x)   # Integer in VBA
 encode_for_xl(x::Int32) = string("&", x)   # Long in VBA 64-bit, no native 32-bit integer
-                                           # type exists on 64 bit Excel
+# type exists on 64 bit Excel
 encode_for_xl(x::Int64) = string("&", x)   # Long in VBA 64-bit
 encode_for_xl(x::Int128) = string("#", Float64(x))   # Double in VBA
 encode_for_xl(x::Irrational) = string("#", Float64(x)) #Double in VBA
@@ -288,11 +289,11 @@ encode_for_xl(x::Missing) = "E"            # Empty in VBA
 encode_for_xl(x::Nothing) = "E"            # Empty in VBA
 encode_for_xl(x::Bool) = x ? "T" : "F"     # Boolean in VBA/Excel
 encode_for_xl(x::Date) = string("D", Dates.value(x) - 693594) # Date in VBA/Excel
-encode_for_xl(x::DateTime) = string("D", Dates.value(x)/86_400_000 - 693594)  # VBA has no separate DateTime type
+encode_for_xl(x::DateTime) = string("D", Dates.value(x) / 86_400_000 - 693594)  # VBA has no separate DateTime type
 encode_for_xl(x::DataType) = wrapshow(x)
 encode_for_xl(x::VersionNumber) = encode_for_xl("$x")
 encode_for_xl(x::Tuple) = encode_for_xl([x[i] for i in eachindex(x)])
-encode_for_xl(x::T) where T <: Function = wrapshow(x)
+encode_for_xl(x::T) where {T<:Function} = wrapshow(x)
 encode_for_xl(x::Symbol) = wrapshow(x)
 encode_for_xl(x::Any) = throw("Cannot encode variable of type $(typeof(x))")
 
@@ -311,7 +312,7 @@ function encode_for_xl(x::Float64)
         string("#", x)# Double in VBA/Excel
     end
 end
- 
+
 function encode_for_xl(x::Union{Float16,Float32})
     if isinf(x)
         "!2036" # #NUM! in Excel
@@ -342,18 +343,18 @@ Used Base.invokelatest(size,x). Bit surprised this did not work...
 #    "*1,$l;$("1,"^l);$("E"^l)"
 #end
 
-function encode_for_xl(x::T) where T <: AbstractArray
+function encode_for_xl(x::T) where {T<:AbstractArray}
 
     sx = size(x)
-    dimssection = string(length(sx)) * "," * join(sx, ",")
+    dimssection = string(xl_length(sx)) * "," * join(sx, ",")
     lengths_buf = IOBuffer()
     contents_buf = IOBuffer()
 
     for i in eachindex(x)
         this = encode_for_xl(x[i])
         write(contents_buf, this)
-        write(lengths_buf, string(length(this)), ",")
-    end   
+        write(lengths_buf, string(xl_length(this)), ",")
+    end
 
     "*" * dimssection * ";" * String(take!(lengths_buf)) * ";" * String(take!(contents_buf))
 end
@@ -363,27 +364,49 @@ function encode_for_xl(x::DataFrame)
     data = Matrix{Any}(x)
     headers = Matrix{Any}(undef, 1, nc)
     for i in 1:nc
-        headers[1,i] = names(x)[i]
+        headers[1, i] = names(x)[i]
     end
     encode_for_xl(vcat(headers, data))
 end
 
-function encode_for_xl(x::T) where T <: AbstractDict
+function encode_for_xl(x::T) where {T<:AbstractDict}
 
-    dimssection = string(length(x))
+    dimssection = string(xl_length(x))
     lengths_buf = IOBuffer()
     contents_buf = IOBuffer()
 
-    for (k,v) in x
+    for (k, v) in x
         thiskey = encode_for_xl(k)
         thisvalue = encode_for_xl(v)
         write(contents_buf, thiskey)
-        write(contents_buf,thisvalue)
-        write(lengths_buf, string(length(thiskey)), ",")
-        write(lengths_buf, string(length(thisvalue)), ",")
-    end   
+        write(contents_buf, thisvalue)
+        write(lengths_buf, string(xl_length(thiskey)), ",")
+        write(lengths_buf, string(xl_length(thisvalue)), ",")
+    end
 
     "^" * dimssection * ";" * String(take!(lengths_buf)) * ";" * String(take!(contents_buf))
 end
+
+
+"""
+    xl_length(x)
+If `x` is a `Char` or `String` then `xl_length` emulates the VBA function `Len` which
+returns the number of characters in a string except that characters with code point 65536
+or above count as 2 instead of 1. Otherwise `xl_length` returns the (Julia) `length` of `x`.
+"""
+function xl_length(x::Char)
+    return (codepoint(x) >= 65536 ? 2 : 1)
+end
+function xl_length(x::String)
+    out = 0
+    for char in x
+        out += xl_length(char)
+    end
+    out
+end
+function xl_length(x::Any)
+    length(x)
+end
+
 
 end # module
