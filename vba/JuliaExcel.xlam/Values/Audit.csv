@@ -8,6 +8,7 @@
 ,,,,,
 ,"Version History:",,,,
 ,"Version","Date","Time","Author","Comment"
+,92,2023-12-11,0.785104166665406,"Philip Swannell","Method MakeJuliaLiteral now has special handling for nine characters in order to avoid an error on the Julia side: Base.Meta.ParseError(""unbalanced bidirectional formatting in string literal"")"
 ,91,2023-12-03,0.747766203705396,"Philip Swannell","Windows API functions GetCurrentProcessID and IsWindow now declared Private so no longer visible from Excel."
 ,90,2023-09-20,0.692268518519995,"Philip Swannell","Code comments only."
 ,89,2023-09-20,0.685578703705687,"Philip Swannell","Launch Julia with -i command line option. Plays nice with OhMyREPL."
