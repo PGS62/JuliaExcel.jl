@@ -44,10 +44,11 @@ Function MakeJuliaLiteral(x As Variant)
 4                 If InStr(x, "\") > 0 Then
 5                     Res = Replace(Res, "\", "\\")
 6                 End If
-                  'The conversions in the two loops below are needed to avoid a strange error: _
-                  Base.Meta.ParseError("unbalanced bidirectional formatting in string literal")
-                  'I have tested all other characters with code points 1 to 1,180,000 and found _
-                   no other instances!
+                  'The conversions in the two loops below are needed to avoid an error: _
+                  Base.Meta.ParseError("unbalanced bidirectional formatting in string literal") _
+                  'Julia's "caution" in relation to these characters is a defence against "Trojan Source" attacks.
+                  'https://github.com/JuliaLang/julia/pull/42918
+                  'https://trojansource.codes/
 7                 For k = 8234 To 8238
 8                     If InStr(x, ChrW(k)) Then
 9                         Res = Replace(Res, ChrW(k), "\u" & LCase(Hex(k)))
