@@ -23,6 +23,7 @@ Support Excel for Windows (not Mac). Julia can be run under Windows or Linux (vi
 ## Installation
 Installation does not require admin rights on the PC.
  * Both Julia and Microsoft Office must be installed on your PC, with Excel not running.
+ * Ensure that the default terminal application is "Windows Console Host". See [issue 9](https://github.com/PGS62/JuliaExcel.jl/issues/9) for instructions.
  * Launch Julia, and copy-paste the following command into the REPL:  
    ```
    using Pkg
