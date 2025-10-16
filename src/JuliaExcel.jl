@@ -279,11 +279,11 @@ encode_for_xl(x::Bool) = x ? "T" : "F"     # Boolean in VBA/Excel
 encode_for_xl(x::Date) = string("D", Dates.value(x) - 693594) # Date in VBA/Excel
 encode_for_xl(x::DateTime) = string("D", Dates.value(x) / 86_400_000 - 693594)  # VBA has no separate DateTime type
 encode_for_xl(x::DataType) = wrapshow(x)
-encode_for_xl(x::VersionNumber) = encode_for_xl("$x")
+encode_for_xl(x::VersionNumber) = wrapshow(x)
 encode_for_xl(x::Tuple) = encode_for_xl([x[i] for i in eachindex(x)])
 encode_for_xl(x::T) where {T<:Function} = wrapshow(x)
 encode_for_xl(x::Symbol) = wrapshow(x)
-encode_for_xl(x::Any) = encode_for_xl("$x")
+encode_for_xl(x::Any) = wrapshow(x)        # Fallback
 
 function wrapshow(x)
     io = IOBuffer()
