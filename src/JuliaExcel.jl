@@ -185,18 +185,6 @@ function setvar(name::String, arg)
     end
 end
 
-#= Overriding base include method to avoid serializing issue
-Issue is `include` returns the last thing that it encounters in the file. Which may be 
-something that is not serializable. To avoid the error, we add a `nothing` at the end. =#
-function include(x::String)
-    if isfile(x)
-        Base.MainInclude.include(x)
-        "File `$(normpath(abspath(x)))` was included"
-    else
-        "#Cannot find file `$(normpath(abspath(x)))`!"
-    end
-end
-
 # https://docs.microsoft.com/en-us/windows/terminal/tutorials/tab-title
 function settitle()
     if Sys.islinux()
@@ -295,7 +283,7 @@ encode_for_xl(x::VersionNumber) = encode_for_xl("$x")
 encode_for_xl(x::Tuple) = encode_for_xl([x[i] for i in eachindex(x)])
 encode_for_xl(x::T) where {T<:Function} = wrapshow(x)
 encode_for_xl(x::Symbol) = wrapshow(x)
-encode_for_xl(x::Any) = throw("Cannot encode variable of type $(typeof(x))")
+encode_for_xl(x::Any) = encode_for_xl("#A variable of type $(typeof(x)) cannot be returned to Excel, convert it to a supported type or add a method of encode_for_xl for this type!")
 
 function wrapshow(x)
     io = IOBuffer()
@@ -317,7 +305,6 @@ function encode_for_xl(x::Union{Float16,Float32})
     if isinf(x)
         "!2036" # #NUM! in Excel
     elseif isnan(x)
-
         "!2042" # #N/A in Excel
     else
         string("S", x)# Single in VBA
@@ -387,7 +374,6 @@ function encode_for_xl(x::T) where {T<:AbstractDict}
     "^" * dimssection * ";" * String(take!(lengths_buf)) * ";" * String(take!(contents_buf))
 end
 
-
 """
     xl_length(x)
 If `x` is a `Char` or `String` then `xl_length` emulates the VBA function `Len` which
@@ -407,6 +393,5 @@ end
 function xl_length(x::Any)
     length(x)
 end
-
 
 end # module
