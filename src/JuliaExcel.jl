@@ -283,7 +283,7 @@ encode_for_xl(x::VersionNumber) = encode_for_xl("$x")
 encode_for_xl(x::Tuple) = encode_for_xl([x[i] for i in eachindex(x)])
 encode_for_xl(x::T) where {T<:Function} = wrapshow(x)
 encode_for_xl(x::Symbol) = wrapshow(x)
-encode_for_xl(x::Any) = encode_for_xl("#A variable of type $(typeof(x)) cannot be returned to Excel, convert it to a supported type or add a method of encode_for_xl for this type!")
+encode_for_xl(x::Any) = encode_for_xl("$x")
 
 function wrapshow(x)
     io = IOBuffer()
