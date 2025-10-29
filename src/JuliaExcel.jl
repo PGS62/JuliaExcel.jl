@@ -91,12 +91,35 @@ expression to be evaluated includes an infinite loop.
 """
 function killflagfile()
     if isfile(flagfile())
-        rm(flagfile())
+        rm_retry(flagfile())
         "File $(flagfile()) deleted"
     else
         "File $(flagfile()) not found"
     end
 end
+
+function rm_retry(path::AbstractString; retries::Int=10, wait::Real=0.25)
+    for attempt in 1:retries
+        try
+            rm(path)
+            attempt == 1 || @info "Successfully deleted $path on attempt $attempt"
+            return true  # Success
+        catch e
+            @warn "Attempt $attempt to delete $path failed: $e, will retry after $wait seconds..."
+            if attempt == retries
+                @error "All $retries attempts to delete $path failed."
+                rethrow(e)  # Final failure
+            elseif isa(e, Base.IOError)
+                sleep(wait)
+            else
+                rethrow(e)  # Unexpected error
+            end
+        end
+    end
+    return false  # Shouldn't reach here
+end
+
+
 """
     read_utf16(filename::String)
 Returns the contents of a UTF-16 encoded text file that has a byte option mark.
