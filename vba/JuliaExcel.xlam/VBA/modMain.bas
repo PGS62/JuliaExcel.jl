@@ -276,23 +276,31 @@ Private Function JuliaEval_LowLevel(ByVal JuliaExpression As Variant, _
 14            JuliaEval_LowLevel = "#Please call JuliaLaunch before calling JuliaEval or JuliaCall!"
 15            Exit Function
 16        End If
+
 17        SaveTextFile JuliaFlagFile, "", TristateTrue
 18        SaveTextFile JuliaExpressionFile, strJuliaExpression, TristateTrue
+
           'Line below tells Julia to "do the work" by pasting "srv_xl()" to the REPL
 19        PostMessageToJulia HwndJulia
-
 20        Do While FileExists(JuliaFlagFile)
-21            Sleep 1
 22            If IsWindow(HwndJulia) = 0 Then
 23                JuliaEval_LowLevel = "#Julia shut down while evaluating the expression!"
 24                Exit Function
 25            End If
 26        Loop
+
 27        Assign JuliaEval_LowLevel, UnserialiseFromFile(JuliaResultFile, AllowNested, StringLengthLimit, JuliaVectorToXLColumn)
 28        Exit Function
 ErrHandler:
 29        Throw "#JuliaEval_LowLevel (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Function
+
+Sub PreciseSleep(Milliseconds As Double)
+    Dim StartTime As Double
+    StartTime = ElapsedTime()
+    Do Until ((ElapsedTime() - StartTime) > Milliseconds / 1000) Or (ElapsedTime() < StartTime)
+    Loop
+End Sub
 
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure : JuliaEval
@@ -689,6 +697,10 @@ End Function
 'Expression = fill("xxx",1000,1000)
 'Average time in JuliaEval   1.42395350000006  <-- higher spec PC
 '--------------------------------------------------
+'29-Oct-2025 18:40:16       PHILIP-HPZ1
+'Expression = fill("xxx",1000,1000)
+'Average time in JuliaEval   2.66512269999985           Averaged over 10 calls
+'--------------------------------------------------
 Private Sub SpeedTest()
 
           Const Expression As String = "fill(""xxx"",1000,1000)"
@@ -708,8 +720,36 @@ Private Sub SpeedTest()
 
 7         Debug.Print "'" & Format(Now(), "dd-mmm-yyyy hh:mm:ss"), Environ("ComputerName")
 8         Debug.Print "'Expression = " & Expression
-9         Debug.Print "'Average time in JuliaEval", (t2 - t1) / NumCalls
+9         Debug.Print "'Average time in JuliaEval", (t2 - t1) / NumCalls, "Averaged over " & CStr(NumCalls) & " calls"
 10        Debug.Print "'--------------------------------------------------"
 End Sub
 
+'--------------------------------------------------
+'29-Oct-2025 18:37:22       PHILIP-HPZ1
+'Expression = 1+1
+'Average time in JuliaEval   6.16188229999898E-03       Averaged over 1000 calls
+'--------------------------------------------------
+Private Sub SpeedTest2()
+
+          Const Expression As String = "1+1"
+          Const UseLinux As Boolean = False
+          Const NumCalls = 1000
+          Dim i As Long
+          Dim Res
+          Dim t1 As Double
+          Dim t2 As Double
+
+1         JuliaLaunch UseLinux
+2         t1 = ElapsedTime
+3         For i = 1 To NumCalls
+4             Res = JuliaEval(Expression)
+5             If Res <> 2 Then Stop
+6         Next i
+7         t2 = ElapsedTime
+
+8         Debug.Print "'" & Format(Now(), "dd-mmm-yyyy hh:mm:ss"), Environ("ComputerName")
+9         Debug.Print "'Expression = " & Expression
+10        Debug.Print "'Average time in JuliaEval", (t2 - t1) / NumCalls, "Averaged over " & CStr(NumCalls) & " calls"
+11        Debug.Print "'--------------------------------------------------"
+End Sub
 

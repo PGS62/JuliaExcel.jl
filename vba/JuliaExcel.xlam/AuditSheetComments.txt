@@ -1,4 +1,6 @@
 ﻿Version	Date	Time	Author	Comment
+94	29-Oct-2025	19:27	Philip Swannell	Improves file and folder handling in modUtils.bas, including a more robust SaveTextFile with retry logic, a new GetFullTempPath function to avoid 8.3 username issues, and refactors LocalTemp to use these improvements.
+93	29-Oct-2025	15:15	Philip Swannell	Method SpeedTest2 method for benchmarking JuliaEval performance with simple expressions. 
 92	11-Dec-2023	18:50	Philip Swannell	Method MakeJuliaLiteral now has special handling for nine characters in order to avoid an error on the Julia side: Base.Meta.ParseError("unbalanced bidirectional formatting in string literal")
 91	03-Dec-2023	17:56	Philip Swannell	Windows API functions GetCurrentProcessID and IsWindow now declared Private so no longer visible from Excel.
 90	20-Sep-2023	16:36	Philip Swannell	Code comments only.
@@ -8,7 +10,7 @@
 86	15-Dec-2021	16:17	Philip Swannell	Improved handling of string length limits.
 85	15-Dec-2021	12:31	Philip Swannell	JuliaLaunch now checks for existence of wsl.exe
 84	14-Dec-2021	19:33	Philip Swannell	Amended method GetStringLengthLimit. Now returns 256 on Excel 2013.
-83	11-Dec-2021	20:09	Philip Swannell	No longer test from VBA code if Julie executable is available within WSL.
+83	11-Dec-2021	20:09	Philip Swannell	No longer test from VBA code if Julia executable is available within WSL.
 82	11-Dec-2021	15:25	Philip Swannell	No longer assume Revise is available as a package.
 81	08-Dec-2021	17:14	Philip Swannell	Non-backwards compatible changes to JuliaLaunch. Can no longer specify the location of the JuliaExecutable (seemed not useful in practice, can always edit the PATH) and can specify packages to load. Turns out that packages should be "used" (via `using PackageName`) before the call to `using JuliaExcel`. That (seems to, fingers crossed) avoid "world age" problems that can be encountered when using Julia's eval function. We want to avoid defining the functions of JuliaEval (notably `encode_for_xl`) before we define the types it may operate on.
 80	07-Dec-2021	15:19	Philip Swannell	Added exportStatements as arg to JuliaLaunch.
@@ -33,7 +35,7 @@
 61	22-Nov-2021	17:43	Philip Swannell	Added optional argument CommandLineOptions to function JuliaLaunch.
 60	19-Nov-2021	15:49	Philip Swannell	When launching Julia now set command-line option --threads=auto
 59	17-Nov-2021	12:26	Philip Swannell	JuliaEvalFromVBA --> JuliaEvalVBA, JuliaCallFromVBA --> JuliaCallVBA
-58	15-Nov-2021	17:30	Philip Swannell	Ditched function JuliaCall2 and arguments PrecedentCell. While I can make it work for JuliaSetVar and JuliaInclude, I don't think it's possible to make it work for JuliaCall and JuliaEval (though perhaps not necessay in those cases). Useful resource: https://www.decisionmodels.com/calcsecretsj.htm
+58	15-Nov-2021	17:30	Philip Swannell	Ditched function JuliaCall2 and arguments PrecedentCell. While I can make it work for JuliaSetVar and JuliaInclude, I don't think it's possible to make it work for JuliaCall and JuliaEval (though perhaps not necessary in those cases). Useful resource: https://www.decisionmodels.com/calcsecretsj.htm
 57	15-Nov-2021	15:23	Philip Swannell	Edited docstrings.
 56	15-Nov-2021	10:17	Philip Swannell	Test for Function Wizard active. Exit early if so.
 55	15-Nov-2021	09:44	Philip Swannell	No longer register functions on add-in open. I think it's not necessary.
@@ -73,7 +75,7 @@
 21	05-Nov-2021	16:50	Philip Swannell	Speedup to method Decode, added code comments, hack change to method LocalTemp to remove 8.3 encoding of username.
 20	04-Nov-2021	21:46	Philip Swannell	Fixed compile errors on 32bit Excel.
 19	04-Nov-2021	15:43	Philip Swannell	Moved sheet Examples to a new workbook.
-18	04-Nov-2021	10:15	Philip Swannell	Better handliing of results which are a) Functions, b) arrays containing arrays.
+18	04-Nov-2021	10:15	Philip Swannell	Better handling of results which are a) Functions, b) arrays containing arrays.
 17	03-Nov-2021	18:40	Philip Swannell	No longer use CSV file format, but my own custom serialization.
 16	03-Nov-2021	12:23	Philip Swannell	Last version prior to experimenting (on a branch) with a custom file format in place of CSV for communicating data back to Excel.
 15	01-Nov-2021	14:51	Philip Swannell	New location of VBA code in repo

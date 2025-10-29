@@ -9,16 +9,29 @@ Option Private Module
 #If VBA7 And Win64 Then
     Private Declare PtrSafe Function QueryPerformanceFrequency Lib "kernel32" (lpFrequency As Currency) As Long
     Private Declare PtrSafe Function QueryPerformanceCounter Lib "kernel32" (lpPerformanceCount As Currency) As Long
+        Private Declare PtrSafe Function GetTempPath Lib "kernel32" Alias "GetTempPathA" (ByVal nBufferLength As Long, ByVal lpBuffer As String) As Long
 #Else
     Private Declare Function QueryPerformanceFrequency Lib "kernel32" (lpFrequency As Currency) As Long
     Private Declare Function QueryPerformanceCounter Lib "kernel32" (lpPerformanceCount As Currency) As Long
+    Private Declare Function GetTempPath Lib "kernel32" Alias "GetTempPathA" (ByVal nBufferLength As Long, ByVal lpBuffer As String) As Long
 #End If
+
+' -----------------------------------------------------------------------------------------------------------------------
+' Procedure  : GetFullTempPath
+' Purpose    : Gets the location of the temporary folder. Works even when the username is longer than 8 characters, which
+'              may not be the case for Environ("Temp").
+' -----------------------------------------------------------------------------------------------------------------------
+Function GetFullTempPath() As String
+    Dim Buffer As String * 260
+    Dim Length As Long
+    Length = GetTempPath(260, Buffer)
+    GetFullTempPath = Left$(Buffer, Length)
+End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure : ElapsedTime
 ' Purpose   : Retrieves the current value of the performance counter, which is a high resolution (<1us)
 '             time stamp that can be used for time-interval measurements.
-'             See http://msdn.microsoft.com/en-us/library/windows/desktop/ms644904(v=vs.85).aspx
 ' -----------------------------------------------------------------------------------------------------------------------
 Function ElapsedTime() As Double
           Dim a As Currency
@@ -54,13 +67,13 @@ End Function
 ' Procedure  : FolderExists
 ' Purpose    : Does a folder exist?
 ' Parameters :
-'  FolderPath: full path to folder, may or may not be terminated with backslash
+'  FolderPath: Full path to folder, may or may not be terminated with backslash
 ' -----------------------------------------------------------------------------------------------------------------------
 Function FolderExists(ByVal FolderPath As String) As Boolean
           Dim F As Scripting.Folder
-          Dim FSO As Scripting.FileSystemObject
+          Static FSO As Scripting.FileSystemObject
 1         On Error GoTo ErrHandler
-2         Set FSO = New FileSystemObject
+2         If FSO Is Nothing Then Set FSO = New FileSystemObject
 3         Set F = FSO.GetFolder(FolderPath)
 4         FolderExists = True
 5         Exit Function
@@ -70,20 +83,41 @@ End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : SaveTextFile
-' Purpose    : Save a text file to disk.
+' Purpose    : Save a text file to disk. Retries up to 10 times, with 25 millisecond delay between tries.
 '  Format  : TriStateTrue for UTF-16, TriStateFalse for ascii
 ' -----------------------------------------------------------------------------------------------------------------------
-Function SaveTextFile(FileName As String, Contents As String, Format As TriState)
-          Dim FSO As New Scripting.FileSystemObject
+Function SaveTextFile(FileName As String, Contents As String, Format As TriState) As String
+
+          Const DelayMs As Long = 25
+          Const MaxRetries As Integer = 10
+          Dim Attempts As Integer
           Dim ts As Scripting.TextStream
-1         On Error GoTo ErrHandler
-2         Set ts = FSO.OpenTextFile(FileName, ForWriting, True, Format)
-3         ts.Write Contents
-4         ts.Close
-5         SaveTextFile = FileName
-6         Exit Function
+          Static FSO As Scripting.FileSystemObject
+
+1         If FSO Is Nothing Then Set FSO = New Scripting.FileSystemObject
+
+2         On Error GoTo ErrHandler
+3         For Attempts = 1 To MaxRetries
+4             On Error Resume Next
+5             Set ts = FSO.OpenTextFile(FileName, ForWriting, True, Format)
+6             If Err.Number = 0 Then Exit For
+7             On Error GoTo ErrHandler
+8             DoEvents
+9             PreciseSleep DelayMs
+10        Next Attempts
+
+11        If ts Is Nothing Then Throw "Failed to open file '" & FileName & "'after " & CStr(MaxRetries) & " attempts."
+
+12        With ts
+13            .Write Contents
+14            .Close
+15        End With
+
+16        SaveTextFile = FileName
+17        Exit Function
+
 ErrHandler:
-7         Throw "#SaveTextFile (line " & CStr(Erl) + "): " & Err.Description & "!"
+18        Throw "SaveTextFile (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
@@ -128,45 +162,33 @@ End Function
 ' Purpose    : Return a writable directory for saving results files to be communicated to Julia.
 ' -----------------------------------------------------------------------------------------------------------------------
 Function LocalTemp()
+          
+          Const SubFolderName = "@" & gPackageName
+          Dim F As Scripting.Folder
+          Dim FSO As New FileSystemObject
+          Dim Parent As String
           Static Res As String
+
 1         On Error GoTo ErrHandler
+
 2         If Res <> "" Then
 3             LocalTemp = Res
 4             Exit Function
 5         End If
-
-          Const SubFolderName = "@" & gPackageName
-
-6         If Not FolderExists(Environ("TEMP") & "\" & SubFolderName) Then
-              Dim F As Scripting.Folder
-              Dim FSO As New FileSystemObject
-7             Set F = FSO.GetFolder(Environ("TEMP"))
-8             F.SubFolders.Add SubFolderName
+6         Parent = GetFullTempPath()
+7         If Right(Parent, 1) <> "\" Then
+8             Parent = Parent & "\"
 9         End If
-10        Res = Environ("TEMP") & "\" & SubFolderName
+10        If Not FolderExists(Parent & SubFolderName) Then
+11            Set F = FSO.GetFolder(Parent)
+12            F.SubFolders.Add SubFolderName
+13        End If
+14        Res = Parent & SubFolderName
 
-          'Arrgh. Windows 11 now uses long-form user names when creating folders under c:\Users but the _
-          TEMP environment variable still has the 8.3 contraction of the user name. So fix, with caution.
-          
-          Dim Res2 As String
-          Dim Tokenised
-11        Tokenised = VBA.Split(Res, "\")
-12        If UBound(Tokenised) > 2 Then
-13            If InStr(Tokenised(2), "~") > 0 Then
-14                If LCase(Tokenised(2)) <> LCase(Environ("username")) Then
-15                    Tokenised(2) = Environ("username")
-16                    Res2 = VBA.Join(Tokenised, "\")
-17                    If FolderExists(Res2) Then
-18                        Res = Res2
-19                    End If
-20                End If
-21            End If
-22        End If
-
-23        LocalTemp = Res
-24        Exit Function
+15        LocalTemp = Res
+16        Exit Function
 ErrHandler:
-25        Throw "#LocalTemp (line " & CStr(Erl) + "): " & Err.Description & "!"
+17        Throw "#LocalTemp (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
@@ -193,25 +215,19 @@ End Sub
 
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure : NumDimensions
-' Purpose   : Returns the number of dimensions in an array variable, or 0 if the variable
-'             is not an array.
+' Purpose   : Returns the number of dimensions in x, or 0 if x is not an array or is an uninitialised array.
 ' -----------------------------------------------------------------------------------------------------------------------
 Function NumDimensions(x As Variant) As Long
           Dim i As Long
-          Dim y As Long
-1         If Not IsArray(x) Then
-2             NumDimensions = 0
-3             Exit Function
-4         Else
-5             On Error GoTo ExitPoint
-6             i = 1
-7             Do While True
-8                 y = LBound(x, i)
-9                 i = i + 1
-10            Loop
-11        End If
-ExitPoint:
-12        NumDimensions = i - 1
+          Dim Lbnd As Long
+1         On Error GoTo ErrHandler
+2         Do
+3             i = i + 1
+4             Lbnd = LBound(x, i)
+5         Loop
+6         Exit Function
+ErrHandler:
+7         NumDimensions = i - 1
 End Function
 
 Sub Throw(ByVal ErrorString As String)
@@ -227,7 +243,7 @@ End Sub
 'Called from "Menu..." button on sheet Audit.
 Sub MenuButton()
 1         On Error GoTo ErrHandler
-2         Application.Run "SolumAddin.xlam!AuditMenu"
+2         Application.Run "SolumAddin.xlam!AuditMenuForAddin"
 3         Exit Sub
 ErrHandler:
 4         MsgBox "#MenuButton (line " & CStr(Erl) + "): " & Err.Description & "!", vbCritical
