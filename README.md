@@ -27,7 +27,7 @@ Installation does not require admin rights on the PC.
  * Launch Julia, and copy-paste the following command into the REPL:  
    ```
    using Pkg
-   Pkg.add(url="https://github.com/PGS62/JuliaExcel.jl",rev="v0.2.13")
+   Pkg.add(url="https://github.com/PGS62/JuliaExcel.jl",rev="v0.2.14")
    using JuliaExcel;JuliaExcel.installme()
    
    ```
