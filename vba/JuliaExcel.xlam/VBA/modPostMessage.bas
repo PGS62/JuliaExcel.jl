@@ -57,7 +57,7 @@ Sub PostMessageToJulia(HwndJulia As LongPtr)
           Const WM_CHAR = &H102
             
           'In case there's some random text at the Julia REPL, send {ESCAPE}{BACKSPACE} three times.
-          'Alternatively we could send Ctrl + C
+          'Would be better to send Ctrl+E, Ctrl+U
 1         For i = 1 To 3
 2             PostMessage HwndJulia, WM_CHAR, ByVal 27, ByVal &H1
 3             PostMessage HwndJulia, WM_CHAR, ByVal 8, ByVal &H1

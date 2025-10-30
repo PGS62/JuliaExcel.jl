@@ -4,10 +4,11 @@ jobs:
   test:
     runs-on: ${{ matrix.os }}
     strategy:
-      matrix:
-        julia-version: ['1.6']
-        julia-arch: [x64]
-        os: [windows-latest] # [ubuntu-latest, windows-latest, macOS-latest]
+        fail-fast: false
+        matrix:
+            julia-version: ['1.12']
+            julia-arch: [x64]
+            os: [windows-latest] # [ubuntu-latest, windows-latest, macOS-latest]
     steps:
       - uses: actions/checkout@v2
       - uses: julia-actions/setup-julia@latest
