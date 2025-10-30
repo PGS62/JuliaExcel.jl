@@ -1,4 +1,5 @@
 ﻿Version	Date	Time	Author	Comment
+95	30-Oct-2025	11:12	Philip Swannell	Code comments only
 94	29-Oct-2025	19:27	Philip Swannell	Improves file and folder handling in modUtils.bas, including a more robust SaveTextFile with retry logic, a new GetFullTempPath function to avoid 8.3 username issues, and refactors LocalTemp to use these improvements.
 93	29-Oct-2025	15:15	Philip Swannell	Method SpeedTest2 method for benchmarking JuliaEval performance with simple expressions. 
 92	11-Dec-2023	18:50	Philip Swannell	Method MakeJuliaLiteral now has special handling for nine characters in order to avoid an error on the Julia side: Base.Meta.ParseError("unbalanced bidirectional formatting in string literal")
