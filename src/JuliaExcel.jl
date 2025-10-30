@@ -90,12 +90,7 @@ evaluated. `killflagfile` can thus be used manually from the REPL if (for exampl
 expression to be evaluated includes an infinite loop.
 """
 function killflagfile()
-    if isfile(flagfile())
-        rm_retry(flagfile())
-        "File $(flagfile()) deleted"
-    else
-        "File $(flagfile()) not found"
-    end
+    rm_retry(flagfile())
 end
 
 function rm_retry(path::AbstractString; retries::Int=10, wait::Real=0.25)
