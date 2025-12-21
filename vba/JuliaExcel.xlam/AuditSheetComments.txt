@@ -1,4 +1,5 @@
 ﻿Version	Date	Time	Author	Comment
+96	21-Dec-2025	16:22	Philip Swannell	Double/Float64 are now transported between Excel and Julia as the 16-character uppercase hexadecimal string representing the IEEE-754 bit pattern of the Double/Float64. Avoids loss of precision.
 95	30-Oct-2025	11:12	Philip Swannell	Code comments only
 94	29-Oct-2025	19:27	Philip Swannell	Improves file and folder handling in modUtils.bas, including a more robust SaveTextFile with retry logic, a new GetFullTempPath function to avoid 8.3 username issues, and refactors LocalTemp to use these improvements.
 93	29-Oct-2025	15:15	Philip Swannell	Method SpeedTest2 method for benchmarking JuliaEval performance with simple expressions. 

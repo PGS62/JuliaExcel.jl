@@ -5,9 +5,10 @@
 ,"The password to view the VBA code is JuliaExcel",,,,,,
 ,"Copyright 2021 Philip Swannell",,,,,,
 ,"License MIT (https://opensource.org/licenses/MIT)",,,,,,
-,"All 95 rows shown.",,,,,,
+,"All 96 rows shown.",,,,,,
 ,"Dbl-click","Double-click","Dbl-click","Double-click","Double-click to filter",,"ToDo"
 ,"Version","Date","Time","Author","Comment",,"Amend method PostMessageToJulia to clear the REPL via Ctrl+E, Ctrl+U."
+,96,2025-12-21,0.682453703702777,"Philip Swannell","Double/Float64 are now transported between Excel and Julia as the 16-character uppercase hexadecimal string representing the IEEE-754 bit pattern of the Double/Float64. Avoids loss of precision.",,
 ,95,2025-10-30,0.466782407405844,"Philip Swannell","Code comments only",,
 ,94,2025-10-29,0.810439814813435,"Philip Swannell","Improves file and folder handling in modUtils.bas, including a more robust SaveTextFile with retry logic, a new GetFullTempPath function to avoid 8.3 username issues, and refactors LocalTemp to use these improvements.",,
 ,93,2025-10-29,0.635925925926131,"Philip Swannell","Method SpeedTest2 method for benchmarking JuliaEval performance with simple expressions. ",,

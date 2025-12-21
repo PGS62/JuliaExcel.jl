@@ -1,4 +1,8 @@
 Attribute VB_Name = "modJuliaLiteral"
+' Copyright (c) 2021-2025 Philip Swannell
+' License MIT (https://opensource.org/licenses/MIT)
+' Document: https://github.com/PGS62/JuliaExcel.jl#readme
+
 Option Explicit
 Option Private Module
 
@@ -74,31 +78,40 @@ Function MakeJuliaLiteral(x As Variant)
 29                MakeJuliaLiteral = """" & Res & """"
 30                Exit Function
 31            Case vbDouble
-32                Res = CStr(x)
-33                If InStr(Res, ".") = 0 Then
-34                    If InStr(Res, "E") = 0 Then
-35                        Res = Res + ".0"
-36                    End If
-37                End If
-38                MakeJuliaLiteral = Res
+                 ' Res = CStr(x)
+                 ' If InStr(Res, ".") = 0 Then
+                 '     If InStr(Res, "E") = 0 Then
+                 '         Res = Res + ".0"
+                 '     End If
+                 ' End If
+                 ' MakeJuliaLiteral = Res
+
+                  'Avoid loss of precision by representing x as its IEEE-754 bit pattern. _
+                   Also avoids having to worry about whether the decimal separator is point or comma.
+32                MakeJuliaLiteral = "htf(""" & DoubleToHex(x) & """)"
+33                Exit Function
+34            Case vbLong, vbInteger
+35                MakeJuliaLiteral = CStr(x)
+36                Exit Function
+37            Case vbBoolean
+38                MakeJuliaLiteral = IIf(x, "true", "false")
 39                Exit Function
-40            Case vbLong, vbInteger
-41                MakeJuliaLiteral = CStr(x)
+40            Case vbEmpty
+41                MakeJuliaLiteral = "missing"
 42                Exit Function
-43            Case vbBoolean
-44                MakeJuliaLiteral = IIf(x, "true", "false")
-45                Exit Function
-46            Case vbEmpty
-47                MakeJuliaLiteral = "missing"
-48                Exit Function
-49            Case vbDate
-50                If CDbl(x) = CLng(x) Then
-51                    MakeJuliaLiteral = "Date(""" & Format(x, "yyyy-mm-dd") & """)"
-52                Else
-53                    MakeJuliaLiteral = "DateTime(""" & VBA.Format$(x, "yyyy-mm-ddThh:mm:ss.000") & """)"
-54                End If
-55                Exit Function
-56            Case Is >= vbArray
+43            Case vbDate
+44                If CDbl(x) = CLng(x) Then
+45                    MakeJuliaLiteral = "Date(""" & Format(x, "yyyy-mm-dd") & """)"
+46                Else
+47                    MakeJuliaLiteral = "DateTime(""" & VBA.Format$(x, "yyyy-mm-ddThh:mm:ss.000") & """)"
+48                End If
+49                Exit Function
+50            Case vbSingle
+                  'For Double we avoid loss of precision by using Hex representation, _
+                   not currently doing this for Singles
+51                MakeJuliaLiteral = CStr(x) & "f0"
+52                Exit Function
+53            Case Is >= vbArray
                   Dim AllSameType As Boolean
                   Dim FirstType As Long
                   Dim i As Long
@@ -106,54 +119,53 @@ Function MakeJuliaLiteral(x As Variant)
                   Dim onerow() As String
                   Dim Tmp() As String
           
-57                On Error GoTo ErrHandler
-58                If TypeName(x) = "Range" Then
-59                    x = x.Value2
-60                End If
+54                On Error GoTo ErrHandler
+55                If TypeName(x) = "Range" Then
+56                    x = x.Value2
+57                End If
 
-61                Select Case NumDimensions(x)
+58                Select Case NumDimensions(x)
                       Case 1
-62                        ReDim Tmp(LBound(x) To UBound(x))
-63                        FirstType = VarType(x(LBound(x)))
-64                        AllSameType = True
-65                        For i = LBound(x) To UBound(x)
-66                            Tmp(i) = MakeJuliaLiteral(x(i))
-67                            If AllSameType Then
-68                                If VarType(x(i)) <> FirstType Then
-69                                    AllSameType = False
-70                                End If
-71                            End If
-72                        Next i
-73                        MakeJuliaLiteral = IIf(AllSameType, "[", "Any[") & VBA.Join$(Tmp, ",") & "]"
-74                    Case 2
-75                        ReDim onerow(LBound(x, 2) To UBound(x, 2))
-76                        ReDim Tmp(LBound(x, 1) To UBound(x, 1))
-77                        FirstType = VarType(x(LBound(x, 1), LBound(x, 2)))
-78                        AllSameType = True
-79                        For i = LBound(x, 1) To UBound(x, 1)
-80                            For j = LBound(x, 2) To UBound(x, 2)
-81                                onerow(j) = MakeJuliaLiteral(x(i, j))
-82                                If AllSameType Then
-83                                    If VarType(x(i, j)) <> FirstType Then
-84                                        AllSameType = False
-85                                    End If
-86                                End If
-87                            Next j
-88                            Tmp(i) = VBA.Join$(onerow, " ")
-89                        Next i
+59                        ReDim Tmp(LBound(x) To UBound(x))
+60                        FirstType = VarType(x(LBound(x)))
+61                        AllSameType = True
+62                        For i = LBound(x) To UBound(x)
+63                            Tmp(i) = MakeJuliaLiteral(x(i))
+64                            If AllSameType Then
+65                                If VarType(x(i)) <> FirstType Then
+66                                    AllSameType = False
+67                                End If
+68                            End If
+69                        Next i
+70                        MakeJuliaLiteral = IIf(AllSameType, "[", "Any[") & VBA.Join$(Tmp, ",") & "]"
+71                    Case 2
+72                        ReDim onerow(LBound(x, 2) To UBound(x, 2))
+73                        ReDim Tmp(LBound(x, 1) To UBound(x, 1))
+74                        FirstType = VarType(x(LBound(x, 1), LBound(x, 2)))
+75                        AllSameType = True
+76                        For i = LBound(x, 1) To UBound(x, 1)
+77                            For j = LBound(x, 2) To UBound(x, 2)
+78                                onerow(j) = MakeJuliaLiteral(x(i, j))
+79                                If AllSameType Then
+80                                    If VarType(x(i, j)) <> FirstType Then
+81                                        AllSameType = False
+82                                    End If
+83                                End If
+84                            Next j
+85                            Tmp(i) = VBA.Join$(onerow, " ")
+86                        Next i
 
-90                        MakeJuliaLiteral = IIf(AllSameType, "[", "Any[") & VBA.Join$(Tmp, ";") & "]"
-91                    Case Else
-92                        Throw "case more than two dimensions not handled" 'In VBA there's no way to handle arrays with arbitrary number of dimensions. Easy in Julia!
-93                End Select
+87                        MakeJuliaLiteral = IIf(AllSameType, "[", "Any[") & VBA.Join$(Tmp, ";") & "]"
+88                    Case Else
+89                        Throw "case more than two dimensions not handled" 'In VBA there's no way to handle arrays with arbitrary number of dimensions. Easy in Julia!
+90                End Select
 
-94            Case Else
-95                Throw "Variable of type " + TypeName(x) + " is not handled"
-96        End Select
+91            Case Else
+92                Throw "Variable of type " + TypeName(x) + " is not handled"
+93        End Select
 
-97        Exit Function
+94        Exit Function
 ErrHandler:
-98        Throw "#MakeJuliaLiteral (line " & CStr(Erl) + "): " & Err.Description & "!"
+95        Throw "#MakeJuliaLiteral (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Function
-
 

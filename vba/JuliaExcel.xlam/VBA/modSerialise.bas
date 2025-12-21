@@ -1,11 +1,20 @@
 Attribute VB_Name = "modSerialise"
-' Copyright (c) 2021 - Philip Swannell
+' Copyright (c) 2021-2025 Philip Swannell
 ' License MIT (https://opensource.org/licenses/MIT)
 ' Document: https://github.com/PGS62/JuliaExcel.jl#readme
 
 Option Explicit
 Option Private Module
 Option Base 1
+' Reinterpret a Double as two 32-bit Longs (little-endian on Windows VBA)
+Private Type TDouble
+    d As Double
+End Type
+
+Private Type TLongs
+    Lo As Long    ' low 32 bits
+    Hi As Long    ' high 32 bits
+End Type
 
 'Data format used by Serialise and Unserialise
 '=============================================
@@ -114,10 +123,10 @@ Function GetStringLengthLimit() As Long
 8         GetStringLengthLimit = Res
 9     End Function
 
-      ' -----------------------------------------------------------------------------------------------------------------------
-      ' Procedure  : Unserialise
-      ' Purpose    : Unserialises the contents of the results file saved by JuliaExcel julia code.
-      ' -----------------------------------------------------------------------------------------------------------------------
+' -----------------------------------------------------------------------------------------------------------------------
+' Procedure  : Unserialise
+' Purpose    : Unserialises the contents of the results file saved by JuliaExcel julia code.
+' -----------------------------------------------------------------------------------------------------------------------
 Function Unserialise(Chars As String, AllowNesting As Boolean, ByRef Depth As Long, StringLengthLimit As Long, _
           JuliaVectorToXLColumn As Boolean)
 
@@ -125,7 +134,7 @@ Function Unserialise(Chars As String, AllowNesting As Boolean, ByRef Depth As Lo
 2         Depth = Depth + 1
 3         Select Case Asc(Left$(Chars, 1))
               Case 35    '# vbDouble
-4                 Unserialise = CDbl(Mid$(Chars, 2))
+4                  Unserialise = HexToDouble(Mid$(Chars, 2))
 5             Case 163    '£ (pound sterling) vbString
 6                 If StringLengthLimit > 0 Then 'Calling from worksheet formula, StringLengthLimit applies to elements of an array
 7                     If Len(Chars) > IIf(Depth = 1, 32768, StringLengthLimit) Then 'Remember Chars includes an initial type indicator character of "£"
@@ -334,7 +343,7 @@ Function Serialise(x As Variant) As String
 10            Case vbSingle
 11                Serialise = "S" & CStr(x)
 12            Case vbDouble
-13                Serialise = "#" & CStr(x)
+13                Serialise = "#" & DoubleToHex(x)
 14            Case vbCurrency
 15                Serialise = "C" & CStr(x)
 16            Case vbDate
@@ -351,17 +360,17 @@ Function Serialise(x As Variant) As String
 27                If TypeName(x) <> "Dictionary" Then Throw "Cannot serialise object of type " + TypeName(x)
 28                ReDim LengthsArray(0 To x.Count - 1)
 29                ReDim ContentsArray(0 To x.Count - 1)
-                  Dim key
+                  Dim Key
                   Dim ThisItem As String
                   Dim ThisKey As String
 30                i = 0
-31                For Each key In x.Keys
-32                    ThisKey = Serialise(key)
-33                    ThisItem = Serialise(x(key))
+31                For Each Key In x.Keys
+32                    ThisKey = Serialise(Key)
+33                    ThisItem = Serialise(x(Key))
 34                    ContentsArray(i) = ThisKey & ThisItem
 35                    LengthsArray(i) = CStr(Len(ThisKey)) & "," & CStr(Len(ThisItem))
 36                    i = i + 1
-37                Next key
+37                Next Key
 38                Serialise = "^" & CStr(x.Count) & ";" & VBA.Join(LengthsArray, ",") & ",;" & VBA.Join(ContentsArray, "")
 39            Case Is >= vbArray
 40                Select Case NumDimensions(x)
@@ -398,3 +407,76 @@ Function Serialise(x As Variant) As String
 ErrHandler:
 69        Throw "#Serialise (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Function
+
+' -----------------------------------------------------------------------------------------------------------------------
+' Procedure  : DoubleToHex
+' Author     : Philip Swannell
+' Date       : 21-Dec-2025
+' Purpose    : Return a 16-character uppercase hexadecimal string representing the IEEE-754
+'              bit pattern of `x` (Double). Canonicalizes +0.0 and -0.0 to the same key
+'              ("0000000000000000"). Does not special-case NaN; the NaN payload is preserved.
+' -----------------------------------------------------------------------------------------------------------------------
+Function DoubleToHex(ByVal x As Double) As String
+
+          Dim H1 As String
+          Dim H2 As String
+          Dim Out As String
+          Dim TD As TDouble
+          Dim Tl As TLongs
+          
+1         On Error GoTo ErrHandler
+2         TD.d = x
+3         LSet Tl = TD  ' reinterpret the 8 bytes of the Double as two Longs
+
+          ' Canonicalize ±0 to the same key:
+          ' In IEEE-754, ±0 has zero exponent+fraction; sign bit is in hi word (&H80000000)
+4         If Tl.Lo = 0 Then
+5             If ((Tl.Hi And &H7FFFFFFF) = 0) Then
+6                 Tl.Hi = 0
+7                 Tl.Lo = 0
+8             End If
+9         End If
+
+10        Out = "0000000000000000"
+11        H1 = Hex$(Tl.Hi)
+12        H2 = Hex$(Tl.Lo)
+
+13        Mid$(Out, 9 - Len(H1)) = H1
+14        Mid$(Out, 17 - Len(H2)) = H2
+15        DoubleToHex = Out
+
+16        Exit Function
+ErrHandler:
+17        Throw "DoubleToHex (line " & CStr(Erl) + "): " & Err.Description & "!"
+End Function
+
+' -----------------------------------------------------------------------------------------------------------------------
+' Procedure  : HexToDouble
+' Author     : Philip Swannell
+' Date       : 21-Dec-2025
+' Purpose    : Parse a 16-character hex string (uppercase or lowercase) as the IEEE-754
+'              bit pattern of a Double and return the corresponding Double.
+' -----------------------------------------------------------------------------------------------------------------------
+Function HexToDouble(ByVal Hex As String) As Double
+
+          Dim Hi As Long
+          Dim Lo As Long
+          Dim TD As TDouble
+          Dim Tl As TLongs
+
+1         On Error GoTo ErrHandler
+2         If Len(Hex) <> 16 Then Throw "Hex must be 16 hex characters, but got " & Len(Hex)
+3         Hi = CLng("&H" & Left$(Hex, 8))
+4         Lo = CLng("&H" & Right$(Hex, 8))
+5         Tl.Hi = Hi
+6         Tl.Lo = Lo
+7         LSet TD = Tl
+8         HexToDouble = TD.d
+
+9         Exit Function
+ErrHandler:
+10        Throw "HexToDouble (line " & CStr(Erl) + "): " & Err.Description & "!"
+End Function
+
+
+

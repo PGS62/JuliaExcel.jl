@@ -1,5 +1,5 @@
 Attribute VB_Name = "modUtils"
-' Copyright (c) 2021 - Philip Swannell
+' Copyright (c) 2021-2025 Philip Swannell
 ' License MIT (https://opensource.org/licenses/MIT)
 ' Document: https://github.com/PGS62/JuliaExcel.jl#readme
 
