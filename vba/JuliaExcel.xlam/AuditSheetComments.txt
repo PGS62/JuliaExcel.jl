@@ -1,4 +1,5 @@
 ﻿Version	Date	Time	Author	Comment
+100	22-Dec-2025	17:46	Philip Swannell	Bug fix to Unserialise.
 99	22-Dec-2025	17:35	Philip Swannell	Added method ReThrow for use in error handlers.
 98	22-Dec-2025	15:24	Philip Swannell	DateTime now transported Julia->Excel using hex representation.
 97	22-Dec-2025	09:55	Philip Swannell	Single/Float32 are now transported between Excel and Julia as the 8-character uppercase hexadecimal string representing the IEEE-754 bit pattern of the Single/Float32. Avoids loss of precision.

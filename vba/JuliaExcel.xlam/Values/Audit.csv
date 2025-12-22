@@ -5,9 +5,10 @@
 ,"The password to view the VBA code is JuliaExcel",,,,,,
 ,"Copyright 2021 Philip Swannell",,,,,,
 ,"License MIT (https://opensource.org/licenses/MIT)",,,,,,
-,"All 99 rows shown.",,,,,,
+,"All 100 rows shown.",,,,,,
 ,"Dbl-click","Double-click","Dbl-click","Double-click","Double-click to filter",,"ToDo"
 ,"Version","Date","Time","Author","Comment",,"Amend method PostMessageToJulia to clear the REPL via Ctrl+E, Ctrl+U."
+,100,2025-12-22,0.740532407406135,"Philip Swannell","Bug fix to Unserialise.",,
 ,99,2025-12-22,0.733009259260143,"Philip Swannell","Added method ReThrow for use in error handlers.",,
 ,98,2025-12-22,0.641875000001164,"Philip Swannell","DateTime now transported Julia->Excel using hex representation.",,
 ,97,2025-12-22,0.41356481481489,"Philip Swannell","Single/Float32 are now transported between Excel and Julia as the 8-character uppercase hexadecimal string representing the IEEE-754 bit pattern of the Single/Float32. Avoids loss of precision.",,
