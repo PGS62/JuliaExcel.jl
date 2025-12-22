@@ -16,11 +16,37 @@ Private Type TLongs
     Hi As Long    ' high 32 bits
 End Type
 
+' Reinterpret a Single as one 32-bit Long (little-endian on Windows VBA)
+Private Type TSingle
+    s As Single
+End Type
+
+Private Type TLong
+    x As Long    ' all 32 bits
+End Type
+
+'Notes re round-tripping (Copilot assited)
+'=========================================
+'In Julia, string(x) for Float64 uses a shortest, round-trip algorithm
+'(Ryu/Grisu class) that prints the minimal decimal digits that, when parsed
+'back to a binary IEEE-754 double, reconstruct exactly the same 64-bit value.
+'This ensures parse(Float64, string(x)) === x, for all Float64 values.
+
+'VBA's CStr is not a round-trip formatter for IEEE-754 Double:
+'* It typically emits ~15 significant digits, while a binary64 (Double) can
+'  require 17 to guarantee an exact round-trip.
+'* It obeys locale (decimal separator).
+'* It may choose scientific vs. fixed forms inconsistently and trim trailing
+'  zeros, none of which are guaranteed to be "shortest-round-trip".
+
 'Data format used by Serialise and Unserialise
 '=============================================
 'Format designed to be as fast as possible to unserialise.
 '- Singleton types are prefixed with a type indicator character.
 '- Dates are shown in their Excel representation as a number - faster to unserialise in VBA.
+'- Floating point numbers (Double, Single) are represented in hexadecimal. See functions _
+   DoubleToHex, HexToDouble, SingleToHex, HexToSingle. This ensures exact round-tripping _
+   and avoids having to cope with the decimal separator being a comma.
 '- Arrays are written with type indicator *, then three sections separated by semi-colons:
 '  First section gives the number of dimensions and the dimensions themselves, comma
 '  delimited e.g. a 3 x 4 array would have a dimensions section "2,3,4".
@@ -39,42 +65,31 @@ End Type
 '  first key, first item, second key second item etc.
 
 'Type indicator characters are as follows:
-' # Double
+' # Double, payload is hex e.g. 1.5 encoded as D3FF8000000000000
 ' £ (pound sterling) String
 ' T Boolean True
 ' F Boolean False
-' D Date
+' D Date, payload is decimal of Excel's date representation. e.g. 22-Dec-2025 is D64013
+' G DateTime, payload is hex
 ' E Empty
 ' N Null
 ' % Integer
 ' & Long
-' S Single
+' S Single, payload is hex
 ' C Currency
 ' ! Error
 ' @ Decimal
 ' * Array
 ' ^ Scripting.Dictionary
 
-'
 'Examples:
-'?Serialise(CDbl(1))
-'#1
-'?Serialise(CLng(1))
-'&1
-'?Serialise("Hello")
-'£Hello
-'?Serialise(True)
-'T
-'?Serialise(False)
-'F
-'?Serialise(Array(1,2,3.0,True,False,"Hello","World"))
-'*1,7;2,2,2,1,1,6,6,;%1%2#3TF£Hello£World
-
-'Set foo = New Scripting.Dictionary
-'foo.add "a",10
-'foo.add "abc",1000
-'?serialise(foo)
-'^2;2,3,4,5,;£a%10£abc%1000
+'#3FF0000000000000 unserialises to Double 1
+'&1 unserailises to Long 1
+'£Hello unserialises to String Hello
+'T unserialises to Boolean True
+'F unserialises to Boolean False
+'*1,7;2,2,17,1,1,6,6,;%1%2#4008000000000000TF£Hello£World  unserialises to Array(1,2,3.0,True,False,"Hello","World")
+'^2;2,3,4,5,;£a%10£abc%1000 unserialises to a Dictionary with two elements, element "a" contains 10 and element "abc" contains 1000
 
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : UnserialiseFromFile
@@ -83,20 +98,20 @@ End Type
 Function UnserialiseFromFile(FileName As String, AllowNested As Boolean, StringLengthLimit As Long, JuliaVectorToXLColumn As Boolean)
           Dim Contents As String
           Dim ErrMsg As String
-          Dim FSO As New Scripting.FileSystemObject
-          Dim ts As Scripting.TextStream
+          Dim fso As New Scripting.FileSystemObject
+          Dim TS As Scripting.TextStream
 
 1         On Error GoTo ErrHandler
-2         Set ts = FSO.OpenTextFile(FileName, ForReading, , TristateTrue)
-3         Contents = ts.ReadAll
-4         ts.Close
-5         Set ts = Nothing
+2         Set TS = fso.OpenTextFile(FileName, ForReading, , TristateTrue)
+3         Contents = TS.ReadAll
+4         TS.Close
+5         Set TS = Nothing
 6         Assign UnserialiseFromFile, Unserialise(Contents, AllowNested, 0, StringLengthLimit, JuliaVectorToXLColumn)
 
 7         Exit Function
 ErrHandler:
-8         ErrMsg = "#UnserialiseFromFile (line " & CStr(Erl) + "): " & Err.Description & "!"
-9         If Not ts Is Nothing Then ts.Close
+8         ErrMsg = ReThrow("UnserialiseFromFile", Err, True)
+9         If Not TS Is Nothing Then TS.Close
 10        Throw ErrMsg
 End Function
 
@@ -134,7 +149,7 @@ Function Unserialise(Chars As String, AllowNesting As Boolean, ByRef Depth As Lo
 2         Depth = Depth + 1
 3         Select Case Asc(Left$(Chars, 1))
               Case 35    '# vbDouble
-4                  Unserialise = HexToDouble(Mid$(Chars, 2))
+4                 Unserialise = HexToDouble(Mid$(Chars, 2))
 5             Case 163    '£ (pound sterling) vbString
 6                 If StringLengthLimit > 0 Then 'Calling from worksheet formula, StringLengthLimit applies to elements of an array
 7                     If Len(Chars) > IIf(Depth = 1, 32768, StringLengthLimit) Then 'Remember Chars includes an initial type indicator character of "£"
@@ -156,8 +171,8 @@ Function Unserialise(Chars As String, AllowNesting As Boolean, ByRef Depth As Lo
 17                Unserialise = True
 18            Case 70     'F Boolean False
 19                Unserialise = False
-20            Case 68     'D vbDate
-21                Unserialise = CDate(Mid$(Chars, 2))
+20            Case 71 'G vbDate, from DateTime in Julia
+21                Unserialise = CDate(HexToDouble(Mid$(Chars, 2)))
 22            Case 69     'E vbEmpty
 23                Unserialise = Empty
 24            Case 78     'N vbNull
@@ -274,7 +289,7 @@ Function Unserialise(Chars As String, AllowNesting As Boolean, ByRef Depth As Lo
 
 113       Exit Function
 ErrHandler:
-114       Throw "#Unserialise (line " & CStr(Erl) + "): " & Err.Description & "!"
+114       ReThrow "Unserialise", Err
 End Function
 
 'Values of type Int64 in Julia must be handled differently on Excel 32-bit and Excel 64bit
@@ -289,132 +304,11 @@ End Function
 #End If
 
 ' -----------------------------------------------------------------------------------------------------------------------
-' Procedure  : SerialiseToFile
-' Purpose    : Serialise Data and write to file, the inverse of UnserialiseFromFile. Currently this procedure is not used
-'              but might be useful for writing tests of UnserialiseFromFile.
-' -----------------------------------------------------------------------------------------------------------------------
-Function SerialiseToFile(Data, FileName As String)
-
-          Dim ErrMsg As String
-          Dim FSO As New Scripting.FileSystemObject
-          Dim ts As Scripting.TextStream
-
-1         On Error GoTo ErrHandler
-2         If TypeName(Data) = "Range" Then Data = Data.Value2
-3         Set ts = FSO.OpenTextFile(FileName, ForWriting, True, TristateTrue)
-4         ts.Write Serialise(Data)
-5         ts.Close
-6         Set ts = Nothing
-7         SerialiseToFile = FileName
-
-8         Exit Function
-ErrHandler:
-9         ErrMsg = "#SerialiseToFile (line " & CStr(Erl) + ") error writing'" & FileName & "' " & Err.Description & "!"
-10        If Not ts Is Nothing Then ts.Close
-11        Throw ErrMsg
-End Function
-
-' -----------------------------------------------------------------------------------------------------------------------
-' Procedure  : Serialise
-' Date       : 04-Nov-2021
-' Purpose    : Equivalent to the julia function in JuliaExcel.encode_for_xl and serialises to the same format, though this
-'              VBA version is not currently used.
-' -----------------------------------------------------------------------------------------------------------------------
-Function Serialise(x As Variant) As String
-
-          Dim ContentsArray() As String
-          Dim i As Long
-          Dim j As Long
-          Dim k As Long
-          Dim LengthsArray() As String
-          Dim NC As Long
-          Dim NR As Long
-
-1         On Error GoTo ErrHandler
-2         Select Case VarType(x)
-              Case vbEmpty
-3                 Serialise = "E"
-4             Case vbNull
-5                 Serialise = "N"
-6             Case vbInteger
-7                 Serialise = "%" & CStr(x)
-8             Case vbLong
-9                 Serialise = "&" & CStr(x)
-10            Case vbSingle
-11                Serialise = "S" & CStr(x)
-12            Case vbDouble
-13                Serialise = "#" & DoubleToHex(x)
-14            Case vbCurrency
-15                Serialise = "C" & CStr(x)
-16            Case vbDate
-17                Serialise = "D" & CStr(CDbl(x))
-18            Case vbString
-19                Serialise = "£" & x
-20            Case vbError
-21                Serialise = "!" & CStr(CLng(x))
-22            Case vbBoolean
-23                Serialise = IIf(x, "T", "F")
-24            Case vbDecimal
-25                Serialise = "@" & CStr(x)
-26            Case vbObject
-27                If TypeName(x) <> "Dictionary" Then Throw "Cannot serialise object of type " + TypeName(x)
-28                ReDim LengthsArray(0 To x.Count - 1)
-29                ReDim ContentsArray(0 To x.Count - 1)
-                  Dim Key
-                  Dim ThisItem As String
-                  Dim ThisKey As String
-30                i = 0
-31                For Each Key In x.Keys
-32                    ThisKey = Serialise(Key)
-33                    ThisItem = Serialise(x(Key))
-34                    ContentsArray(i) = ThisKey & ThisItem
-35                    LengthsArray(i) = CStr(Len(ThisKey)) & "," & CStr(Len(ThisItem))
-36                    i = i + 1
-37                Next Key
-38                Serialise = "^" & CStr(x.Count) & ";" & VBA.Join(LengthsArray, ",") & ",;" & VBA.Join(ContentsArray, "")
-39            Case Is >= vbArray
-40                Select Case NumDimensions(x)
-                      Case 1
-41                        ReDim LengthsArray(LBound(x) To UBound(x))
-42                        ReDim ContentsArray(LBound(x) To UBound(x))
-43                        For i = LBound(x) To UBound(x)
-44                            ContentsArray(i) = Serialise(x(i))
-45                            LengthsArray(i) = CStr(Len(ContentsArray(i)))
-46                        Next i
-47                        Serialise = "*1," & CStr(UBound(x) - LBound(x) + 1) & ";" & VBA.Join(LengthsArray, ",") & ",;" & VBA.Join(ContentsArray, "")
-48                    Case 2
-49                        NR = UBound(x, 1) - LBound(x, 1) + 1
-50                        NC = UBound(x, 2) - LBound(x, 2) + 1
-51                        k = 0
-52                        ReDim LengthsArray(NR * NC)
-53                        ReDim ContentsArray(NR * NC)
-54                        For j = LBound(x, 2) To UBound(x, 2)
-55                            For i = LBound(x, 1) To UBound(x, 1)
-56                                k = k + 1
-57                                ContentsArray(k) = Serialise(x(i, j))
-58                                LengthsArray(k) = CStr(Len(ContentsArray(k)))
-59                            Next i
-60                        Next j
-61                        Serialise = "*2," & CStr(UBound(x, 1) - LBound(x, 1) + 1) & "," & CStr(UBound(x, 2) - LBound(x, 2) + 1) & ";" & VBA.Join(LengthsArray, ",") & ",;" & VBA.Join(ContentsArray, "")
-62                    Case Else
-63                        Throw "Cannot serialise array with " + CStr(NumDimensions(x)) + " dimensions"
-64                End Select
-65            Case Else
-66                Throw "Cannot serialise variable of type " & TypeName(x)
-67        End Select
-
-68        Exit Function
-ErrHandler:
-69        Throw "#Serialise (line " & CStr(Erl) + "): " & Err.Description & "!"
-End Function
-
-' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : DoubleToHex
 ' Author     : Philip Swannell
 ' Date       : 21-Dec-2025
-' Purpose    : Return a 16-character uppercase hexadecimal string representing the IEEE-754
-'              bit pattern of `x` (Double). Canonicalizes +0.0 and -0.0 to the same key
-'              ("0000000000000000"). Does not special-case NaN; the NaN payload is preserved.
+' Purpose    : Return a 16-character uppercase hexadecimal string representing the IEEE-754 bit pattern of `x` (Double).
+'              Does not special-case NaN, +0.0 or -0.0.
 ' -----------------------------------------------------------------------------------------------------------------------
 Function DoubleToHex(ByVal x As Double) As String
 
@@ -427,15 +321,6 @@ Function DoubleToHex(ByVal x As Double) As String
 1         On Error GoTo ErrHandler
 2         TD.d = x
 3         LSet Tl = TD  ' reinterpret the 8 bytes of the Double as two Longs
-
-          ' Canonicalize ±0 to the same key:
-          ' In IEEE-754, ±0 has zero exponent+fraction; sign bit is in hi word (&H80000000)
-4         If Tl.Lo = 0 Then
-5             If ((Tl.Hi And &H7FFFFFFF) = 0) Then
-6                 Tl.Hi = 0
-7                 Tl.Lo = 0
-8             End If
-9         End If
 
 10        Out = "0000000000000000"
 11        H1 = Hex$(Tl.Hi)
@@ -478,5 +363,64 @@ ErrHandler:
 10        Throw "HexToDouble (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Function
 
+' -----------------------------------------------------------------------------------------------------------------------
+' Procedure  : SingleToHex
+' Author     : Philip Swannell
+' Date       : 22-Dec-2025
+' Purpose    : Return a 8-character uppercase hexadecimal string representing the IEEE-754 bit pattern of `x` (Single).
+'              Does not special-case NaN, +0.0 or -0.0.
+' -----------------------------------------------------------------------------------------------------------------------
+Function SingleToHex(ByVal x As Single) As String
 
+          Dim Tl As TLong
+          Dim TS As TSingle
+          
+1         On Error GoTo ErrHandler
+2         TS.s = x
+3         LSet Tl = TS  ' reinterpret the 4 bytes of the Single as a Long
+4         SingleToHex = LPad(Hex$(Tl.x), 8, "0")
+5         Exit Function
+ErrHandler:
+6         Throw "SingleToHex (line " & CStr(Erl) + "): " & Err.Description & "!"
+End Function
+
+' -----------------------------------------------------------------------------------------------------------------------
+' Procedure  : LPad
+' Author     : Philip Swannell
+' Date       : 22-Dec-2025
+' Purpose    : Pad s on the left with p to make it n characters long. If s is already n characters long, an equal string
+'              is returned.
+' -----------------------------------------------------------------------------------------------------------------------
+Function LPad(s As String, n As Long, p As String)
+1         If Len(s) < n Then
+2             LPad = String(n - Len(s), p) & s
+3         Else
+4             LPad = s
+5         End If
+End Function
+
+' -----------------------------------------------------------------------------------------------------------------------
+' Procedure  : HexToSingle
+' Author     : Philip Swannell
+' Date       : 22-Dec-2025
+' Purpose    : Parse an 8-character hex string (uppercase or lowercase) as the IEEE-754
+'              bit pattern of a Single and return the corresponding Single.
+' -----------------------------------------------------------------------------------------------------------------------
+Function HexToSingle(ByVal Hex As String) As Single
+
+          Dim Tl As TLong
+          Dim TS As TSingle
+          Dim Wx As Long
+
+1         On Error GoTo ErrHandler
+2         If Len(Hex) <> 8 Then Throw "Hex must be 8 hex characters, but got " & Len(Hex)
+3         Wx = CLng("&H" & Hex)
+4         Tl.x = Wx
+5         LSet TS = Tl
+6         HexToSingle = TS.s
+
+7         Exit Function
+ErrHandler:
+8         Throw "HexToSingle (line " & CStr(Erl) + "): " & Err.Description & "!"
+End Function
 

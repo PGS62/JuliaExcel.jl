@@ -29,7 +29,7 @@ Private Sub RegisterJuliaExcelFunctionsWithFunctionWizard()
           Dim Description As String
           Dim FunctionName As String
           Dim i As Long
-          Dim NumArgs
+          Dim NumArgs As Variant
           Dim OldIsAddinStatus As Boolean
           Dim OldSaveStatus As Boolean
           Dim rngArgsAndArgDescs As Range

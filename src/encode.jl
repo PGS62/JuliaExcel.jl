@@ -11,29 +11,29 @@ unserialise than csv.
   Third section gives the encodings, concatenated with no delimiter.
   - Note that arrays are written in column-major order.
 
-When decoded (by VBA function modDecode.Decode), the type indicator characters are 
+When decoded (by VBA function modSerialise.Unserialise), the type indicator characters are 
 interpreted as follows:
- #   vbDouble
- £   String
+ #   Double (followed by hex represention of the value, see float64_to_hex)
+ £   String (followed by the string)
  T   Boolean True
  F   Boolean False
- D   Date (D should be followed by the number that represents the date, Excel-style
+ D   Date (followed by the number that represents the date, Excel-style
            i.e. Dates.value(x) - 693594)
+ G   Date (with time, no separate type exists in VBA. Followed by hex representation of the 
+     Double that is equivalent in Excel)
  E   Empty
  N   Null
- %   Integer
- &   Long
- S   Single
- C   Currency
- !   Error (! should be followed by an Excel error number, e.g. 
+ %   Integer (followed by decimal representation of the value)
+ &   Long (followed by decimal representation of the value)
+ S   Single (followed by hex represention of the value, see float32_to_hex)
+ !   Error (followed by an Excel error number, e.g. 
               2042 for the Excel error value #N/A )
- @   Decimal
  *   Array
  ^   Dictionary
 
   Examples:
   julia> JuliaExcel.encode_for_xl(1.0)
-"#1.0"
+"#3FF0000000000000"
 
 julia> JuliaExcel.encode_for_xl(1)
 "&1"
@@ -67,7 +67,8 @@ encode_for_xl(x::Missing) = "E"            # Empty in VBA
 encode_for_xl(x::Nothing) = "E"            # Empty in VBA
 encode_for_xl(x::Bool) = x ? "T" : "F"     # Boolean in VBA/Excel
 encode_for_xl(x::Date) = string("D", Dates.value(x) - 693594) # Date in VBA/Excel
-encode_for_xl(x::DateTime) = string("D", Dates.value(x) / 86_400_000 - 693594)  # VBA has no separate DateTime type
+#encode_for_xl(x::DateTime) = string("D", Dates.value(x) / 86_400_000 - 693594)  # VBA has no separate DateTime type
+encode_for_xl(x::DateTime) = "G" * float64_to_hex(Dates.value(x) / 86_400_000 - 693594)  # VBA has no separate DateTime type
 encode_for_xl(x::DataType) = wrapshow(x)
 encode_for_xl(x::VersionNumber) = encode_for_xl("$x")
 encode_for_xl(x::Tuple) = encode_for_xl([x[i] for i in eachindex(x)])
@@ -91,13 +92,13 @@ function encode_for_xl(x::Float64)
     end
 end
 
-function encode_for_xl(x::Union{Float16,Float32})
+function encode_for_xl(x::Float32)
     if isinf(x)
         "!2036" # #NUM! in Excel
     elseif isnan(x)
         "!2042" # #N/A in Excel
     else
-        string("S", x)# Single in VBA
+        "S" * float32_to_hex(x)# Single in VBA
     end
 end
 
@@ -169,18 +170,10 @@ end
     float64_to_hex(x::Float64)::String
 
 Return a 16-character uppercase hexadecimal string representing the IEEE-754
-bit pattern of `x` (Float64). Canonicalizes +0.0 and -0.0 to the same key
-("0000000000000000"). Does not special-case NaN; the NaN payload is preserved.
+bit pattern of `x` (Float64). Does not special-case NaN or +0.0 and -0.0.
 """
 function float64_to_hex(x::Float64)::String
     bits = reinterpret(UInt64, x)
-
-    # Canonicalize ±0: mask off sign; if remainder is zero, force all-zero bits
-    if (bits & 0x7fffffffffffffff) == 0x0000000000000000
-        bits = 0x0000000000000000
-    end
-
-    # Uppercase hex, left-padded to 16 characters
     s = uppercase(string(bits, base=16))
     return lpad(s, 16, '0')
 end
@@ -189,15 +182,40 @@ end
     hex_to_float64(hex::AbstractString)::Float64
 
 Parse a 16-character hex string (uppercase or lowercase) as the IEEE-754
-bit pattern of a Float64 and return the corresponding `Float64`. 
+bit pattern of a `Float64` and return the corresponding `Float64` value.
 """
 function hex_to_float64(hex::AbstractString)::Float64
 
     length(hex) == 16 || throw(ArgumentError("input must be 16 characters, but got $(length(hex))"))
 
-    # Will throw if there are non-hex characters
     bits = parse(UInt64, hex; base=16)
     return reinterpret(Float64, bits)
 end
+
+"""
+    float32_to_hex(x::Float32)::String
+
+Return an 8-character uppercase hexadecimal string representing the IEEE-754
+bit pattern of `x` (Float32). Does not special-case NaN or +0.0 and -0.0.
+"""
+function float32_to_hex(x::Float32)::String
+    bits = reinterpret(UInt32, x)
+    s = uppercase(string(bits, base=16))
+    return lpad(s, 8, '0')
+end
+
+"""
+    hex_to_float32(hex::AbstractString)::Float32
+
+Parse an 8-character hex string (uppercase or lowercase) as the IEEE-754
+bit pattern of a `Float32` and return the corresponding `Float32` value.
+"""
+function hex_to_float32(hex::AbstractString)::Float32
+    length(hex) == 8 || throw(ArgumentError("input must be 8 characters, but got $(length(hex))"))
+    bits = parse(UInt32, hex; base=16)
+    return reinterpret(Float32, bits)
+end
+
 # For brevity in the output of the VBA function MakeJuliaLiteral
-htf = hex_to_float64
+htd = hex_to_float64
+hts = hex_to_float32

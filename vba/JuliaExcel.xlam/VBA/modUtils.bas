@@ -7,13 +7,13 @@ Option Explicit
 Option Private Module
 
 #If VBA7 And Win64 Then
-    Private Declare PtrSafe Function QueryPerformanceFrequency Lib "kernel32" (lpFrequency As Currency) As Long
-    Private Declare PtrSafe Function QueryPerformanceCounter Lib "kernel32" (lpPerformanceCount As Currency) As Long
-        Private Declare PtrSafe Function GetTempPath Lib "kernel32" Alias "GetTempPathA" (ByVal nBufferLength As Long, ByVal lpBuffer As String) As Long
+Private Declare PtrSafe Function QueryPerformanceFrequency Lib "kernel32" (lpFrequency As Currency) As Long
+Private Declare PtrSafe Function QueryPerformanceCounter Lib "kernel32" (lpPerformanceCount As Currency) As Long
+Private Declare PtrSafe Function GetTempPath Lib "kernel32" Alias "GetTempPathA" (ByVal nBufferLength As Long, ByVal lpBuffer As String) As Long
 #Else
-    Private Declare Function QueryPerformanceFrequency Lib "kernel32" (lpFrequency As Currency) As Long
-    Private Declare Function QueryPerformanceCounter Lib "kernel32" (lpPerformanceCount As Currency) As Long
-    Private Declare Function GetTempPath Lib "kernel32" Alias "GetTempPathA" (ByVal nBufferLength As Long, ByVal lpBuffer As String) As Long
+Private Declare Function QueryPerformanceFrequency Lib "kernel32" (lpFrequency As Currency) As Long
+Private Declare Function QueryPerformanceCounter Lib "kernel32" (lpPerformanceCount As Currency) As Long
+Private Declare Function GetTempPath Lib "kernel32" Alias "GetTempPathA" (ByVal nBufferLength As Long, ByVal lpBuffer As String) As Long
 #End If
 
 ' -----------------------------------------------------------------------------------------------------------------------
@@ -44,7 +44,7 @@ Function ElapsedTime() As Double
 
 5         Exit Function
 ErrHandler:
-6         Throw "#ElapsedTime (line " & CStr(Erl) + "): " & Err.Description & "!"
+6         ReThrow "ElapsedTime", Err
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
@@ -53,10 +53,10 @@ End Function
 ' -----------------------------------------------------------------------------------------------------------------------
 Function FileExists(FileName As String) As Boolean
           Dim F As Scripting.File
-          Static FSO As Scripting.FileSystemObject
+          Static fso As Scripting.FileSystemObject
 1         On Error GoTo ErrHandler
-2         If FSO Is Nothing Then Set FSO = New FileSystemObject
-3         Set F = FSO.GetFile(FileName)
+2         If fso Is Nothing Then Set fso = New FileSystemObject
+3         Set F = fso.GetFile(FileName)
 4         FileExists = True
 5         Exit Function
 ErrHandler:
@@ -71,10 +71,10 @@ End Function
 ' -----------------------------------------------------------------------------------------------------------------------
 Function FolderExists(ByVal FolderPath As String) As Boolean
           Dim F As Scripting.Folder
-          Static FSO As Scripting.FileSystemObject
+          Static fso As Scripting.FileSystemObject
 1         On Error GoTo ErrHandler
-2         If FSO Is Nothing Then Set FSO = New FileSystemObject
-3         Set F = FSO.GetFolder(FolderPath)
+2         If fso Is Nothing Then Set fso = New FileSystemObject
+3         Set F = fso.GetFolder(FolderPath)
 4         FolderExists = True
 5         Exit Function
 ErrHandler:
@@ -91,24 +91,24 @@ Function SaveTextFile(FileName As String, Contents As String, Format As TriState
           Const DelayMs As Long = 25
           Const MaxRetries As Integer = 10
           Dim Attempts As Integer
-          Dim ts As Scripting.TextStream
-          Static FSO As Scripting.FileSystemObject
+          Dim TS As Scripting.TextStream
+          Static fso As Scripting.FileSystemObject
 
-1         If FSO Is Nothing Then Set FSO = New Scripting.FileSystemObject
+1         If fso Is Nothing Then Set fso = New Scripting.FileSystemObject
 
 2         On Error GoTo ErrHandler
 3         For Attempts = 1 To MaxRetries
 4             On Error Resume Next
-5             Set ts = FSO.OpenTextFile(FileName, ForWriting, True, Format)
+5             Set TS = fso.OpenTextFile(FileName, ForWriting, True, Format)
 6             If Err.Number = 0 Then Exit For
 7             On Error GoTo ErrHandler
 8             DoEvents
 9             PreciseSleep DelayMs
 10        Next Attempts
 
-11        If ts Is Nothing Then Throw "Failed to open file '" & FileName & "'after " & CStr(MaxRetries) & " attempts."
+11        If TS Is Nothing Then Throw "Failed to open file '" & FileName & "'after " & CStr(MaxRetries) & " attempts."
 
-12        With ts
+12        With TS
 13            .Write Contents
 14            .Close
 15        End With
@@ -126,15 +126,15 @@ End Function
 '  Format  : TriStateTrue for UTF-16, TriStateFalse for ascii
 ' -----------------------------------------------------------------------------------------------------------------------
 Function ReadTextFile(FileName As String, Format As TriState)
-          Dim FSO As New Scripting.FileSystemObject
-          Dim ts As Scripting.TextStream
+          Dim fso As New Scripting.FileSystemObject
+          Dim TS As Scripting.TextStream
 1         On Error GoTo ErrHandler
-2         Set ts = FSO.OpenTextFile(FileName, ForReading, , Format)
-3         ReadTextFile = ts.ReadAll
-4         ts.Close
+2         Set TS = fso.OpenTextFile(FileName, ForReading, , Format)
+3         ReadTextFile = TS.ReadAll
+4         TS.Close
 5         Exit Function
 ErrHandler:
-6         Throw "#ReadTextFile (line " & CStr(Erl) + "): " & Err.Description & "!"
+6         ReThrow "ReadTextFile", Err
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
@@ -147,14 +147,14 @@ End Function
 Function WSLAddress(WindowsAddress As String)
 1         On Error GoTo ErrHandler
 2         Select Case Mid(WindowsAddress, 2, 2)
-           Case ":/", ":\"
-3             WSLAddress = "/mnt/" & LCase(Left(WindowsAddress, 1)) & Replace(Mid(WindowsAddress, 3), "\", "/")
-4         Case Else
-5             Throw "WindowsAddress must start with characters ""x:\"" for some drive-letter x"
+              Case ":/", ":\"
+3                 WSLAddress = "/mnt/" & LCase(Left(WindowsAddress, 1)) & Replace(Mid(WindowsAddress, 3), "\", "/")
+4             Case Else
+5                 Throw "WindowsAddress must start with characters ""x:\"" for some drive-letter x"
 6         End Select
 7         Exit Function
 ErrHandler:
-8         Throw "#WSLAddress (line " & CStr(Erl) + "): " & Err.Description & "!"
+8         ReThrow "WSLAddress", Err
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
@@ -165,7 +165,7 @@ Function LocalTemp()
           
           Const SubFolderName = "@" & gPackageName
           Dim F As Scripting.Folder
-          Dim FSO As New FileSystemObject
+          Dim fso As New FileSystemObject
           Dim Parent As String
           Static Res As String
 
@@ -180,7 +180,7 @@ Function LocalTemp()
 8             Parent = Parent & "\"
 9         End If
 10        If Not FolderExists(Parent & SubFolderName) Then
-11            Set F = FSO.GetFolder(Parent)
+11            Set F = fso.GetFolder(Parent)
 12            F.SubFolders.Add SubFolderName
 13        End If
 14        Res = Parent & SubFolderName
@@ -188,7 +188,7 @@ Function LocalTemp()
 15        LocalTemp = Res
 16        Exit Function
 ErrHandler:
-17        Throw "#LocalTemp (line " & CStr(Erl) + "): " & Err.Description & "!"
+17        ReThrow "LocalTemp", Err
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
@@ -200,9 +200,9 @@ Sub CleanLocalTemp()
           Const DeleteFilesOlderThan As Double = 3
           Dim F As Scripting.File
           Dim Fld As Scripting.Folder
-          Dim FSO As New Scripting.FileSystemObject
+          Dim fso As New Scripting.FileSystemObject
 1         On Error GoTo ErrHandler
-2         Set Fld = FSO.GetFolder(LocalTemp())
+2         Set Fld = fso.GetFolder(LocalTemp())
 3         For Each F In Fld.Files
 4             If (Now() - F.DateLastAccessed) > DeleteFilesOlderThan Then
 5                 F.Delete
@@ -210,7 +210,7 @@ Sub CleanLocalTemp()
 7         Next
 8         Exit Sub
 ErrHandler:
-9         Throw "#CleanLocalTemp (line " & CStr(Erl) + "): " & Err.Description & "!"
+9         ReThrow "CleanLocalTemp", Err
 End Sub
 
 ' -----------------------------------------------------------------------------------------------------------------------
@@ -240,6 +240,39 @@ Sub Throw(ByVal ErrorString As String)
 5         End If
 End Sub
 
+' -----------------------------------------------------------------------------------------------------------------------
+' Procedure  : ReThrow
+' Purpose    : Common error handling to be used in the error handler of all methods.
+' Parameters :
+'  FunctionName: The name of the function from which ReThrow is called, typically in the function's error handler.
+'  Error       : Err, the error object.
+'  ReturnString: Pass in True if the method is a "top level" method that's exposed to the user and we wish for the
+'                function to return an error string (starts with #, ends with !).
+'                Pass in False if we want to (re)throw an error, with annotated Description.
+' -----------------------------------------------------------------------------------------------------------------------
+Function ReThrow(FunctionName As String, Error As ErrObject, Optional ReturnString As Boolean = False)
+          Dim ErrorDescription As String
+          Dim ErrorNumber As Long
+          Dim LineDescription As String
+
+1         ErrorDescription = Error.Description
+2         ErrorNumber = Err.Number
+
+          'Build up call stack, i.e. annotate error description by prepending #<FunctionName> and appending !
+3         If Erl = 0 Then
+4             LineDescription = " (line unknown): "
+5         Else
+6             LineDescription = " (line " & CStr(Erl) & "): "
+7         End If
+8         ErrorDescription = "#" & FunctionName & LineDescription & ErrorDescription & "!"
+
+9         If ReturnString Then
+10            ReThrow = ErrorDescription
+11        Else
+12            Err.Raise ErrorNumber, , ErrorDescription
+13        End If
+End Function
+
 'Called from "Menu..." button on sheet Audit.
 Sub MenuButton()
 1         On Error GoTo ErrHandler
@@ -248,5 +281,6 @@ Sub MenuButton()
 ErrHandler:
 4         MsgBox "#MenuButton (line " & CStr(Erl) + "): " & Err.Description & "!", vbCritical
 End Sub
+
 
 

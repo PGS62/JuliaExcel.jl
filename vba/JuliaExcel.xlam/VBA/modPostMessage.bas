@@ -82,7 +82,7 @@ Sub PostMessageToJulia(HwndJulia As LongPtr)
 
 15        Exit Sub
 ErrHandler:
-16        Throw "#PostMessageToJulia (line " & CStr(Erl) + "): " & Err.Description & "!"
+16        ReThrow "PostMessageToJulia", Err
 End Sub
 
 ' -----------------------------------------------------------------------------------------------------------------------
@@ -109,7 +109,7 @@ Function NumWindowsWithCaption(ByVal sCaption As String) As Long
 
 11        Exit Function
 ErrHandler:
-12        Throw "#NumWindowsWithCaption (line " & CStr(Erl) + "): " & Err.Description & "!"
+12        ReThrow "NumWindowsWithCaption", Err
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
@@ -140,7 +140,7 @@ Function GetHandleFromPartialCaption(ByRef lwnd As LongPtr, ByVal sCaption As St
 
 13        Exit Function
 ErrHandler:
-14        Throw "#GetHandleFromPartialCaption (line " & CStr(Erl) + "): " & Err.Description & "!"
+14        ReThrow "GetHandleFromPartialCaption", Err
 End Function
 
 Function WindowTitleFromHandle(lhWndP As LongPtr)
@@ -152,7 +152,7 @@ Function WindowTitleFromHandle(lhWndP As LongPtr)
 5         WindowTitleFromHandle = sStr
 6         Exit Function
 ErrHandler:
-7         Throw "#WindowTitleFromHandle (line " & CStr(Erl) + "): " & Err.Description & "!"
+7         ReThrow "WindowTitleFromHandle", Err
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
@@ -197,6 +197,6 @@ Function IsFunctionWizardActive() As Boolean
 
 21        Exit Function
 ErrHandler:
-22        Throw "#IsFunctionWizardActive (line " & CStr(Erl) + "): " & Err.Description & "!"
+22        ReThrow "IsFunctionWizardActive", Err
 End Function
 

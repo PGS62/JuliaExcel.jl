@@ -8,36 +8,25 @@ Option Private Module
 
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : MakeJuliaLiteral
-' Purpose    : Convert an array into a string which Julia will parse as x.
+' Purpose    : Convert an variant x into a string which Julia will parse as x.
 '
 ' Examples:
 ' In VBA immediate window:
-' ?MakeJuliaLiteral(Array(1#, 2#, 3#),False)
-' [1.0 2.0 3.0]
+' ?MakeJuliaLiteral(Array(1#, 2#, 3#))
+' [htd("3FF0000000000000"),htd("4000000000000000"),htd("4008000000000000")]
 '
 ' In Julia REPL:
-' julia> [1.0,2.0,3.0]
-' 3-element Vector{Float64}:
-'  1.0
-'  2.0
-'  3.0
+'julia> using JuliaExcel
 
-' In VBA immediate window:
-' ?MakeJuliaLiteral(Array(1#, 2#, 3#),True)
-' [1.0,2.0,3.0]
-'
-' In Julia REPL:
-'julia> [1.0 2.0 3.0]
-'1×3 Matrix{Float64}:
-' 1.0  2.0  3.0
-
-'Handles nested arrays:
-' ?Print MakeJuliaLiteral(Array(1#, 2#, Array(3#, 4#)),False)
-' Any[1.0,2.0,[3.0,4.0]]
+'julia> [htd("3FF0000000000000"),htd("4000000000000000"),htd("4008000000000000")]
+'3-element Vector{Float64}:
+' 1.0
+' 2.0
+' 3.0
 ' -----------------------------------------------------------------------------------------------------------------------
 Function MakeJuliaLiteral(x As Variant)
-          Dim Res As String
           Dim k As Long
+          Dim Res As String
 
 1         On Error GoTo ErrHandler
 2         Select Case VarType(x)
@@ -78,17 +67,9 @@ Function MakeJuliaLiteral(x As Variant)
 29                MakeJuliaLiteral = """" & Res & """"
 30                Exit Function
 31            Case vbDouble
-                 ' Res = CStr(x)
-                 ' If InStr(Res, ".") = 0 Then
-                 '     If InStr(Res, "E") = 0 Then
-                 '         Res = Res + ".0"
-                 '     End If
-                 ' End If
-                 ' MakeJuliaLiteral = Res
-
                   'Avoid loss of precision by representing x as its IEEE-754 bit pattern. _
                    Also avoids having to worry about whether the decimal separator is point or comma.
-32                MakeJuliaLiteral = "htf(""" & DoubleToHex(x) & """)"
+32                MakeJuliaLiteral = "htd(""" & DoubleToHex(x) & """)"
 33                Exit Function
 34            Case vbLong, vbInteger
 35                MakeJuliaLiteral = CStr(x)
@@ -107,9 +88,9 @@ Function MakeJuliaLiteral(x As Variant)
 48                End If
 49                Exit Function
 50            Case vbSingle
-                  'For Double we avoid loss of precision by using Hex representation, _
-                   not currently doing this for Singles
-51                MakeJuliaLiteral = CStr(x) & "f0"
+                  'Avoid loss of precision by representing x as its IEEE-754 bit pattern. _
+                   Also avoids having to worry about whether the decimal separator is point or comma.
+51                MakeJuliaLiteral = "hts(""" & SingleToHex(x) & """)"
 52                Exit Function
 53            Case Is >= vbArray
                   Dim AllSameType As Boolean
@@ -166,6 +147,8 @@ Function MakeJuliaLiteral(x As Variant)
 
 94        Exit Function
 ErrHandler:
-95        Throw "#MakeJuliaLiteral (line " & CStr(Erl) + "): " & Err.Description & "!"
+95        ReThrow "MakeJuliaLiteral", Err
 End Function
+
+
 
