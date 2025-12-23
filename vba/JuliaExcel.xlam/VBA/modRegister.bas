@@ -8,7 +8,7 @@ Option Explicit
 Public Sub RegisterFunctions()
 1         On Error GoTo ErrHandler
 2         RegisterJuliaExcelFunctionsWithFunctionWizard
-3     On Error Resume Next
+3         On Error Resume Next
 4         AddIns("Excel-DNA IntelliSense Host").Installed = False
 5         AddIns("Excel-DNA IntelliSense Host").Installed = True
 6         Exit Sub
@@ -58,7 +58,7 @@ Private Sub RegisterJuliaExcelFunctionsWithFunctionWizard()
 15                NumArgs = 0
 16            Else
 17                Set rngArgsAndArgDescs = Range(c.Offset(, 3), c.Offset(, 3).End(xlToRight))
-18                NumArgs = rngArgsAndArgDescs.Columns.Count / 2
+18                NumArgs = rngArgsAndArgDescs.Columns.count / 2
 19                ReDim ArgDescs(1 To NumArgs)
 20                For i = 1 To NumArgs
 21                    ArgDescs(i) = rngArgsAndArgDescs.Cells(1, i * 2).Value

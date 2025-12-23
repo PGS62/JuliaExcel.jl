@@ -9,4 +9,6 @@ VBA\modMain.bas
 VBA\modPostMessage.bas
 VBA\modRegister.bas
 VBA\modSerialise.bas
+VBA\modTest.bas
+VBA\modTest2.bas
 VBA\modUtils.bas

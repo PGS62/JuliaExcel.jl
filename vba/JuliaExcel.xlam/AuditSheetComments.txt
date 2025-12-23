@@ -1,4 +1,7 @@
 ﻿Version	Date	Time	Author	Comment
+103	23-Dec-2025	08:55	Philip Swannell	Reinstated line numbers.
+102	23-Dec-2025	08:47	Philip Swannell	With help from Copilot, now support arrays of up to 8 dimensions, with changes to method MakeJuliaLiteral (for VBA -> Julia) and Unserialise (for Julia -> VBA).
+101	22-Dec-2025	19:00	Philip Swannell	Added module modTest.
 100	22-Dec-2025	17:46	Philip Swannell	Bug fix to Unserialise.
 99	22-Dec-2025	17:35	Philip Swannell	Added method ReThrow for use in error handlers.
 98	22-Dec-2025	15:24	Philip Swannell	DateTime now transported Julia->Excel using hex representation.

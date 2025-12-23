@@ -22,10 +22,10 @@ Private Declare Function GetTempPath Lib "kernel32" Alias "GetTempPathA" (ByVal 
 '              may not be the case for Environ("Temp").
 ' -----------------------------------------------------------------------------------------------------------------------
 Function GetFullTempPath() As String
-    Dim Buffer As String * 260
-    Dim Length As Long
-    Length = GetTempPath(260, Buffer)
-    GetFullTempPath = Left$(Buffer, Length)
+          Dim Buffer As String * 260
+          Dim Length As Long
+1         Length = GetTempPath(260, Buffer)
+2         GetFullTempPath = Left$(Buffer, Length)
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
@@ -34,13 +34,13 @@ End Function
 '             time stamp that can be used for time-interval measurements.
 ' -----------------------------------------------------------------------------------------------------------------------
 Function ElapsedTime() As Double
-          Dim a As Currency
-          Dim b As Currency
+          Dim A As Currency
+          Dim B As Currency
 1         On Error GoTo ErrHandler
 
-2         QueryPerformanceCounter a
-3         QueryPerformanceFrequency b
-4         ElapsedTime = a / b
+2         QueryPerformanceCounter A
+3         QueryPerformanceFrequency B
+4         ElapsedTime = A / B
 
 5         Exit Function
 ErrHandler:

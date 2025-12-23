@@ -67,7 +67,6 @@ encode_for_xl(x::Missing) = "E"            # Empty in VBA
 encode_for_xl(x::Nothing) = "E"            # Empty in VBA
 encode_for_xl(x::Bool) = x ? "T" : "F"     # Boolean in VBA/Excel
 encode_for_xl(x::Date) = string("D", Dates.value(x) - 693594) # Date in VBA/Excel
-#encode_for_xl(x::DateTime) = string("D", Dates.value(x) / 86_400_000 - 693594)  # VBA has no separate DateTime type
 encode_for_xl(x::DateTime) = "G" * float64_to_hex(Dates.value(x) / 86_400_000 - 693594)  # VBA has no separate DateTime type
 encode_for_xl(x::DataType) = wrapshow(x)
 encode_for_xl(x::VersionNumber) = encode_for_xl("$x")

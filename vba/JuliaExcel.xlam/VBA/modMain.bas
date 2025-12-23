@@ -5,13 +5,13 @@ Attribute VB_Name = "modMain"
 
 Option Explicit
 #If VBA7 And Win64 Then
-    Private Declare PtrSafe Function GetCurrentProcessId Lib "kernel32" () As Long
-    Private Declare PtrSafe Sub Sleep Lib "kernel32" (ByVal Milliseconds As Long)
-    Private Declare PtrSafe Function IsWindow Lib "USER32" (ByVal hWnd As LongPtr) As Long
+Private Declare PtrSafe Function GetCurrentProcessId Lib "kernel32" () As Long
+Private Declare PtrSafe Sub Sleep Lib "kernel32" (ByVal Milliseconds As Long)
+Private Declare PtrSafe Function IsWindow Lib "USER32" (ByVal hWnd As LongPtr) As Long
 #Else
-    Private Declare Function GetCurrentProcessId Lib "kernel32" () As Long
-    Private Declare Sub Sleep Lib "kernel32" (ByVal Milliseconds As Long)
-    Private Declare Function IsWindow Lib "user32" (ByVal hwnd As Long) As Long
+Private Declare Function GetCurrentProcessId Lib "kernel32" () As Long
+Private Declare Sub Sleep Lib "kernel32" (ByVal Milliseconds As Long)
+Private Declare Function IsWindow Lib "user32" (ByVal hwnd As Long) As Long
 #End If
 
 Public Const gPackageName As String = "JuliaExcel"
@@ -281,23 +281,23 @@ Private Function JuliaEval_LowLevel(ByVal JuliaExpression As Variant, _
           'Line below tells Julia to "do the work" by pasting "srv_xl()" to the REPL
 19        PostMessageToJulia HwndJulia
 20        Do While FileExists(JuliaFlagFile)
-22            If IsWindow(HwndJulia) = 0 Then
-23                JuliaEval_LowLevel = "#Julia shut down while evaluating the expression!"
-24                Exit Function
-25            End If
-26        Loop
+21            If IsWindow(HwndJulia) = 0 Then
+22                JuliaEval_LowLevel = "#Julia shut down while evaluating the expression!"
+23                Exit Function
+24            End If
+25        Loop
 
-27        Assign JuliaEval_LowLevel, UnserialiseFromFile(JuliaResultFile, AllowNested, StringLengthLimit, JuliaVectorToXLColumn)
-28        Exit Function
+26        Assign JuliaEval_LowLevel, UnserialiseFromFile(JuliaResultFile, AllowNested, StringLengthLimit, JuliaVectorToXLColumn)
+27        Exit Function
 ErrHandler:
-29        ReThrow "JuliaEval_LowLevel", Err
+28        ReThrow "JuliaEval_LowLevel", Err
 End Function
 
 Sub PreciseSleep(Milliseconds As Double)
-    Dim StartTime As Double
-    StartTime = ElapsedTime()
-    Do Until ((ElapsedTime() - StartTime) > Milliseconds / 1000) Or (ElapsedTime() < StartTime)
-    Loop
+          Dim StartTime As Double
+1         StartTime = ElapsedTime()
+2         Do Until ((ElapsedTime() - StartTime) > Milliseconds / 1000) Or (ElapsedTime() < StartTime)
+3         Loop
 End Sub
 
 ' -----------------------------------------------------------------------------------------------------------------------
@@ -598,11 +598,11 @@ End Function
 ' Procedure  : Assign
 ' Purpose    : Assign b to a whether or not b is an object.
 ' -----------------------------------------------------------------------------------------------------------------------
-Sub Assign(ByRef a, b)
-1         If IsObject(b) Then
-2             Set a = b
+Sub Assign(ByRef A, B)
+1         If IsObject(B) Then
+2             Set A = B
 3         Else
-4             Let a = b
+4             Let A = B
 5         End If
 End Sub
 
