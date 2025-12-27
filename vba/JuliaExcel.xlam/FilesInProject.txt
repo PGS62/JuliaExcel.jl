@@ -7,8 +7,9 @@ Values\Audit.csv
 VBA\modJuliaLiteral.bas
 VBA\modMain.bas
 VBA\modPostMessage.bas
+VBA\modPrivate.bas
 VBA\modRegister.bas
 VBA\modSerialise.bas
 VBA\modTest.bas
-VBA\modTest2.bas
+VBA\modTestDependents.bas
 VBA\modUtils.bas

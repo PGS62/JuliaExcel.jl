@@ -136,21 +136,36 @@ End Function
 Function Test3DArray()
           Dim x() As Variant
           Dim y As Variant
+          Dim i As Long
 
-1         ReDim x(1 To 2, 1 To 2, 1 To 2)
-2         x(1, 1, 1) = 1
-3         x(1, 1, 2) = 2
-4         x(1, 2, 1) = 3
-5         x(1, 2, 2) = 4
-6         x(2, 1, 1) = 5
-7         x(2, 1, 2) = 6
-8         x(2, 2, 1) = 7
-9         x(2, 2, 2) = 8
+1         ReDim x(1 To 2, 1 To 3, 1 To 4)
+2         For i = 1 To 24
+3             ArraySetLinear x, i, String(i, "x")
+4         Next
 
 10        y = JuliaCallVBA("identity", x)
 11        Test3DArray = ArraysIdentical(x, y)
 
 End Function
+
+
+Function Test4DArray()
+          Dim x() As Variant
+          Dim y As Variant
+          Dim i As Long
+
+1         ReDim x(1 To 2, 1 To 3, 1 To 4, 1 To 5)
+
+2         For i = 1 To 120
+3             ArraySetLinear x, i, i
+4         Next
+
+5         y = JuliaCallVBA("identity", x)
+6         Test4DArray = ArraysIdentical(x, y)
+
+
+End Function
+
 
 
 

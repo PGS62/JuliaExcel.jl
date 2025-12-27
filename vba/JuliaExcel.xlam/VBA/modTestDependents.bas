@@ -1,4 +1,4 @@
-Attribute VB_Name = "modTest2"
+Attribute VB_Name = "modTestDependents"
 ' =========================================================================================
 ' Module: ArrayCompare, written by Copilot 22 Dec 2025. Prompt was as follows:
 ' Please provide a VBA function that tests if two arrays are identical, i.e. same number of dimensions, same length of dimensions, same contents. Assume elements are singletons i.e. not arrays or objects
@@ -13,7 +13,7 @@ Option Private Module
 '   - same number of dimensions,
 '   - same bounds per dimension (LBound/UBound),
 '   - and every corresponding element compares equal (scalars only).
-Public Function ArraysIdentical(ByVal A As Variant, ByVal B As Variant) As Boolean
+Function ArraysIdentical(ByVal A As Variant, ByVal B As Variant) As Boolean
           ' --- Quick identity / trivial cases ---
 1         If Not IsArray(A) Or Not IsArray(B) Then
 2             ArraysIdentical = False
@@ -37,8 +37,8 @@ Public Function ArraysIdentical(ByVal A As Variant, ByVal B As Variant) As Boole
 
           ' --- Dimension checks ---
           Dim nA As Long, nB As Long
-15        nA = ArrayDimensions(A)
-16        nB = ArrayDimensions(B)
+15        nA = NumDimensions(A)
+16        nB = NumDimensions(B)
 17        If nA <> nB Then
 18            ArraysIdentical = False
 19            Exit Function
@@ -70,7 +70,7 @@ End Function
 ' - Numeric/Boolean/Date/Currency: = comparison
 ' - Empty equals Empty; Null equals Null
 ' - Otherwise, falls back to "=" (will raise if invalid types)
-Private Function ScalarsEqual(ByVal x As Variant, ByVal y As Variant) As Boolean
+Function ScalarsEqual(ByVal x As Variant, ByVal y As Variant) As Boolean
           ' Handle Empty and Null explicitly
 1         If IsEmpty(x) Then
 2             ScalarsEqual = IsEmpty(y)
@@ -106,18 +106,18 @@ End Function
 
 ' Iterate all indices of an array of rank n and compare elements.
 ' This avoids hard-coding nested loops.
-Private Function WalkAndCompare(ByRef A As Variant, ByRef B As Variant, ByVal n As Long) As Boolean
-          Dim idx() As Long, lb() As Long, ub() As Long
+Function WalkAndCompare(ByRef A As Variant, ByRef B As Variant, ByVal n As Long) As Boolean
+          Dim idx() As Long, Lb() As Long, ub() As Long
           Dim d As Long
 
 1         ReDim idx(1 To n)
-2         ReDim lb(1 To n)
+2         ReDim Lb(1 To n)
 3         ReDim ub(1 To n)
 
 4         For d = 1 To n
-5             lb(d) = LBound(A, d)
+5             Lb(d) = LBound(A, d)
 6             ub(d) = UBound(A, d)
-7             idx(d) = lb(d)
+7             idx(d) = Lb(d)
 8         Next d
 
 9         Do
@@ -132,7 +132,7 @@ Private Function WalkAndCompare(ByRef A As Variant, ByRef B As Variant, ByVal n 
 15            Do While d >= 1
 16                idx(d) = idx(d) + 1
 17                If idx(d) <= ub(d) Then Exit Do
-18                idx(d) = lb(d)
+18                idx(d) = Lb(d)
 19                d = d - 1
 20            Loop
 21            If d = 0 Then Exit Do    ' completed all iterations
@@ -141,56 +141,23 @@ Private Function WalkAndCompare(ByRef A As Variant, ByRef B As Variant, ByVal n 
 23        WalkAndCompare = True
 End Function
 
-' Read element A(i1, i2, ..., in) given indices in idx(1..n).
-' Using a small Select Case to avoid ParamArray overhead inside the tight loop.
-Private Function GetAt(ByRef A As Variant, ByRef idx() As Long) As Variant
-1         Select Case UBound(idx)
-              Case 1:    GetAt = A(idx(1))
-2             Case 2:    GetAt = A(idx(1), idx(2))
-3             Case 3:    GetAt = A(idx(1), idx(2), idx(3))
-4             Case 4:    GetAt = A(idx(1), idx(2), idx(3), idx(4))
-5             Case 5:    GetAt = A(idx(1), idx(2), idx(3), idx(4), idx(5))
-6             Case 6:    GetAt = A(idx(1), idx(2), idx(3), idx(4), idx(5), idx(6))
-7             Case Else
-                  ' Fallback via CallByName-style evaluation isn’t available in VBA.
-                  ' If you really need >6D, add more cases or refactor to Evaluate via a wrapper.
-8                 Err.Raise vbObjectError + 53101, "GetAt", "Rank > 6 not supported by GetAt."
-9         End Select
-End Function
-
-' Return the number of dimensions (rank) of an array.
-' Returns 0 if A is not an array or is uninitialized.
-Private Function ArrayDimensions(ByVal A As Variant) As Long
-          Dim d As Long
-1         If Not IsArray(A) Then Exit Function
-2         If Not IsArrayInitialized(A) Then Exit Function
-
-3         On Error Resume Next
-4         d = 0
-5         Do
-6             d = d + 1
-              Dim lb As Long
-7             lb = LBound(A, d)
-8             If Err.Number <> 0 Then
-9                 Err.Clear
-10                d = d - 1
-11                Exit Do
-12            End If
-13        Loop
-14        On Error GoTo 0
-
-15        ArrayDimensions = d
-End Function
 
 ' Detect whether a Variant array is actually allocated (has bounds).
-Private Function IsArrayInitialized(ByVal A As Variant) As Boolean
+Function IsArrayInitialized(ByVal A As Variant) As Boolean
 1         On Error GoTo NotInit
 2         If Not IsArray(A) Then Exit Function
-          Dim lb As Long
-3         lb = LBound(A, 1)  ' Will error if not initialized
+          Dim Lb As Long
+3         Lb = LBound(A, 1)  ' Will error if not initialized
 4         IsArrayInitialized = True
 5         Exit Function
 NotInit:
 6         IsArrayInitialized = False
 End Function
+
+
+
+
+
+
+
 

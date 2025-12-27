@@ -145,7 +145,7 @@ Function MakeJuliaLiteral(x As Variant)
 89                    Case Else
                           ' rank >= 3: flatten (column-major) and reshape
                           Dim elems() As String
-                          Dim dims() As Long
+                          Dim Dims() As Long
                           Dim dimStr() As String
                           Dim nElts As Long
 
@@ -153,9 +153,9 @@ Function MakeJuliaLiteral(x As Variant)
 90                        nElts = FlattenArrayElements(x, elems, AllSameType, FirstType)
 
                           ' Build dimension lengths vector (ignores lower bounds)
-91                        ReDim dims(1 To rank)
+91                        ReDim Dims(1 To rank)
 92                        For k = 1 To rank
-93                            dims(k) = UBound(x, k) - LBound(x, k) + 1
+93                            Dims(k) = UBound(x, k) - LBound(x, k) + 1
 94                        Next k
 
                           ' Vector literal: homogeneous -> [..], heterogeneous -> Any[..]
@@ -166,7 +166,7 @@ Function MakeJuliaLiteral(x As Variant)
                           ' dims to comma-separated string
 96                        ReDim dimStr(1 To rank)
 97                        For k = 1 To rank
-98                            dimStr(k) = CStr(dims(k))
+98                            dimStr(k) = CStr(Dims(k))
 99                        Next k
 
 100                       MakeJuliaLiteral = "reshape(" & vecLit & "," & VBA.Join(dimStr, ",") & ")"
@@ -180,8 +180,6 @@ Function MakeJuliaLiteral(x As Variant)
 ErrHandler:
 106       ReThrow "MakeJuliaLiteral", Err
 End Function
-
-
 
 ' Flatten any VBA array (rank >= 1) to a vector of Julia element literals.
 ' Traversal order: column-major (dim 1 varies fastest).
@@ -199,19 +197,19 @@ Private Function FlattenArrayElements(ByRef A As Variant, _
 7             Exit Function
 8         End If
 
-          Dim lb() As Long, ub() As Long, idx() As Long
+          Dim Lb() As Long, ub() As Long, idx() As Long
           Dim d As Long, total As Long
 
-9         ReDim lb(1 To n)
+9         ReDim Lb(1 To n)
 10        ReDim ub(1 To n)
 11        ReDim idx(1 To n)
 
 12        total = 1
 13        For d = 1 To n
-14            lb(d) = LBound(A, d)
+14            Lb(d) = LBound(A, d)
 15            ub(d) = UBound(A, d)
-16            idx(d) = lb(d)
-17            total = total * (ub(d) - lb(d) + 1)
+16            idx(d) = Lb(d)
+17            total = total * (ub(d) - Lb(d) + 1)
 18        Next d
 
 19        ReDim elems(1 To total)
@@ -236,7 +234,7 @@ Private Function FlattenArrayElements(ByRef A As Variant, _
 32            Do While d <= n
 33                idx(d) = idx(d) + 1
 34                If idx(d) <= ub(d) Then Exit Do
-35                idx(d) = lb(d)
+35                idx(d) = Lb(d)
 36                d = d + 1
 37            Loop
 38            If d > n Then Exit Do
@@ -245,19 +243,4 @@ Private Function FlattenArrayElements(ByRef A As Variant, _
 40        FlattenArrayElements = total
 End Function
 
-' Read A(i1, i2, ..., in). Extend cases if you need > 8D.
-Private Function GetAt(ByRef A As Variant, ByRef idx() As Long) As Variant
-1         Select Case UBound(idx)
-              Case 1: GetAt = A(idx(1))
-2             Case 2: GetAt = A(idx(1), idx(2))
-3             Case 3: GetAt = A(idx(1), idx(2), idx(3))
-4             Case 4: GetAt = A(idx(1), idx(2), idx(3), idx(4))
-5             Case 5: GetAt = A(idx(1), idx(2), idx(3), idx(4), idx(5))
-6             Case 6: GetAt = A(idx(1), idx(2), idx(3), idx(4), idx(5), idx(6))
-7             Case 7: GetAt = A(idx(1), idx(2), idx(3), idx(4), idx(5), idx(6), idx(7))
-8             Case 8: GetAt = A(idx(1), idx(2), idx(3), idx(4), idx(5), idx(6), idx(7), idx(8))
-9             Case Else
-10                Err.Raise vbObjectError + 53101, "GetAt", "Rank > 8 not supported by GetAt."
-11        End Select
-End Function
 

@@ -264,8 +264,8 @@ Function Unserialise(Chars As String, AllowNesting As Boolean, ByRef Depth As Lo
 
 90                    Case Else
                           ' === NEW: rank >= 3 === THIS SECTION WRITTEN BY COPILOT 23 DEC 2025
-                          Dim dims() As Long
-91                        dims = ParseDims(Mid$(Chars, 4, p1 - 4), rank)  ' section between "*,<rank>," and first ';'
+                          Dim Dims() As Long
+91                        Dims = ParseDims(Mid$(Chars, 4, p1 - 4), rank)  ' section between "*,<rank>," and first ';'
 
                           ' Guard: Excel cannot display >2-D arrays; allow only when nesting is permitted
 92                        If Not AllowNesting Then
@@ -276,12 +276,12 @@ Function Unserialise(Chars As String, AllowNesting As Boolean, ByRef Depth As Lo
                           Dim q As Long, total As Long
 95                        total = 1
 96                        For q = 1 To rank
-97                            If dims(q) <= 0 Then Throw "Cannot create array of size zero"
-98                            total = total * dims(q)
+97                            If Dims(q) <= 0 Then Throw "Cannot create array of size zero"
+98                            total = total * Dims(q)
 99                        Next q
 
                           ' Allocate Ret() to the requested rank (up to MAX_RANK supported)
-100                       ReDimVariantArray Ret, dims
+100                       ReDimVariantArray Ret, Dims
 
                           ' Walk in column-major order (dim 1 fastest), assigning elements
                           Dim idx() As Long
@@ -302,7 +302,7 @@ Function Unserialise(Chars As String, AllowNesting As Boolean, ByRef Depth As Lo
 110                           q = 1
 111                           Do While q <= rank
 112                               idx(q) = idx(q) + 1
-113                               If idx(q) <= dims(q) Then Exit Do
+113                               If idx(q) <= Dims(q) Then Exit Do
 114                               idx(q) = 1
 115                               q = q + 1
 116                           Loop
@@ -486,33 +486,33 @@ Private Function ParseDims(ByVal s As String, ByVal rank As Long) As Long()
 2         If UBound(parts) + 1 <> rank Then
 3             Throw "Malformed array header: expected " & rank & " dimensions, found " & (UBound(parts) + 1)
 4         End If
-          Dim dims() As Long, i As Long
-5         ReDim dims(1 To rank)
+          Dim Dims() As Long, i As Long
+5         ReDim Dims(1 To rank)
 6         For i = 1 To rank
-7             dims(i) = CLng(parts(i - 1))
+7             Dims(i) = CLng(parts(i - 1))
 8         Next i
-9         ParseDims = dims
+9         ParseDims = Dims
 End Function
 
 
 
 ' ReDim Ret() to the specified dims (1..rank). Increase MAX_RANK if needed.
-Private Sub ReDimVariantArray(ByRef Ret() As Variant, ByRef dims() As Long)
+Private Sub ReDimVariantArray(ByRef Ret() As Variant, ByRef Dims() As Long)
           Const MAX_RANK As Long = 8
-1         Dim r As Long: r = UBound(dims)
+1         Dim r As Long: r = UBound(Dims)
 2         If r < 1 Or r > MAX_RANK Then
 3             Throw "Cannot unserialise arrays with " & r & " dimensions (max supported: " & MAX_RANK & ")"
 4         End If
 
 5         Select Case r
-              Case 1: ReDim Ret(1 To dims(1))
-6             Case 2: ReDim Ret(1 To dims(1), 1 To dims(2))
-7             Case 3: ReDim Ret(1 To dims(1), 1 To dims(2), 1 To dims(3))
-8             Case 4: ReDim Ret(1 To dims(1), 1 To dims(2), 1 To dims(3), 1 To dims(4))
-9             Case 5: ReDim Ret(1 To dims(1), 1 To dims(2), 1 To dims(3), 1 To dims(4), 1 To dims(5))
-10            Case 6: ReDim Ret(1 To dims(1), 1 To dims(2), 1 To dims(3), 1 To dims(4), 1 To dims(5), 1 To dims(6))
-11            Case 7: ReDim Ret(1 To dims(1), 1 To dims(2), 1 To dims(3), 1 To dims(4), 1 To dims(5), 1 To dims(6), 1 To dims(7))
-12            Case 8: ReDim Ret(1 To dims(1), 1 To dims(2), 1 To dims(3), 1 To dims(4), 1 To dims(5), 1 To dims(6), 1 To dims(7), 1 To dims(8))
+              Case 1: ReDim Ret(1 To Dims(1))
+6             Case 2: ReDim Ret(1 To Dims(1), 1 To Dims(2))
+7             Case 3: ReDim Ret(1 To Dims(1), 1 To Dims(2), 1 To Dims(3))
+8             Case 4: ReDim Ret(1 To Dims(1), 1 To Dims(2), 1 To Dims(3), 1 To Dims(4))
+9             Case 5: ReDim Ret(1 To Dims(1), 1 To Dims(2), 1 To Dims(3), 1 To Dims(4), 1 To Dims(5))
+10            Case 6: ReDim Ret(1 To Dims(1), 1 To Dims(2), 1 To Dims(3), 1 To Dims(4), 1 To Dims(5), 1 To Dims(6))
+11            Case 7: ReDim Ret(1 To Dims(1), 1 To Dims(2), 1 To Dims(3), 1 To Dims(4), 1 To Dims(5), 1 To Dims(6), 1 To Dims(7))
+12            Case 8: ReDim Ret(1 To Dims(1), 1 To Dims(2), 1 To Dims(3), 1 To Dims(4), 1 To Dims(5), 1 To Dims(6), 1 To Dims(7), 1 To Dims(8))
 13        End Select
 End Sub
 
