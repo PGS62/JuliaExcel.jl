@@ -270,8 +270,7 @@ The VBA project is password protected to prevent accidental changes. You can see
 Given how JuliaExcel works, with file-based messaging and serialisation in VBA, an interpreted and hence relatively slow language, the most obvious shortcoming will be performance of the data-transfer Excel to Julia and back. That's not always a problem however, notably if the time for marshalling data between Excel and Julia is small (milliseconds) compared with the execution time of the Julia code (tens of seconds). I wrote JuliaExcel for a project where that situation holds.
 
 Other shortcomings are:
- *  There is a limit on the length of expression that Julia is able to parse, which leads to errors when passing large arrays as arguments to `JuliaCall`. For example this formula to evaluate the sum of 700,000 random numbers: `JuliaEval("sum",RANDARRAY(700000))` produces the error `#(ErrorException("syntax: expression too large"))!`. 
- *  Given that the communication Julia to Excel is text-based with floating point numbers represented in base 10, there is the usual introduction round-off errors. For values near 1, such errors are of the order of 10 to the power -16.
+ *  There is a limit on the length of expression that Julia is able to parse, which leads to errors when passing large arrays as arguments to `JuliaCall`. For example this formula to evaluate the sum of 700,000 random numbers: `JuliaCall("sum",RANDARRAY(700000))` produces the error `#(ErrorException("syntax: expression too large"))!`. 
  *  JuliaExcel does not work if Windows Terminal is the default terminal application. See [this issue](https://github.com/PGS62/JuliaExcel.jl/issues/9).
 
 &nbsp;

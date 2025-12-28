@@ -1,4 +1,5 @@
 ﻿AuditSheetComments.txt
+FilesInProject.txt
 Intellisense.txt
 JuliaExcel.xlam
 Values\_IntelliSense_.csv
@@ -6,6 +7,9 @@ Values\Audit.csv
 VBA\modJuliaLiteral.bas
 VBA\modMain.bas
 VBA\modPostMessage.bas
+VBA\modPrivate.bas
 VBA\modRegister.bas
 VBA\modSerialise.bas
+VBA\modTest.bas
+VBA\modTestDependents.bas
 VBA\modUtils.bas

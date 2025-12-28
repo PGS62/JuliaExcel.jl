@@ -1,5 +1,5 @@
 Attribute VB_Name = "modPostMessage"
-' Copyright (c) 2021 - Philip Swannell
+' Copyright (c) 2021-2025 Philip Swannell
 ' License MIT (https://opensource.org/licenses/MIT)
 ' Document: https://github.com/PGS62/JuliaExcel.jl#readme
 
@@ -8,31 +8,31 @@ Option Private Module
 Private Const GW_HWNDNEXT = 2
 
 #If VBA7 And Win64 Then
-    Private Declare PtrSafe Function PostMessage Lib "USER32" Alias "PostMessageA" (ByVal hWnd As LongPtr, _
-        ByVal wMsg As Long, ByVal wParam As LongPtr, lParam As Any) As Long
-    Private Declare PtrSafe Function FindWindow Lib "USER32" Alias "FindWindowA" (ByVal lpClassName As String, _
-        ByVal lpWindowName As String) As LongPtr
-    Private Declare PtrSafe Function GetWindowTextLength Lib "USER32" Alias "GetWindowTextLengthA" _
-        (ByVal hWnd As LongPtr) As Long
-    Private Declare PtrSafe Function GetWindowText Lib "USER32" Alias "GetWindowTextA" _
-        (ByVal hWnd As LongPtr, ByVal lpString As String, ByVal cch As Long) As Long
-    Private Declare PtrSafe Function GetWindow Lib "USER32" (ByVal hWnd As LongPtr, ByVal wCmd As Long) As LongPtr
-    Private Declare PtrSafe Function GetWindowThreadProcessId Lib "user32.dll" _
-        (ByVal hWnd As LongPtr, ByRef lpdwProcessId As Long) As Long
-    Private Declare PtrSafe Function GetCurrentProcessId Lib "kernel32" () As Long
+Private Declare PtrSafe Function PostMessage Lib "USER32" Alias "PostMessageA" (ByVal hWnd As LongPtr, _
+    ByVal wMsg As Long, ByVal wParam As LongPtr, lParam As Any) As Long
+Private Declare PtrSafe Function FindWindow Lib "USER32" Alias "FindWindowA" (ByVal lpClassName As String, _
+    ByVal lpWindowName As String) As LongPtr
+Private Declare PtrSafe Function GetWindowTextLength Lib "USER32" Alias "GetWindowTextLengthA" _
+    (ByVal hWnd As LongPtr) As Long
+Private Declare PtrSafe Function GetWindowText Lib "USER32" Alias "GetWindowTextA" _
+    (ByVal hWnd As LongPtr, ByVal lpString As String, ByVal cch As Long) As Long
+Private Declare PtrSafe Function GetWindow Lib "USER32" (ByVal hWnd As LongPtr, ByVal wCmd As Long) As LongPtr
+Private Declare PtrSafe Function GetWindowThreadProcessId Lib "user32.dll" _
+    (ByVal hWnd As LongPtr, ByRef lpdwProcessId As Long) As Long
+Private Declare PtrSafe Function GetCurrentProcessId Lib "kernel32" () As Long
 #Else
-    Private Declare Function PostMessage Lib "user32" Alias "PostMessageA" (ByVal hwnd As Long, _
-        ByVal wMsg As Long, ByVal wParam As Long, lParam As Any) As Long
-    Private Declare Function FindWindow Lib "user32" Alias "FindWindowA" (ByVal lpClassName As String, _
-        ByVal lpWindowName As String) As Long
-    Private Declare Function GetWindowTextLength Lib "user32" Alias "GetWindowTextLengthA" _
-        (ByVal hwnd As Long) As Long
-    Private Declare Function GetWindowText Lib "user32" Alias "GetWindowTextA" _
-        (ByVal hwnd As Long, ByVal lpString As String, ByVal cch As Long) As Long
-    Private Declare Function GetWindow Lib "user32" (ByVal hwnd As Long, ByVal wCmd As Long) As Long
-    Private Declare Function GetWindowThreadProcessId Lib "user32.dll" _
-        (ByVal hWnd As Long, ByRef lpdwProcessId As Long) As Long
-    Private Declare Function GetCurrentProcessId Lib "kernel32" () As Long
+Private Declare Function PostMessage Lib "user32" Alias "PostMessageA" (ByVal hwnd As Long, _
+    ByVal wMsg As Long, ByVal wParam As Long, lParam As Any) As Long
+Private Declare Function FindWindow Lib "user32" Alias "FindWindowA" (ByVal lpClassName As String, _
+    ByVal lpWindowName As String) As Long
+Private Declare Function GetWindowTextLength Lib "user32" Alias "GetWindowTextLengthA" _
+    (ByVal hwnd As Long) As Long
+Private Declare Function GetWindowText Lib "user32" Alias "GetWindowTextA" _
+    (ByVal hwnd As Long, ByVal lpString As String, ByVal cch As Long) As Long
+Private Declare Function GetWindow Lib "user32" (ByVal hwnd As Long, ByVal wCmd As Long) As Long
+Private Declare Function GetWindowThreadProcessId Lib "user32.dll" _
+    (ByVal hWnd As Long, ByRef lpdwProcessId As Long) As Long
+Private Declare Function GetCurrentProcessId Lib "kernel32" () As Long
 #End If
 
 ' -----------------------------------------------------------------------------------------------------------------------
@@ -82,7 +82,7 @@ Sub PostMessageToJulia(HwndJulia As LongPtr)
 
 15        Exit Sub
 ErrHandler:
-16        Throw "#PostMessageToJulia (line " & CStr(Erl) + "): " & Err.Description & "!"
+16        ReThrow "PostMessageToJulia", Err
 End Sub
 
 ' -----------------------------------------------------------------------------------------------------------------------
@@ -109,7 +109,7 @@ Function NumWindowsWithCaption(ByVal sCaption As String) As Long
 
 11        Exit Function
 ErrHandler:
-12        Throw "#NumWindowsWithCaption (line " & CStr(Erl) + "): " & Err.Description & "!"
+12        ReThrow "NumWindowsWithCaption", Err
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
@@ -140,7 +140,7 @@ Function GetHandleFromPartialCaption(ByRef lwnd As LongPtr, ByVal sCaption As St
 
 13        Exit Function
 ErrHandler:
-14        Throw "#GetHandleFromPartialCaption (line " & CStr(Erl) + "): " & Err.Description & "!"
+14        ReThrow "GetHandleFromPartialCaption", Err
 End Function
 
 Function WindowTitleFromHandle(lhWndP As LongPtr)
@@ -152,13 +152,13 @@ Function WindowTitleFromHandle(lhWndP As LongPtr)
 5         WindowTitleFromHandle = sStr
 6         Exit Function
 ErrHandler:
-7         Throw "#WindowTitleFromHandle (line " & CStr(Erl) + "): " & Err.Description & "!"
+7         ReThrow "WindowTitleFromHandle", Err
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : IsFunctionWizardActive
 ' Purpose    : Tests if the Excel Function Wizard is in use.
-'            :See discussion at https://stackoverflow.com/questions/20866484/can-i-disable-a-vba-udf-calculation-when-the-insert-function-function-arguments
+'            : See discussion at https://stackoverflow.com/questions/20866484/can-i-disable-a-vba-udf-calculation-when-the-insert-function-function-arguments
 ' -----------------------------------------------------------------------------------------------------------------------
 Function IsFunctionWizardActive() As Boolean
 
@@ -197,6 +197,6 @@ Function IsFunctionWizardActive() As Boolean
 
 21        Exit Function
 ErrHandler:
-22        Throw "#IsFunctionWizardActive (line " & CStr(Erl) + "): " & Err.Description & "!"
+22        ReThrow "IsFunctionWizardActive", Err
 End Function
 

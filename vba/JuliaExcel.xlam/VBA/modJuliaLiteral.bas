@@ -1,39 +1,47 @@
 Attribute VB_Name = "modJuliaLiteral"
+' Copyright (c) 2021-2025 Philip Swannell
+' License MIT (https://opensource.org/licenses/MIT)
+' Document: https://github.com/PGS62/JuliaExcel.jl#readme
+
 Option Explicit
 Option Private Module
 
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : MakeJuliaLiteral
-' Purpose    : Convert an array into a string which Julia will parse as x.
+' Purpose    : Convert an variant x into a string which Julia will parse as x.
 '
-' Examples:
-' In VBA immediate window:
-' ?MakeJuliaLiteral(Array(1#, 2#, 3#),False)
-' [1.0 2.0 3.0]
+' Example 1 - Array of Longs in VBA yields a literal that's interpreted in Julia as an array of Int64s.
 '
-' In Julia REPL:
-' julia> [1.0,2.0,3.0]
-' 3-element Vector{Float64}:
-'  1.0
-'  2.0
-'  3.0
-
-' In VBA immediate window:
-' ?MakeJuliaLiteral(Array(1#, 2#, 3#),True)
-' [1.0,2.0,3.0]
+'VBA immediate window:
+'?MakeJuliaLiteral(Array(1, 2, 3))
+'[1,2,3]
 '
-' In Julia REPL:
-'julia> [1.0 2.0 3.0]
-'1×3 Matrix{Float64}:
-' 1.0  2.0  3.0
-
-'Handles nested arrays:
-' ?Print MakeJuliaLiteral(Array(1#, 2#, Array(3#, 4#)),False)
-' Any[1.0,2.0,[3.0,4.0]]
+'Julia REPL:
+'julia> [1,2,3]
+'3-element Vector{Int64}:
+'1
+'2
+'3
+'
+' Example 2 - Array of Doubles in VBA yields a literal that's interpreted in Julia as an Array of
+' Float64s, but note the requirement for JuliaExcel so that the function htd is in scope.
+'
+'VBA immediate window:
+'?MakeJuliaLiteral(Array(Sqr(2), Sqr(3), Sqr(5)))
+'[htd("3FF6A09E667F3BCD"),htd("3FFBB67AE8584CAA"),htd("4001E3779B97F4A8")]
+'
+'Julia REPL:
+'julia> using JuliaExcel
+'
+'julia> [htd("3FF6A09E667F3BCD"),htd("3FFBB67AE8584CAA"),htd("4001E3779B97F4A8")]
+'3-element Vector{Float64}:
+' 1.4142135623730951
+' 1.7320508075688772
+' 2.23606797749979
 ' -----------------------------------------------------------------------------------------------------------------------
 Function MakeJuliaLiteral(x As Variant)
-          Dim Res As String
           Dim k As Long
+          Dim Res As String
 
 1         On Error GoTo ErrHandler
 2         Select Case VarType(x)
@@ -74,16 +82,18 @@ Function MakeJuliaLiteral(x As Variant)
 29                MakeJuliaLiteral = """" & Res & """"
 30                Exit Function
 31            Case vbDouble
-32                Res = CStr(x)
-33                If InStr(Res, ".") = 0 Then
-34                    If InStr(Res, "E") = 0 Then
-35                        Res = Res + ".0"
-36                    End If
-37                End If
-38                MakeJuliaLiteral = Res
+                  'Avoid loss of precision by representing x as its IEEE-754 bit pattern. _
+                   Also avoids having to worry about whether the decimal separator is point or comma.
+32                MakeJuliaLiteral = "htd(""" & DoubleToHex(x) & """)"
+33                Exit Function
+34            Case vbLongLong
+35                MakeJuliaLiteral = CStr(x)
+36                Exit Function
+37            Case vbLong
+38                MakeJuliaLiteral = "Int32(" & CStr(x) & ")"
 39                Exit Function
-40            Case vbLong, vbInteger
-41                MakeJuliaLiteral = CStr(x)
+40            Case vbInteger
+41                MakeJuliaLiteral = "Int16(" & CStr(x) & ")"
 42                Exit Function
 43            Case vbBoolean
 44                MakeJuliaLiteral = IIf(x, "true", "false")
@@ -98,62 +108,184 @@ Function MakeJuliaLiteral(x As Variant)
 53                    MakeJuliaLiteral = "DateTime(""" & VBA.Format$(x, "yyyy-mm-ddThh:mm:ss.000") & """)"
 54                End If
 55                Exit Function
-56            Case Is >= vbArray
+56            Case vbSingle
+57                MakeJuliaLiteral = "hts(""" & SingleToHex(x) & """)"
+58                Exit Function
+59            Case Is >= vbArray
+
                   Dim AllSameType As Boolean
                   Dim FirstType As Long
                   Dim i As Long
                   Dim j As Long
-                  Dim onerow() As String
+                  Dim OneRow() As String
+                  Dim Rank As Long
                   Dim Tmp() As String
-          
-57                On Error GoTo ErrHandler
-58                If TypeName(x) = "Range" Then
-59                    x = x.Value2
-60                End If
 
-61                Select Case NumDimensions(x)
+60                On Error GoTo ErrHandler
+61                If TypeName(x) = "Range" Then
+62                    x = x.Value2
+63                End If
+
+64                Rank = NumDimensions(x)
+
+65                Select Case Rank
                       Case 1
-62                        ReDim Tmp(LBound(x) To UBound(x))
-63                        FirstType = VarType(x(LBound(x)))
-64                        AllSameType = True
-65                        For i = LBound(x) To UBound(x)
-66                            Tmp(i) = MakeJuliaLiteral(x(i))
-67                            If AllSameType Then
-68                                If VarType(x(i)) <> FirstType Then
-69                                    AllSameType = False
-70                                End If
-71                            End If
-72                        Next i
-73                        MakeJuliaLiteral = IIf(AllSameType, "[", "Any[") & VBA.Join$(Tmp, ",") & "]"
-74                    Case 2
-75                        ReDim onerow(LBound(x, 2) To UBound(x, 2))
-76                        ReDim Tmp(LBound(x, 1) To UBound(x, 1))
-77                        FirstType = VarType(x(LBound(x, 1), LBound(x, 2)))
-78                        AllSameType = True
-79                        For i = LBound(x, 1) To UBound(x, 1)
-80                            For j = LBound(x, 2) To UBound(x, 2)
-81                                onerow(j) = MakeJuliaLiteral(x(i, j))
-82                                If AllSameType Then
-83                                    If VarType(x(i, j)) <> FirstType Then
-84                                        AllSameType = False
-85                                    End If
-86                                End If
-87                            Next j
-88                            Tmp(i) = VBA.Join$(onerow, " ")
-89                        Next i
+66                        ReDim Tmp(LBound(x) To UBound(x))
+67                        FirstType = VarType(x(LBound(x)))
+68                        AllSameType = True
+69                        For i = LBound(x) To UBound(x)
+70                            Tmp(i) = MakeJuliaLiteral(x(i))
+71                            If AllSameType Then
+72                                If VarType(x(i)) <> FirstType Then
+73                                    AllSameType = False
+74                                End If
+75                            End If
+76                        Next i
+77                        MakeJuliaLiteral = IIf(AllSameType, "[", "Any[") & VBA.Join$(Tmp, ",") & "]"
 
-90                        MakeJuliaLiteral = IIf(AllSameType, "[", "Any[") & VBA.Join$(Tmp, ";") & "]"
-91                    Case Else
-92                        Throw "case more than two dimensions not handled" 'In VBA there's no way to handle arrays with arbitrary number of dimensions. Easy in Julia!
-93                End Select
+78                    Case 2
+79                        ReDim OneRow(LBound(x, 2) To UBound(x, 2))
+80                        ReDim Tmp(LBound(x, 1) To UBound(x, 1))
+81                        FirstType = VarType(x(LBound(x, 1), LBound(x, 2)))
+82                        AllSameType = True
+83                        For i = LBound(x, 1) To UBound(x, 1)
+84                            For j = LBound(x, 2) To UBound(x, 2)
+85                                OneRow(j) = MakeJuliaLiteral(x(i, j))
+86                                If AllSameType Then
+87                                    If VarType(x(i, j)) <> FirstType Then
+88                                        AllSameType = False
+89                                    End If
+90                                End If
+91                            Next j
+92                            Tmp(i) = VBA.Join$(OneRow, " ")
+93                        Next i
+94                        MakeJuliaLiteral = IIf(AllSameType, "[", "Any[") & VBA.Join$(Tmp, ";") & "]"
 
-94            Case Else
-95                Throw "Variable of type " + TypeName(x) + " is not handled"
-96        End Select
+95                    Case Else
+                          ' rank >= 3: flatten (column-major) and reshape
+                          Dim Dims() As Long
+                          Dim DimStr() As String
+                          Dim Elems() As String
+                          Dim NElts As Long
 
-97        Exit Function
+                          ' Flatten elements and check homogeneity
+96                        NElts = FlattenArrayElements(x, Elems, AllSameType, FirstType)
+
+                          ' Build dimension lengths vector (ignores lower bounds)
+97                        ReDim Dims(1 To Rank)
+98                        For k = 1 To Rank
+99                            Dims(k) = UBound(x, k) - LBound(x, k) + 1
+100                       Next k
+
+                          ' Vector literal: homogeneous -> [..], heterogeneous -> Any[..]
+                          Dim VecLit As String
+101                       VecLit = IIf(AllSameType, "[" & VBA.Join(Elems, ",") & "]", _
+                              "Any[" & VBA.Join(Elems, ",") & "]")
+
+                          ' dims to comma-separated string
+102                       ReDim DimStr(1 To Rank)
+103                       For k = 1 To Rank
+104                           DimStr(k) = CStr(Dims(k))
+105                       Next k
+
+106                       MakeJuliaLiteral = "reshape(" & VecLit & "," & VBA.Join(DimStr, ",") & ")"
+107               End Select
+108           Case vbObject
+109               If TypeName(x) = "Dictionary" Then
+                      Dim Key As Variant
+                      Dim Tokens() As String
+                      Dim v As Variant
+110                   ReDim Tokens(1 To x.Count)
+111                   k = 1
+112                   For Each Key In x.Keys
+113                       Tokens(k) = MakeJuliaLiteral(Key) & " => " & MakeJuliaLiteral(x(Key))
+114                       k = k + 1
+115                   Next Key
+
+116                   MakeJuliaLiteral = "Dict(" & VBA.Join(Tokens, ",") & ")"
+117               Else
+118                   Throw "Variable of type " + TypeName(x) + " is not handled"
+119               End If
+120           Case Else
+121               Throw "Variable of type " + TypeName(x) + " is not handled"
+122       End Select
+
+123       Exit Function
 ErrHandler:
-98        Throw "#MakeJuliaLiteral (line " & CStr(Erl) + "): " & Err.Description & "!"
+124       ReThrow "MakeJuliaLiteral", Err
 End Function
 
+' -----------------------------------------------------------------------------------------------------------------------
+' Procedure  : FlattenArrayElements
+' Purpose    : Flatten any VBA array (rank >= 1) to a vector of Julia element literals.
+'              Traversal order: column-major (dim 1 varies fastest).
+'              Returns number of elements; also sets AllSameType and FirstType.
+' -----------------------------------------------------------------------------------------------------------------------
+Private Function FlattenArrayElements(ByRef A As Variant, ByRef Elems() As String, ByRef AllSameType As Boolean, _
+          ByRef FirstType As Long) As Long
+          
+          Dim Count As Long
+          Dim d As Long
+          Dim Idx() As Long
+          Dim Lb() As Long
+          Dim n As Long
+          Dim Total As Long
+          Dim Ub() As Long
+          Dim v As Variant
+          
+1         On Error GoTo ErrHandler
+2         n = NumDimensions(A)
+3         If n <= 0 Then
+4             ReDim Elems(1 To 0)
+5             AllSameType = True
+6             FirstType = vbEmpty
+7             FlattenArrayElements = 0
+8             Exit Function
+9         End If
+
+10        ReDim Lb(1 To n)
+11        ReDim Ub(1 To n)
+12        ReDim Idx(1 To n)
+
+13        Total = 1
+14        For d = 1 To n
+15            Lb(d) = LBound(A, d)
+16            Ub(d) = UBound(A, d)
+17            Idx(d) = Lb(d)
+18            Total = Total * (Ub(d) - Lb(d) + 1)
+19        Next d
+
+20        ReDim Elems(1 To Total)
+
+          ' Initialize homogeneity checks from the first element
+21        v = GetAt(A, Idx)
+22        FirstType = VarType(v)
+23        AllSameType = True
+
+24        Count = 0
+25        Do
+26            Count = Count + 1
+27            v = GetAt(A, Idx)
+28            Elems(Count) = MakeJuliaLiteral(v)
+29            If AllSameType Then
+30                If VarType(v) <> FirstType Then AllSameType = False
+31            End If
+
+              ' Increment indices: dim 1 fastest (column-major)
+32            d = 1
+33            Do While d <= n
+34                Idx(d) = Idx(d) + 1
+35                If Idx(d) <= Ub(d) Then Exit Do
+36                Idx(d) = Lb(d)
+37                d = d + 1
+38            Loop
+39            If d > n Then Exit Do
+40        Loop
+
+41        FlattenArrayElements = Total
+
+42        Exit Function
+ErrHandler:
+43        ReThrow "FlattenArrayElements", Err
+End Function
 

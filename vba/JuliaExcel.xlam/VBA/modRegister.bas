@@ -1,14 +1,13 @@
 Attribute VB_Name = "modRegister"
-' Copyright (c) 2021 - Philip Swannell
+' Copyright (c) 2021-2025 Philip Swannell
 ' License MIT (https://opensource.org/licenses/MIT)
 ' Document: https://github.com/PGS62/JuliaExcel.jl#readme
-
 Option Explicit
 
 Public Sub RegisterFunctions()
 1         On Error GoTo ErrHandler
 2         RegisterJuliaExcelFunctionsWithFunctionWizard
-3     On Error Resume Next
+3         On Error Resume Next
 4         AddIns("Excel-DNA IntelliSense Host").Installed = False
 5         AddIns("Excel-DNA IntelliSense Host").Installed = True
 6         Exit Sub
@@ -29,7 +28,7 @@ Private Sub RegisterJuliaExcelFunctionsWithFunctionWizard()
           Dim Description As String
           Dim FunctionName As String
           Dim i As Long
-          Dim NumArgs
+          Dim NumArgs As Variant
           Dim OldIsAddinStatus As Boolean
           Dim OldSaveStatus As Boolean
           Dim rngArgsAndArgDescs As Range
