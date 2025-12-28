@@ -94,9 +94,9 @@ Function SaveTextFile(FileName As String, Contents As String, Format As TriState
           Dim TS As Scripting.TextStream
           Static fso As Scripting.FileSystemObject
 
-1         If fso Is Nothing Then Set fso = New Scripting.FileSystemObject
+1         On Error GoTo ErrHandler
+2         If fso Is Nothing Then Set fso = New Scripting.FileSystemObject
 
-2         On Error GoTo ErrHandler
 3         For Attempts = 1 To MaxRetries
 4             On Error Resume Next
 5             Set TS = fso.OpenTextFile(FileName, ForWriting, True, Format)
@@ -116,8 +116,9 @@ Function SaveTextFile(FileName As String, Contents As String, Format As TriState
 16        SaveTextFile = FileName
 17        Exit Function
 
+18        Exit Function
 ErrHandler:
-18        Throw "SaveTextFile (line " & CStr(Erl) + "): " & Err.Description & "!"
+19        ReThrow "SaveTextFile", Err
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
@@ -139,8 +140,6 @@ End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : WSLAddress
-' Author     : Philip Swannell
-' Date       : 06-Dec-2021
 ' Purpose    : Convert the (Windows) address of a file into the address which references that file from within Windows
 '              subsystem for Linux. e.g. WSLAddress("c:\Temp\foo.txt") = "/mnt/c/temp/foo.tmp"
 ' -----------------------------------------------------------------------------------------------------------------------
@@ -279,8 +278,6 @@ Sub MenuButton()
 2         Application.Run "SolumAddin.xlam!AuditMenuForAddin"
 3         Exit Sub
 ErrHandler:
-4         MsgBox "#MenuButton (line " & CStr(Erl) + "): " & Err.Description & "!", vbCritical
+4         MsgBox ReThrow("MenuButton", Err, True), vbCritical
 End Sub
-
-
 

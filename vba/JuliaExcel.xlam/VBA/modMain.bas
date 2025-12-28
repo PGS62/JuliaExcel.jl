@@ -158,7 +158,7 @@ Public Function JuliaLaunch(Optional UseLinux As Boolean, Optional MinimiseWindo
           Dim i As Long
           Dim PackagesArray() As String
 
-          'PGS 8 Dec 2021. It's important to make using JuliaExcel be the last "using" statement as I believe that helps avoid "world-age" problems
+          'PGS 8 Dec 2021. It's important to make using JuliaExcel be the last "using" statement as I believe that helps avoid "world-age" problems.
 57        If Packages = "" Then
 58            Packages = "Dates," & gPackageName
 59        Else

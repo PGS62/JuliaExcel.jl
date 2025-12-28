@@ -158,7 +158,7 @@ End Function
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : IsFunctionWizardActive
 ' Purpose    : Tests if the Excel Function Wizard is in use.
-'            :See discussion at https://stackoverflow.com/questions/20866484/can-i-disable-a-vba-udf-calculation-when-the-insert-function-function-arguments
+'            : See discussion at https://stackoverflow.com/questions/20866484/can-i-disable-a-vba-udf-calculation-when-the-insert-function-function-arguments
 ' -----------------------------------------------------------------------------------------------------------------------
 Function IsFunctionWizardActive() As Boolean
 

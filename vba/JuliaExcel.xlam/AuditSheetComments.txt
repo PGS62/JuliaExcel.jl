@@ -1,4 +1,7 @@
 ﻿Version	Date	Time	Author	Comment
+106	27-Dec-2025	19:43	Philip Swannell	Code comments, additional tests.
+105	27-Dec-2025	18:29	Philip Swannell	Tests now check that round-tripping VBA -> Julia -> VBA preserves a variable's type.
+104	27-Dec-2025	16:19	Philip Swannell	Can now pass Dictionaries from VBA to Julia (previously Dictionaries could only be passed from Julia to VBA).
 103	23-Dec-2025	08:55	Philip Swannell	Reinstated line numbers.
 102	23-Dec-2025	08:47	Philip Swannell	With help from Copilot, now support arrays of up to 8 dimensions, with changes to method MakeJuliaLiteral (for VBA -> Julia) and Unserialise (for Julia -> VBA).
 101	22-Dec-2025	19:00	Philip Swannell	Added module modTest.

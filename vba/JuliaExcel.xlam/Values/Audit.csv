@@ -5,10 +5,13 @@
 ,"The password to view the VBA code is JuliaExcel",,,,,,
 ,"Copyright 2021 Philip Swannell",,,,,,
 ,"License MIT (https://opensource.org/licenses/MIT)",,,,,,
-,"All 103 rows shown.",,,,,,
+,"All 106 rows shown.",,,,,,
 ,"Dbl-click","Double-click","Dbl-click","Double-click","Double-click to filter",,"ToDo"
 ,"Version","Date","Time","Author","Comment",,"Amend method PostMessageToJulia to clear the REPL via Ctrl+E, Ctrl+U."
-,103,2025-12-23,0,371689814812271,"Philip Swannell","Reinstated line numbers.",,"Code review of Copilot-generated code to handle >=3 dimension arrays."
+,106,2025-12-27,0,822013888886431,"Philip Swannell","Code comments, additional tests.",,"Code review of Copilot-generated code to handle >=3 dimension arrays."
+,105,2025-12-27,0,770358796296932,"Philip Swannell","Tests now check that round-tripping VBA -> Julia -> VBA preserves a variable's type.",,
+,104,2025-12-27,0,679976851854008,"Philip Swannell","Can now pass Dictionaries from VBA to Julia (previously Dictionaries could only be passed from Julia to VBA).",,
+,103,2025-12-23,0,371689814812271,"Philip Swannell","Reinstated line numbers.",,
 ,102,2025-12-23,0,366620370368764,"Philip Swannell","With help from Copilot, now support arrays of up to 8 dimensions, with changes to method MakeJuliaLiteral (for VBA -> Julia) and Unserialise (for Julia -> VBA).",,
 ,101,2025-12-22,0,792129629626288,"Philip Swannell","Added module modTest.",,
 ,100,2025-12-22,0,740532407406135,"Philip Swannell","Bug fix to Unserialise.",,

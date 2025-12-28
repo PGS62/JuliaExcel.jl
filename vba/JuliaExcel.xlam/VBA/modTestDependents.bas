@@ -1,8 +1,16 @@
 Attribute VB_Name = "modTestDependents"
+' Copyright (c) 2021-2025 Philip Swannell
+' License MIT (https://opensource.org/licenses/MIT)
+' Document: https://github.com/PGS62/JuliaExcel.jl#readme
+
 ' =========================================================================================
-' Module: ArrayCompare, written by Copilot 22 Dec 2025. Prompt was as follows:
-' Please provide a VBA function that tests if two arrays are identical, i.e. same number of dimensions, same length of dimensions, same contents. Assume elements are singletons i.e. not arrays or objects
-' Methods in this module intended to be called only from modTest.
+' Module: ArrayCompare, written by Copilot 22 Dec 2025, with amendments by Philip Swannell
+' Prompt was as follows:
+' Please provide a VBA function that tests if two arrays are identical, i.e. same number
+' of dimensions, same length of dimensions, same contents. Assume elements are singletons
+' i.e. not arrays or objects
+'
+' Methods in this module should be called only from modTest.
 ' =========================================================================================
 Option Explicit
 Option Private Module
@@ -20,23 +28,25 @@ Function ArraysIdentical(ByVal A As Variant, ByVal B As Variant) As Boolean
 3             Exit Function
 4         End If
 
-          Dim initA As Boolean, initB As Boolean
-5         initA = IsArrayInitialized(A)
-6         initB = IsArrayInitialized(B)
+          Dim InitA As Boolean
+          Dim InitB As Boolean
+5         InitA = IsArrayInitialized(A)
+6         InitB = IsArrayInitialized(B)
 
-7         If initA Xor initB Then
+7         If InitA Xor InitB Then
 8             ArraysIdentical = False
 9             Exit Function
 10        End If
 
           ' Both uninitialized: consider identical
-11        If Not initA And Not initB Then
+11        If Not InitA And Not InitB Then
 12            ArraysIdentical = True
 13            Exit Function
 14        End If
 
           ' --- Dimension checks ---
-          Dim nA As Long, nB As Long
+          Dim nA As Long
+          Dim nB As Long
 15        nA = NumDimensions(A)
 16        nB = NumDimensions(B)
 17        If nA <> nB Then
@@ -69,7 +79,7 @@ End Function
 ' - String: binary compare (case-sensitive, invariant)
 ' - Numeric/Boolean/Date/Currency: = comparison
 ' - Empty equals Empty; Null equals Null
-' - Otherwise, falls back to "=" (will raise if invalid types)
+' - Otherwise, falls back to "=" (will raise if invalid types) together with a check that x and y are of the same type
 Function ScalarsEqual(ByVal x As Variant, ByVal y As Variant) As Boolean
           ' Handle Empty and Null explicitly
 1         If IsEmpty(x) Then
@@ -96,7 +106,7 @@ Function ScalarsEqual(ByVal x As Variant, ByVal y As Variant) As Boolean
 
           ' Default: numeric/boolean/date/currency, etc.
 19        On Error GoTo NotComparable
-20        ScalarsEqual = (x = y)
+20        ScalarsEqual = (x = y) And (VarType(x) = VarType(y))
 21        Exit Function
 
 NotComparable:
@@ -107,22 +117,24 @@ End Function
 ' Iterate all indices of an array of rank n and compare elements.
 ' This avoids hard-coding nested loops.
 Function WalkAndCompare(ByRef A As Variant, ByRef B As Variant, ByVal n As Long) As Boolean
-          Dim idx() As Long, Lb() As Long, ub() As Long
           Dim d As Long
+          Dim Idx() As Long
+          Dim Lb() As Long
+          Dim Ub() As Long
 
-1         ReDim idx(1 To n)
+1         ReDim Idx(1 To n)
 2         ReDim Lb(1 To n)
-3         ReDim ub(1 To n)
+3         ReDim Ub(1 To n)
 
 4         For d = 1 To n
 5             Lb(d) = LBound(A, d)
-6             ub(d) = UBound(A, d)
-7             idx(d) = Lb(d)
+6             Ub(d) = UBound(A, d)
+7             Idx(d) = Lb(d)
 8         Next d
 
 9         Do
               ' Compare A(idx...) and B(idx...)
-10            If Not ScalarsEqual(GetAt(A, idx), GetAt(B, idx)) Then
+10            If Not ScalarsEqual(GetAt(A, Idx), GetAt(B, Idx)) Then
 11                WalkAndCompare = False
 12                Exit Function
 13            End If
@@ -130,9 +142,9 @@ Function WalkAndCompare(ByRef A As Variant, ByRef B As Variant, ByVal n As Long)
               ' Increment last dimension, then carry to higher dimensions as needed
 14            d = n
 15            Do While d >= 1
-16                idx(d) = idx(d) + 1
-17                If idx(d) <= ub(d) Then Exit Do
-18                idx(d) = Lb(d)
+16                Idx(d) = Idx(d) + 1
+17                If Idx(d) <= Ub(d) Then Exit Do
+18                Idx(d) = Lb(d)
 19                d = d - 1
 20            Loop
 21            If d = 0 Then Exit Do    ' completed all iterations
@@ -140,7 +152,6 @@ Function WalkAndCompare(ByRef A As Variant, ByRef B As Variant, ByVal n As Long)
 
 23        WalkAndCompare = True
 End Function
-
 
 ' Detect whether a Variant array is actually allocated (has bounds).
 Function IsArrayInitialized(ByVal A As Variant) As Boolean
@@ -153,11 +164,3 @@ Function IsArrayInitialized(ByVal A As Variant) As Boolean
 NotInit:
 6         IsArrayInitialized = False
 End Function
-
-
-
-
-
-
-
-

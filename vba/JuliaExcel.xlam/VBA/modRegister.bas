@@ -2,7 +2,6 @@ Attribute VB_Name = "modRegister"
 ' Copyright (c) 2021-2025 Philip Swannell
 ' License MIT (https://opensource.org/licenses/MIT)
 ' Document: https://github.com/PGS62/JuliaExcel.jl#readme
-
 Option Explicit
 
 Public Sub RegisterFunctions()
@@ -58,7 +57,7 @@ Private Sub RegisterJuliaExcelFunctionsWithFunctionWizard()
 15                NumArgs = 0
 16            Else
 17                Set rngArgsAndArgDescs = Range(c.Offset(, 3), c.Offset(, 3).End(xlToRight))
-18                NumArgs = rngArgsAndArgDescs.Columns.count / 2
+18                NumArgs = rngArgsAndArgDescs.Columns.Count / 2
 19                ReDim ArgDescs(1 To NumArgs)
 20                For i = 1 To NumArgs
 21                    ArgDescs(i) = rngArgsAndArgDescs.Cells(1, i * 2).Value

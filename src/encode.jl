@@ -25,11 +25,12 @@ interpreted as follows:
  N   Null
  %   Integer (followed by decimal representation of the value)
  &   Long (followed by decimal representation of the value)
+ ^   LongLong (followed by decimal representation of the value)
  S   Single (followed by hex represention of the value, see float32_to_hex)
  !   Error (followed by an Excel error number, e.g. 
               2042 for the Excel error value #N/A )
  *   Array
- ^   Dictionary
+ H   Dictionary
 
   Examples:
   julia> JuliaExcel.encode_for_xl(1.0)
@@ -56,11 +57,11 @@ julia> JuliaExcel.encode_for_xl([1 2;true π;"Hello" "World"])
 # See also VBA method Unserialise which unserialises i.e. inverts this function
 encode_for_xl(x::AbstractString) = "£" * x         # String in VBA/Excel
 encode_for_xl(x::AbstractChar) = "£" * x           # String in VBA/Excel
-encode_for_xl(x::Int8) = string("S", x)   # Integer in VBA
-encode_for_xl(x::Int16) = string("S", x)   # Integer in VBA
+encode_for_xl(x::Int8) = string("%", x)   # Integer in VBA
+encode_for_xl(x::Int16) = string("%", x)   # Integer in VBA
 encode_for_xl(x::Int32) = string("&", x)   # Long in VBA 64-bit, no native 32-bit integer
 # type exists on 64 bit Excel
-encode_for_xl(x::Int64) = string("&", x)   # Long in VBA 64-bit
+encode_for_xl(x::Int64) = string("^", x)   # LongLong in VBA 64-bit
 encode_for_xl(x::Int128) = encode_for_xl(Float64(x))   # Double in VBA
 encode_for_xl(x::Irrational) = encode_for_xl(Float64(x)) #Double in VBA
 encode_for_xl(x::Missing) = "E"            # Empty in VBA
@@ -142,7 +143,7 @@ function encode_for_xl(x::T) where {T<:AbstractDict}
         write(lengths_buf, string(xl_length(thisvalue)), ",")
     end
 
-    "^" * dimssection * ";" * String(take!(lengths_buf)) * ";" * String(take!(contents_buf))
+    "H" * dimssection * ";" * String(take!(lengths_buf)) * ";" * String(take!(contents_buf))
 end
 
 """
