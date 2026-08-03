@@ -6,6 +6,7 @@ Values\_IntelliSense_.csv
 Values\Audit.csv
 VBA\modJuliaLiteral.bas
 VBA\modMain.bas
+VBA\modPerformance.bas
 VBA\modPostMessage.bas
 VBA\modPrivate.bas
 VBA\modRegister.bas
