@@ -1,4 +1,9 @@
 ﻿Version	Date	Time	Author	Comment
+112	04-Aug-2026	17:26	Philip Swannell	Reverted UTF changes. Now back to using UTF-16 in both directions.
+111	04-Aug-2026	16:41	Philip Swannell	Fix in UnserialiseFromFile, declare Stream as Static.
+110	04-Aug-2026	16:15	Philip Swannell	Now use UTF8 for Julia-> Excel, UTF-16 for Excel -> Julia.
+109	04-Aug-2026	16:00	Philip Swannell	Experimenting with using UTF-8 in place of UTF16.
+108	04-Aug-2026	15:59	Philip Swannell	Added comments in method PostMessageToJulia describing how sending keystrokes Ctrl+U turned out to be a slowdown not a speedup. 
 107	03-Aug-2026	18:04	Philip Swannell	Added module modPerformance.
 106	27-Dec-2025	19:43	Philip Swannell	Code comments, additional tests.
 105	27-Dec-2025	18:29	Philip Swannell	Tests now check that round-tripping VBA -> Julia -> VBA preserves a variable's type.

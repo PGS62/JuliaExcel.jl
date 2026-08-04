@@ -113,7 +113,8 @@ end
 
 """
     read_utf16(filename::String)
-Returns the contents of a UTF-16 encoded text file that has a byte option mark.
+Returns the contents of a UTF-16 LE encoded text file, stripping the leading BOM.
+The expression file is written by VBA's FileSystemObject as UTF-16 LE with BOM.
 See https://discourse.julialang.org/t/reading-a-utf-16-le-file/11687
 """
 read_utf16(filename::String) = transcode(String, reinterpret(UInt16, read(filename)))[4:end]

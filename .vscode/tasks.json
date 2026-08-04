@@ -1,0 +1,20 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Import VBA modules into Excel",
+            "type": "shell",
+            "command": "powershell -NonInteractive -File \"${workspaceFolder}/scripts/Import-VbaModules.ps1\"",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "clear": true
+            },
+            "problemMatcher": []
+        }
+    ]
+}

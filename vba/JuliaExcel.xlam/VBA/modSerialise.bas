@@ -66,7 +66,7 @@ End Type
 
 'Type indicator characters are as follows:
 ' # Double, payload is hex e.g. 1.5 encoded as D3FF8000000000000
-' £ (pound sterling) String
+' ï¿½ (pound sterling) String
 ' T Boolean True
 ' F Boolean False
 ' D Date, payload is decimal of Excel's date representation. e.g. 22-Dec-2025 is D64013
@@ -86,11 +86,11 @@ End Type
 'Examples:
 '#3FF0000000000000 unserialises to Double 1
 '&1 unserailises to Long 1
-'£Hello unserialises to String Hello
+'ï¿½Hello unserialises to String Hello
 'T unserialises to Boolean True
 'F unserialises to Boolean False
-'*1,7;2,2,17,1,1,6,6,;%1%2#4008000000000000TF£Hello£World  unserialises to Array(1,2,3.0,True,False,"Hello","World")
-'^2;2,3,4,5,;£a%10£abc%1000 unserialises to a Dictionary with two elements, element "a" contains 10 and element "abc" contains 1000
+'*1,7;2,2,17,1,1,6,6,;%1%2#4008000000000000TFï¿½Helloï¿½World  unserialises to Array(1,2,3.0,True,False,"Hello","World")
+'^2;2,3,4,5,;ï¿½a%10ï¿½abc%1000 unserialises to a Dictionary with two elements, element "a" contains 10 and element "abc" contains 1000
 
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : UnserialiseFromFile
@@ -99,21 +99,23 @@ End Type
 Function UnserialiseFromFile(FileName As String, AllowNested As Boolean, StringLengthLimit As Long, JuliaVectorToXLColumn As Boolean)
           Dim Contents As String
           Dim ErrMsg As String
-          Dim fso As New Scripting.FileSystemObject
+          Static fso As Scripting.FileSystemObject
           Dim TS As Scripting.TextStream
 
 1         On Error GoTo ErrHandler
-2         Set TS = fso.OpenTextFile(FileName, ForReading, , TristateTrue)
-3         Contents = TS.ReadAll
-4         TS.Close
-5         Set TS = Nothing
-6         Assign UnserialiseFromFile, Unserialise(Contents, AllowNested, 0, StringLengthLimit, JuliaVectorToXLColumn)
+2         If fso Is Nothing Then Set fso = New Scripting.FileSystemObject
 
-7         Exit Function
+3         Set TS = fso.OpenTextFile(FileName, ForReading, , TristateTrue)
+4         Contents = TS.ReadAll
+5         TS.Close
+6         Set TS = Nothing
+7         Assign UnserialiseFromFile, Unserialise(Contents, AllowNested, 0, StringLengthLimit, JuliaVectorToXLColumn)
+
+8         Exit Function
 ErrHandler:
-8         ErrMsg = ReThrow("UnserialiseFromFile", Err, True)
-9         If Not TS Is Nothing Then TS.Close
-10        Throw ErrMsg
+9         ErrMsg = ReThrow("UnserialiseFromFile", Err, True)
+10        If Not TS Is Nothing Then TS.Close
+11        Throw ErrMsg
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
@@ -151,9 +153,9 @@ Function Unserialise(Chars As String, AllowNesting As Boolean, ByRef Depth As Lo
 3         Select Case Asc(Left$(Chars, 1))
               Case 35    '# vbDouble
 4                 Unserialise = HexToDouble(Mid$(Chars, 2))
-5             Case 163    '£ (pound sterling) vbString
+5             Case 163    'ï¿½ (pound sterling) vbString
 6                 If StringLengthLimit > 0 Then 'Calling from worksheet formula, StringLengthLimit applies to elements of an array
-7                     If Len(Chars) > IIf(Depth = 1, 32768, StringLengthLimit) Then 'Remember Chars includes an initial type indicator character of "£"
+7                     If Len(Chars) > IIf(Depth = 1, 32768, StringLengthLimit) Then 'Remember Chars includes an initial type indicator character of "ï¿½"
 8                         If StringLengthLimit = 32768 Then
 9                             Throw "Data contains a string of length " & Format(Len(Chars) - 1, "###,###") & _
                                   ", too long to be returned to an Excel worksheet in Excel version " + _
