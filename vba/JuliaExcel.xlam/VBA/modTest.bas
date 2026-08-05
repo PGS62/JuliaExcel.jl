@@ -287,6 +287,7 @@ ErrHandler:
 10        Test4DArray = False
 End Function
 
+
 Function TestDictionary()
 
           Dim x As New Scripting.Dictionary

@@ -143,6 +143,110 @@ ErrHandler:
 55        ReThrow "PerformanceTest", Err
 End Sub
 
+'========================================================================================================================
+'Running method BenchmarkDoubleToHex
+'JuliaExcel Version = 117
+'Time now = 2026-08-05 20:08:07
+'Correctness check: PASSED (10 values agree)
+'DoubleToHexOld:    1.170 microseconds/call (1,000,000 calls)
+'DoubleToHex: 0.294 microseconds/call (1,000,000 calls)
+'Speedup:        4.0x
+
+' -----------------------------------------------------------------------------------------------------------------------
+' Procedure  : BenchmarkDoubleToHex
+' Purpose    : Correctness check and speed comparison of DoubleToHexOld (original, Hex$/Mid$ approach)
+'              vs DoubleToHex (lookup table approach). Run from the Immediate window or press F5.
+' -----------------------------------------------------------------------------------------------------------------------
+Sub BenchmarkDoubleToHex()
+          Const NumOuterLoops As Long = 1000
+          Const NumInnerLoops As Long = 1000
+          Dim NumCalls As Long
+          Dim CheckValues(1 To 10) As Double
+          Dim i As Long
+          Dim j As Long
+          Dim Mismatches As Long
+          Dim t1 As Double
+          Dim t2 As Double
+          Dim TestData() As Double
+          Dim tNew As Double
+          Dim tOld As Double
+          Dim Tmp As String
+
+1         On Error GoTo ErrHandler
+2         NumCalls = NumOuterLoops * NumInnerLoops
+
+3         ReDim TestData(1 To NumInnerLoops)
+
+4         Debug.Print "'" & String(120, "=")
+5         Debug.Print "'Running method BenchmarkDoubleToHex"
+6         Debug.Print "'JuliaExcel Version = " & CStr(shAudit.Range("Headers").Cells(2, 1).Value)
+7         Debug.Print "'Time now = " & Format$(Now(), "yyyy-mm-dd hh:mm:ss")
+
+          ' ---- Correctness check: both functions must agree on 10 varied inputs ----
+8         CheckValues(1) = 0#
+9         CheckValues(2) = 1#
+10        CheckValues(3) = -1#
+11        CheckValues(4) = 4# * Atn(1#)              ' pi
+12        CheckValues(5) = -4# * Atn(1#)             ' -pi
+13        CheckValues(6) = 0.1
+14        CheckValues(7) = 123456789.123456
+15        CheckValues(8) = 1.23456789012345E+300
+16        CheckValues(9) = 1.23456789012345E-300
+17        CheckValues(10) = -9.87654321098765E+123
+
+18        Mismatches = 0
+19        For i = 1 To 10
+20            If DoubleToHexOld(CheckValues(i)) <> DoubleToHex(CheckValues(i)) Then
+21                Debug.Print "MISMATCH for input " & i & " (" & CheckValues(i) & "): " & _
+                      "DoubleToHex=" & DoubleToHexOld(CheckValues(i)) & _
+                      " DoubleToHexNew=" & DoubleToHex(CheckValues(i))
+22                Mismatches = Mismatches + 1
+23            End If
+24        Next i
+25        If Mismatches = 0 Then
+26            Debug.Print "'Correctness check: PASSED (10 values agree)"
+27        Else
+28            Debug.Print "'Correctness check: FAILED (" & Mismatches & " mismatches)"
+29        End If
+
+          ' ---- Speed benchmark ----
+          ' Seed the static lookup table in DoubleToHex before timing begins
+30        Tmp = DoubleToHex(1#)
+
+31        For i = 1 To NumInnerLoops
+32            TestData(i) = CDbl(i) * 3.14159265358979
+33        Next i
+
+34        t1 = ElapsedTime()
+35        For j = 1 To NumOuterLoops
+36            For i = 1 To NumInnerLoops
+37                Tmp = DoubleToHexOld(TestData(i))
+38            Next i
+39        Next j
+40        t2 = ElapsedTime()
+41        tOld = t2 - t1
+
+42        t1 = ElapsedTime()
+43        For j = 1 To NumOuterLoops
+44            For i = 1 To NumInnerLoops
+45                Tmp = DoubleToHex(TestData(i))
+46            Next i
+47        Next j
+48        t2 = ElapsedTime()
+49        tNew = t2 - t1
+
+50        Debug.Print "'DoubleToHexOld:    " & Format$(tOld / NumCalls * 1000000#, "0.000") & _
+              " microseconds/call (" & Format(NumCalls, "###,###") & " calls)"
+51        Debug.Print "'DoubleToHex: " & Format$(tNew / NumCalls * 1000000#, "0.000") & _
+              " microseconds/call (" & Format(NumCalls, "###,###") & " calls)"
+52        Debug.Print "'Speedup:        " & Format$(tOld / tNew, "0.0") & "x"
+
+53        Exit Sub
+ErrHandler:
+54        ReThrow "BenchmarkDoubleToHex", Err
+End Sub
+
+
 
 
 

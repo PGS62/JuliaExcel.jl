@@ -788,7 +788,7 @@ Public Function JuliaCall(JuliaFunction As String, ParamArray Args())
 9         NumArgs = IIf(UBound(Args) >= LBound(Args), UBound(Args) - LBound(Args) + 1, 0)
 10        NumElements = 1 + NumArgs
 11        For i = 0 To NumArgs - 1
-12            Arg = Args(LBound(Args) + i)
+12            Assign Arg, Args(LBound(Args) + i)
 13            If TypeName(Arg) = "Range" Then Arg = Arg.Value2
 14            ThisEncoded = SerialiseElement(Arg)
 15            LengthsSection = LengthsSection & CStr(Len(ThisEncoded)) & ","
@@ -830,7 +830,7 @@ Public Function JuliaCallVBA(JuliaFunction As String, ParamArray Args())
 5         NumArgs = IIf(UBound(Args) >= LBound(Args), UBound(Args) - LBound(Args) + 1, 0)
 6         NumElements = 1 + NumArgs
 7         For i = 0 To NumArgs - 1
-8             Arg = Args(LBound(Args) + i)
+8             Assign Arg, Args(LBound(Args) + i)
 9             If TypeName(Arg) = "Range" Then Arg = Arg.Value2
 10            ThisEncoded = SerialiseElement(Arg)
 11            LengthsSection = LengthsSection & CStr(Len(ThisEncoded)) & ","

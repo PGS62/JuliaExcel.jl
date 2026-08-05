@@ -25,6 +25,10 @@ Private Type TLong
     x As Long    ' all 32 bits
 End Type
 
+Private Type TBytes8
+    B(0 To 7) As Byte
+End Type
+
 'Notes re round-tripping (Copilot assited)
 '=========================================
 'In Julia, string(x) for Float64 uses a shortest, round-trip algorithm
@@ -215,149 +219,152 @@ Function Unserialise(Chars As String, AllowNesting As Boolean, ByRef Depth As Lo
 
                   ' Rank is the single character after '*', e.g. "*2,3,4;..."
                   Dim Rank As Long
-48                Rank = CInt(Mid$(Chars, 2, 1))
+                  'but check that the number of dimensions has only 1 digit!
+48                If Mid$(Chars, 3, 1) <> "," Then Throw "Cannot unserialise arrays with " & _
+                      Mid$(Chars, 2, InStr(Chars, ",") - 2) & " dimensions (max supported: 8)"
+49                Rank = CInt(Mid$(Chars, 2, 1))
 
-49                Select Case Rank
+50                Select Case Rank
                       Case 1
                           Dim i As Long
                           Dim n As Long
-50                        n = CLng(Mid$(Chars, 4, p1 - 4))
-51                        If n = 0 Then
-52                            If Not AllowNesting Then Throw "Excel cannot display arrays with zero elements"
-53                            Unserialise = VBA.Split(vbNullString)
-54                        Else
-55                            If JuliaVectorToXLColumn Then
-56                                ReDim Ret(1 To n, 1 To 1)
-57                                For i = 1 To n
-58                                    m2 = InStr(m, Chars, ",") + 1
-59                                    ThisLength = CLng(Mid$(Chars, m, m2 - m - 1))
-60                                    Assign Ret(i, 1), Unserialise(Mid$(Chars, k, ThisLength), AllowNesting, Depth, StringLengthLimit, JuliaVectorToXLColumn)
-61                                    k = k + ThisLength
-62                                    m = m2
-63                                Next i
-64                            Else
-65                                ReDim Ret(1 To n)
-66                                For i = 1 To n
-67                                    m2 = InStr(m, Chars, ",") + 1
-68                                    ThisLength = CLng(Mid$(Chars, m, m2 - m - 1))
-69                                    Assign Ret(i), Unserialise(Mid$(Chars, k, ThisLength), AllowNesting, Depth, StringLengthLimit, JuliaVectorToXLColumn)
-70                                    k = k + ThisLength
-71                                    m = m2
-72                                Next i
-73                            End If
-74                            Unserialise = Ret
-75                        End If
+51                        n = CLng(Mid$(Chars, 4, p1 - 4))
+52                        If n = 0 Then
+53                            If Not AllowNesting Then Throw "Excel cannot display arrays with zero elements"
+54                            Unserialise = VBA.Split(vbNullString)
+55                        Else
+56                            If JuliaVectorToXLColumn Then
+57                                ReDim Ret(1 To n, 1 To 1)
+58                                For i = 1 To n
+59                                    m2 = InStr(m, Chars, ",") + 1
+60                                    ThisLength = CLng(Mid$(Chars, m, m2 - m - 1))
+61                                    Assign Ret(i, 1), Unserialise(Mid$(Chars, k, ThisLength), AllowNesting, Depth, StringLengthLimit, JuliaVectorToXLColumn)
+62                                    k = k + ThisLength
+63                                    m = m2
+64                                Next i
+65                            Else
+66                                ReDim Ret(1 To n)
+67                                For i = 1 To n
+68                                    m2 = InStr(m, Chars, ",") + 1
+69                                    ThisLength = CLng(Mid$(Chars, m, m2 - m - 1))
+70                                    Assign Ret(i), Unserialise(Mid$(Chars, k, ThisLength), AllowNesting, Depth, StringLengthLimit, JuliaVectorToXLColumn)
+71                                    k = k + ThisLength
+72                                    m = m2
+73                                Next i
+74                            End If
+75                            Unserialise = Ret
+76                        End If
 
-76                    Case 2
+77                    Case 2
                           Dim CommaPos As Long
                           Dim j As Long
                           Dim NC As Long
                           Dim NR As Long
-77                        CommaPos = InStr(4, Chars, ",")
-78                        NR = CLng(Mid$(Chars, 4, CommaPos - 4))
-79                        NC = CLng(Mid$(Chars, CommaPos + 1, p1 - CommaPos - 1))
-80                        If NR = 0 Or NC = 0 Then Throw "Cannot create array of size zero"
-81                        ReDim Ret(1 To NR, 1 To NC)
-82                        For j = 1 To NC
-83                            For i = 1 To NR
-84                                m2 = InStr(m, Chars, ",") + 1
-85                                ThisLength = CLng(Mid$(Chars, m, m2 - m - 1))
-86                                Assign Ret(i, j), Unserialise(Mid$(Chars, k, ThisLength), AllowNesting, Depth, StringLengthLimit, JuliaVectorToXLColumn)
-87                                k = k + ThisLength
-88                                m = m2
-89                            Next i
-90                        Next j
-91                        Unserialise = Ret
+78                        CommaPos = InStr(4, Chars, ",")
+79                        NR = CLng(Mid$(Chars, 4, CommaPos - 4))
+80                        NC = CLng(Mid$(Chars, CommaPos + 1, p1 - CommaPos - 1))
+81                        If NR = 0 Or NC = 0 Then Throw "Cannot create array of size zero"
+82                        ReDim Ret(1 To NR, 1 To NC)
+83                        For j = 1 To NC
+84                            For i = 1 To NR
+85                                m2 = InStr(m, Chars, ",") + 1
+86                                ThisLength = CLng(Mid$(Chars, m, m2 - m - 1))
+87                                Assign Ret(i, j), Unserialise(Mid$(Chars, k, ThisLength), AllowNesting, Depth, StringLengthLimit, JuliaVectorToXLColumn)
+88                                k = k + ThisLength
+89                                m = m2
+90                            Next i
+91                        Next j
+92                        Unserialise = Ret
 
-92                    Case Else
+93                    Case Else
                           ' === Section to handle >=3 dimensional arrays written by Copilot 23 Dec 2025
                           Dim Dims() As Long
-93                        Dims = ParseDims(Mid$(Chars, 4, p1 - 4), Rank)  ' section between "*,<rank>," and first ';'
+94                        Dims = ParseDims(Mid$(Chars, 4, p1 - 4), Rank)  ' section between "*,<rank>," and first ';'
 
                           ' Guard: Excel cannot display >2-D arrays; allow only when nesting is permitted i.e. when unserialising to VBA variable
-94                        If Not AllowNesting Then
-95                            Throw "Excel cannot display arrays with more than 2 dimensions"
-96                        End If
+95                        If Not AllowNesting Then
+96                            Throw "Excel cannot display arrays with more than 2 dimensions"
+97                        End If
 
                           ' None of the dims may be zero
                           Dim q As Long
                           Dim Total As Long
-97                        Total = 1
-98                        For q = 1 To Rank
-99                            If Dims(q) <= 0 Then Throw "Cannot create array of size zero"
-100                           Total = Total * Dims(q)
-101                       Next q
+98                        Total = 1
+99                        For q = 1 To Rank
+100                           If Dims(q) <= 0 Then Throw "Cannot create array of size zero"
+101                           Total = Total * Dims(q)
+102                       Next q
 
                           ' Allocate Ret() to the requested rank (up to MAX_RANK supported)
-102                       ReDimVariantArray Ret, Dims
+103                       ReDimVariantArray Ret, Dims
 
                           ' Walk in column-major order (dim 1 fastest), assigning elements
                           Dim Idx() As Long
-103                       ReDim Idx(1 To Rank)
-104                       For q = 1 To Rank: Idx(q) = 1: Next q
+104                       ReDim Idx(1 To Rank)
+105                       For q = 1 To Rank: Idx(q) = 1: Next q
 
                           Dim Count As Long
                           Dim Val As Variant
-105                       For Count = 1 To Total
-106                           m2 = InStr(m, Chars, ",") + 1
-107                           ThisLength = CLng(Mid$(Chars, m, m2 - m - 1))
-108                           Assign Val, Unserialise(Mid$(Chars, k, ThisLength), AllowNesting, Depth, StringLengthLimit, JuliaVectorToXLColumn)
-109                           AssignByRank Ret, Idx, Val  ' Assign Ret(i1, i2, ..., irank) = val
+106                       For Count = 1 To Total
+107                           m2 = InStr(m, Chars, ",") + 1
+108                           ThisLength = CLng(Mid$(Chars, m, m2 - m - 1))
+109                           Assign Val, Unserialise(Mid$(Chars, k, ThisLength), AllowNesting, Depth, StringLengthLimit, JuliaVectorToXLColumn)
+110                           AssignByRank Ret, Idx, Val  ' Assign Ret(i1, i2, ..., irank) = val
 
-110                           k = k + ThisLength
-111                           m = m2
+111                           k = k + ThisLength
+112                           m = m2
 
                               ' Increment indices: dim 1 fastest
-112                           q = 1
-113                           Do While q <= Rank
-114                               Idx(q) = Idx(q) + 1
-115                               If Idx(q) <= Dims(q) Then Exit Do
-116                               Idx(q) = 1
-117                               q = q + 1
-118                           Loop
-119                           If q > Rank Then Exit For
-120                       Next Count
+113                           q = 1
+114                           Do While q <= Rank
+115                               Idx(q) = Idx(q) + 1
+116                               If Idx(q) <= Dims(q) Then Exit Do
+117                               Idx(q) = 1
+118                               q = q + 1
+119                           Loop
+120                           If q > Rank Then Exit For
+121                       Next Count
 
-121                       Unserialise = Ret
-122               End Select
-123           Case 72 'H Dictionary
-124               If Not AllowNesting Then Throw "Excel cannot display variables of type Dictionary"
-125               p1 = InStr(Chars, ";")
-126               p2 = InStr(p1 + 1, Chars, ";")
-127               m = p1 + 1 '"pointer" to read from lengths section. Points to the first character after each comma.
-128               k = p2 + 1 '"pointer" to read from contents section. Points to the first character of each "chunk".
+122                       Unserialise = Ret
+123               End Select
+124           Case 72 'H Dictionary
+125               If Not AllowNesting Then Throw "Excel cannot display variables of type Dictionary"
+126               p1 = InStr(Chars, ";")
+127               p2 = InStr(p1 + 1, Chars, ";")
+128               m = p1 + 1 '"pointer" to read from lengths section. Points to the first character after each comma.
+129               k = p2 + 1 '"pointer" to read from contents section. Points to the first character of each "chunk".
                   Dim DictRet As New Scripting.Dictionary
                   Dim KeyLength As Long
                   Dim m3 As Long
                   Dim ThisKey As Variant
                   Dim ThisValue As Variant
                   Dim ValueLength As Long
-129               n = Mid$(Chars, 2, p1 - 2) 'Num elements in dictionary
-130               For i = 1 To n
-131                   m2 = InStr(m, Chars, ",") + 1
-132                   m3 = InStr(m2, Chars, ",") + 1
-133                   KeyLength = Mid$(Chars, m, m2 - m - 1)
-134                   ValueLength = Mid$(Chars, m2, m3 - m2 - 1)
-135                   Assign ThisKey, Unserialise(Mid$(Chars, k, KeyLength), AllowNesting, Depth, StringLengthLimit, JuliaVectorToXLColumn)
-136                   k = k + KeyLength
-137                   Assign ThisValue, Unserialise(Mid$(Chars, k, ValueLength), AllowNesting, Depth, StringLengthLimit, JuliaVectorToXLColumn)
-138                   k = k + ValueLength
-139                   m = m3
+130               n = Mid$(Chars, 2, p1 - 2) 'Num elements in dictionary
+131               For i = 1 To n
+132                   m2 = InStr(m, Chars, ",") + 1
+133                   m3 = InStr(m2, Chars, ",") + 1
+134                   KeyLength = Mid$(Chars, m, m2 - m - 1)
+135                   ValueLength = Mid$(Chars, m2, m3 - m2 - 1)
+136                   Assign ThisKey, Unserialise(Mid$(Chars, k, KeyLength), AllowNesting, Depth, StringLengthLimit, JuliaVectorToXLColumn)
+137                   k = k + KeyLength
+138                   Assign ThisValue, Unserialise(Mid$(Chars, k, ValueLength), AllowNesting, Depth, StringLengthLimit, JuliaVectorToXLColumn)
+139                   k = k + ValueLength
+140                   m = m3
 
-140                   If VarType(ThisKey) = vbLongLong Then 'LongLong not allowed as key?
-141                       DictRet.Add CLng(ThisKey), ThisValue
-142                   Else
-143                       DictRet.Add ThisKey, ThisValue
-144                   End If
-145               Next i
-146               Set Unserialise = DictRet
-147           Case Else
-148               Throw "Character '" & Left$(Chars, 1) & "' is not recognised as a type identifier"
-149       End Select
+141                   If VarType(ThisKey) = vbLongLong Then 'LongLong not allowed as key?
+142                       DictRet.Add CLng(ThisKey), ThisValue
+143                   Else
+144                       DictRet.Add ThisKey, ThisValue
+145                   End If
+146               Next i
+147               Set Unserialise = DictRet
+148           Case Else
+149               Throw "Character '" & Left$(Chars, 1) & "' is not recognised as a type identifier"
+150       End Select
 
-150       Exit Function
+151       Exit Function
 ErrHandler:
-151       ReThrow "Unserialise", Err
+152       ReThrow "Unserialise", Err
 End Function
 
 'Values of type Int64 in Julia must be handled differently on Excel 32-bit and Excel 64bit
@@ -372,11 +379,11 @@ End Function
 #End If
 
 ' -----------------------------------------------------------------------------------------------------------------------
-' Procedure  : DoubleToHex
+' Procedure  : DoubleToHexOld
 ' Purpose    : Return a 16-character uppercase hexadecimal string representing the IEEE-754 bit pattern of x (Double).
 '              Does not special-case NaN, +0.0 or -0.0.
 ' -----------------------------------------------------------------------------------------------------------------------
-Function DoubleToHex(ByVal x As Double) As String
+Function DoubleToHexOld(ByVal x As Double) As String
 
           Dim H1 As String
           Dim H2 As String
@@ -394,11 +401,39 @@ Function DoubleToHex(ByVal x As Double) As String
 
 7         Mid$(Out, 9 - Len(H1)) = H1
 8         Mid$(Out, 17 - Len(H2)) = H2
-9         DoubleToHex = Out
+9         DoubleToHexOld = Out
 
 10        Exit Function
 ErrHandler:
-11        ReThrow "DoubleToHex", Err
+11        ReThrow "DoubleToHexOld", Err
+End Function
+
+' -----------------------------------------------------------------------------------------------------------------------
+' Procedure  : DoubleToHex
+' Purpose    : Faster alternative to DoubleToHex. Uses LSet to reinterpret the 8 bytes of x as a
+'              Byte array, then maps each byte through a static 256-entry lookup table (seeded on
+'              first call) to produce the two-character hex pair.  Avoids the variable-length Hex$
+'              call and Mid$ placement that DoubleToHex requires.
+' -----------------------------------------------------------------------------------------------------------------------
+Function DoubleToHex(ByVal x As Double) As String
+          Static HexByte(0 To 255) As String
+          Static Initialized As Boolean
+          Dim i As Long
+          Dim TB As TBytes8
+          Dim TD As TDouble
+
+1         If Not Initialized Then
+2             For i = 0 To 255
+3                 HexByte(i) = Right$("0" & Hex$(i), 2)
+4             Next i
+5             Initialized = True
+6         End If
+
+7         TD.d = x
+8         LSet TB = TD   ' reinterpret the 8 bytes of the Double as a Byte array (little-endian)
+
+9         DoubleToHex = HexByte(TB.B(7)) & HexByte(TB.B(6)) & HexByte(TB.B(5)) & HexByte(TB.B(4)) & _
+                           HexByte(TB.B(3)) & HexByte(TB.B(2)) & HexByte(TB.B(1)) & HexByte(TB.B(0))
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
@@ -511,23 +546,29 @@ End Function
 ' Purpose    : ReDim Ret() to the specified dims (1..rank). Increase MAX_RANK if needed.
 ' -----------------------------------------------------------------------------------------------------------------------
 Private Sub ReDimVariantArray(ByRef Ret() As Variant, ByRef Dims() As Long)
-          Const MAX_RANK As Long = 8
+          Const MAX_RANK As Long = 9
           Dim r As Long
-1         r = UBound(Dims)
-2         If r < 1 Or r > MAX_RANK Then
-3             Throw "Cannot unserialise arrays with " & r & " dimensions (max supported: " & MAX_RANK & ")"
-4         End If
+1         On Error GoTo ErrHandler
+2         r = UBound(Dims)
+3         If r < 1 Or r > MAX_RANK Then
+4             Throw "Cannot unserialise arrays with " & r & " dimensions (max supported: " & MAX_RANK & ")"
+5         End If
 
-5         Select Case r
+6         Select Case r
               Case 1: ReDim Ret(1 To Dims(1))
-6             Case 2: ReDim Ret(1 To Dims(1), 1 To Dims(2))
-7             Case 3: ReDim Ret(1 To Dims(1), 1 To Dims(2), 1 To Dims(3))
-8             Case 4: ReDim Ret(1 To Dims(1), 1 To Dims(2), 1 To Dims(3), 1 To Dims(4))
-9             Case 5: ReDim Ret(1 To Dims(1), 1 To Dims(2), 1 To Dims(3), 1 To Dims(4), 1 To Dims(5))
-10            Case 6: ReDim Ret(1 To Dims(1), 1 To Dims(2), 1 To Dims(3), 1 To Dims(4), 1 To Dims(5), 1 To Dims(6))
-11            Case 7: ReDim Ret(1 To Dims(1), 1 To Dims(2), 1 To Dims(3), 1 To Dims(4), 1 To Dims(5), 1 To Dims(6), 1 To Dims(7))
-12            Case 8: ReDim Ret(1 To Dims(1), 1 To Dims(2), 1 To Dims(3), 1 To Dims(4), 1 To Dims(5), 1 To Dims(6), 1 To Dims(7), 1 To Dims(8))
-13        End Select
+7             Case 2: ReDim Ret(1 To Dims(1), 1 To Dims(2))
+8             Case 3: ReDim Ret(1 To Dims(1), 1 To Dims(2), 1 To Dims(3))
+9             Case 4: ReDim Ret(1 To Dims(1), 1 To Dims(2), 1 To Dims(3), 1 To Dims(4))
+10            Case 5: ReDim Ret(1 To Dims(1), 1 To Dims(2), 1 To Dims(3), 1 To Dims(4), 1 To Dims(5))
+11            Case 6: ReDim Ret(1 To Dims(1), 1 To Dims(2), 1 To Dims(3), 1 To Dims(4), 1 To Dims(5), 1 To Dims(6))
+12            Case 7: ReDim Ret(1 To Dims(1), 1 To Dims(2), 1 To Dims(3), 1 To Dims(4), 1 To Dims(5), 1 To Dims(6), 1 To Dims(7))
+13            Case 8: ReDim Ret(1 To Dims(1), 1 To Dims(2), 1 To Dims(3), 1 To Dims(4), 1 To Dims(5), 1 To Dims(6), 1 To Dims(7), 1 To Dims(8))
+14            Case 9: ReDim Ret(1 To Dims(1), 1 To Dims(2), 1 To Dims(3), 1 To Dims(4), 1 To Dims(5), 1 To Dims(6), 1 To Dims(7), 1 To Dims(8), 1 To Dims(9))
+15        End Select
+
+16        Exit Sub
+ErrHandler:
+17        ReThrow "ReDimVariantArray", Err
 End Sub
 
 ' -----------------------------------------------------------------------------------------------------------------------
@@ -544,8 +585,9 @@ Private Sub AssignByRank(ByRef Ret() As Variant, ByRef Idx() As Long, ByRef Val 
 6             Case 6: Assign Ret(Idx(1), Idx(2), Idx(3), Idx(4), Idx(5), Idx(6)), Val
 7             Case 7: Assign Ret(Idx(1), Idx(2), Idx(3), Idx(4), Idx(5), Idx(6), Idx(7)), Val
 8             Case 8: Assign Ret(Idx(1), Idx(2), Idx(3), Idx(4), Idx(5), Idx(6), Idx(7), Idx(8)), Val
-9             Case Else
-10                Throw "Rank > 8 not supported by AssignByRank"
-11        End Select
+9             Case 9: Assign Ret(Idx(1), Idx(2), Idx(3), Idx(4), Idx(5), Idx(6), Idx(7), Idx(8), Idx(9)), Val
+10            Case Else
+11                Throw "Rank > 8 not supported by AssignByRank"
+12        End Select
 End Sub
 

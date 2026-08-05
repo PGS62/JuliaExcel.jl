@@ -145,6 +145,12 @@ Public Function SerialiseElement(ByVal x As Variant) As String
           Dim DictKey As Variant
           Dim NC As Long
           Dim NR As Long
+          Dim d As Long
+          Dim DimStr() As String
+          Dim Dims() As Long
+          Dim Idx() As Long
+          Dim Lb() As Long
+          Dim Rank As Long
           Dim ThisEncoded As String
 
 1         On Error GoTo ErrHandler
@@ -188,7 +194,41 @@ Public Function SerialiseElement(ByVal x As Variant) As String
 32                    SerialiseElement = "*2," & CStr(NR) & "," & CStr(NC) & ";" & VBA.Join$(Lens, ",") & ",;" & VBA.Join$(Encoded, "")
 
 33                Case Else
-34                    Throw "Cannot serialise arrays with more than 2 dimensions"
+82                    Rank = NumDimensions(x)
+83                    If Rank > 9 Then Throw "Cannot serialise arrays with more than 9 dimensions"
+84                    ReDim Dims(1 To Rank)
+85                    ReDim Lb(1 To Rank)
+86                    ReDim DimStr(1 To Rank)
+87                    ReDim Idx(1 To Rank)
+88                    n = 1
+89                    For i = 1 To Rank
+90                        Lb(i) = LBound(x, i)
+91                        Dims(i) = UBound(x, i) - Lb(i) + 1
+92                        DimStr(i) = CStr(Dims(i))
+93                        n = n * Dims(i)
+94                    Next i
+95                    If n = 0 Then
+96                        SerialiseElement = "*" & CStr(Rank) & "," & VBA.Join$(DimStr, ",") & ";;"
+97                        Exit Function
+98                    End If
+99                    ReDim Encoded(1 To n)
+100                   ReDim Lens(1 To n)
+101                   For i = 1 To Rank: Idx(i) = Lb(i): Next i
+102                   k = 1
+103                   Do
+104                       Encoded(k) = SerialiseElement(GetAt(x, Idx))
+105                       Lens(k) = CStr(Len(Encoded(k)))
+106                       k = k + 1
+107                       d = 1
+108                       Do While d <= Rank
+109                           Idx(d) = Idx(d) + 1
+110                           If Idx(d) <= UBound(x, d) Then Exit Do
+111                           Idx(d) = Lb(d)
+112                           d = d + 1
+113                       Loop
+114                       If d > Rank Then Exit Do
+115                   Loop
+116                   SerialiseElement = "*" & CStr(Rank) & "," & VBA.Join$(DimStr, ",") & ";" & VBA.Join$(Lens, ",") & ",;" & VBA.Join$(Encoded, "")
 35            End Select
 
 36        Else
