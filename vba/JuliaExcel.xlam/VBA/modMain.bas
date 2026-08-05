@@ -357,7 +357,7 @@ ErrHandler:
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
-' Procedure : JuliaCall
+' Procedure : JuliaCallOld
 ' Purpose   : Call a named Julia function, passing in data from the worksheet.
 ' Arguments
 ' JuliaFunction: The name of a Julia function that's defined in the Julia session, perhaps as a result of
@@ -365,7 +365,7 @@ End Function
 ' Args...   : Zero or more arguments. Each argument may be a number, string, Boolean value, empty cell, an
 '             array of such values or an Excel range.
 ' -----------------------------------------------------------------------------------------------------------------------
-Public Function JuliaCall(JuliaFunction As String, ParamArray Args())
+Public Function JuliaCallOld(JuliaFunction As String, ParamArray Args())
           Dim Expression As String
           Dim i As Long
           Dim Tmp() As String
@@ -373,7 +373,7 @@ Public Function JuliaCall(JuliaFunction As String, ParamArray Args())
 1         On Error GoTo ErrHandler
 
 2         If IsFunctionWizardActive() Then
-3             JuliaCall = "#Disabled in Function Wizard!"
+3             JuliaCallOld = "#Disabled in Function Wizard!"
 4             Exit Function
 5         End If
 
@@ -389,16 +389,16 @@ Public Function JuliaCall(JuliaFunction As String, ParamArray Args())
 14            Expression = JuliaFunction & "()"
 15        End If
 
-16        JuliaCall = JuliaEval(Expression)
+16        JuliaCallOld = JuliaEval(Expression)
 
 17        Exit Function
 ErrHandler:
-18        JuliaCall = ReThrow("JuliaCall", Err, True)
+18        JuliaCallOld = ReThrow("JuliaCallOld", Err, True)
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
-' Procedure : JuliaCallVBA
-' Purpose   : Call a named Julia function from VBA. Differs from JuliaCall in handling of 1-dimensional
+' Procedure : JuliaCallVBAOld
+' Purpose   : Call a named Julia function from VBA. Differs from JuliaCallOld in handling of 1-dimensional
 '             arrays, and strings longer than 32,767 characters. May return data of types that cannot be
 '             displayed on a worksheet, such as a dictionary or an array of arrays.
 ' Arguments
@@ -407,7 +407,7 @@ End Function
 ' Args...   : Zero or more arguments. Each argument may be a number, string, Boolean value, empty cell, an
 '             array of such values or an Excel range.
 ' -----------------------------------------------------------------------------------------------------------------------
-Public Function JuliaCallVBA(JuliaFunction As String, ParamArray Args())
+Public Function JuliaCallVBAOld(JuliaFunction As String, ParamArray Args())
           Dim Expression As String
           Dim i As Long
           Dim Tmp() As String
@@ -424,11 +424,11 @@ Public Function JuliaCallVBA(JuliaFunction As String, ParamArray Args())
 10            Expression = JuliaFunction & "()"
 11        End If
 
-12        Assign JuliaCallVBA, JuliaEval_LowLevel(Expression, AllowNested:=True, StringLengthLimit:=0, JuliaVectorToXLColumn:=False)
+12        Assign JuliaCallVBAOld, JuliaEval_LowLevel(Expression, AllowNested:=True, StringLengthLimit:=0, JuliaVectorToXLColumn:=False)
 
 13        Exit Function
 ErrHandler:
-14        ReThrow "JuliaCallVBA", Err
+14        ReThrow "JuliaCallVBAOld", Err
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
@@ -721,7 +721,7 @@ End Sub
 '--------------------------------------------------
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure : JuliaArgsFile
-' Purpose   : Returns the name of the file to which serialised arguments are written by JuliaCallNew.
+' Purpose   : Returns the name of the file to which serialised arguments are written by JuliaCall.
 ' -----------------------------------------------------------------------------------------------------------------------
 Private Function JuliaArgsFile() As String
           Static ArgsFile As String
@@ -732,41 +732,41 @@ Private Function JuliaArgsFile() As String
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
-' Procedure  : JuliaCallNew_LowLevel
-' Purpose    : Shared dispatch for JuliaCallNew and JuliaCallVBANew. The args file must already
+' Procedure  : JuliaCall_LowLevel
+' Purpose    : Shared dispatch for JuliaCall and JuliaCallVBA. The args file must already
 '              have been written by the caller before this is called.
 '              IsFromWorksheet controls result handling in the same way as for JuliaEval_LowLevel:
 '                False -> AllowNested=True, no string-length limit, vectors stay 1D  (VBA caller)
 '                True  -> AllowNested=False, GetStringLengthLimit(), vectors become columns (worksheet)
-'              Note: cannot accept ParamArray here — VBA forbids using a ParamArray parameter as
+'              Note: cannot accept ParamArray here - VBA forbids using a ParamArray parameter as
 '              an argument in any call, so the encoding loop is duplicated in each public wrapper,
-'              exactly as JuliaCall and JuliaCallVBA both duplicate the MakeJuliaLiteral loop.
+'              exactly as JuliaCallOld and JuliaCallVBAOld both duplicate the MakeJuliaLiteral loop.
 ' -----------------------------------------------------------------------------------------------------------------------
-Private Function JuliaCallNew_LowLevel(IsFromWorksheet As Boolean)
+Private Function JuliaCall_LowLevel(IsFromWorksheet As Boolean)
 1         On Error GoTo ErrHandler
 2         If IsFromWorksheet Then
-3             Assign JuliaCallNew_LowLevel, JuliaEval_LowLevel("JuliaExcel.call_from_xl()", False, GetStringLengthLimit(), True)
+3             Assign JuliaCall_LowLevel, JuliaEval_LowLevel("JuliaExcel.call_from_xl()", False, GetStringLengthLimit(), True)
 4         Else
-5             Assign JuliaCallNew_LowLevel, JuliaEval_LowLevel("JuliaExcel.call_from_xl()", True, 0, False)
+5             Assign JuliaCall_LowLevel, JuliaEval_LowLevel("JuliaExcel.call_from_xl()", True, 0, False)
 6         End If
 7         Exit Function
 ErrHandler:
-8         ReThrow "JuliaCallNew_LowLevel", Err
+8         ReThrow "JuliaCall_LowLevel", Err
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
-' Procedure : JuliaCallNew
+' Procedure : JuliaCall
 ' Purpose   : Call a named Julia function from a worksheet, passing data in the JuliaExcel wire
 '             format. Bypasses Meta.parse of large array literals (~1s for 100K doubles in
-'             JuliaCall). Returns an error string for results that cannot be displayed on a
-'             worksheet (nested arrays, dictionaries, overlong strings). See JuliaCallVBANew for
+'             JuliaCallOld). Returns an error string for results that cannot be displayed on a
+'             worksheet (nested arrays, dictionaries, overlong strings). See JuliaCallVBA for
 '             the VBA equivalent which lifts those restrictions.
 ' Arguments
 ' JuliaFunction: The name of a Julia function visible from the Julia REPL.
 ' Args...   : Zero or more arguments. Each may be a number, string, Boolean, empty cell, array
 '             or Range. Ranges are expanded to their .Value2 before encoding.
 ' -----------------------------------------------------------------------------------------------------------------------
-Public Function JuliaCallNew(JuliaFunction As String, ParamArray Args())
+Public Function JuliaCall(JuliaFunction As String, ParamArray Args())
           Dim Arg As Variant
           Dim ContentsSection As String
           Dim i As Long
@@ -778,7 +778,7 @@ Public Function JuliaCallNew(JuliaFunction As String, ParamArray Args())
 1         On Error GoTo ErrHandler
 
 2         If IsFunctionWizardActive() Then
-3             JuliaCallNew = "#Disabled in Function Wizard!"
+3             JuliaCall = "#Disabled in Function Wizard!"
 4             Exit Function
 5         End If
 
@@ -795,17 +795,17 @@ Public Function JuliaCallNew(JuliaFunction As String, ParamArray Args())
 16            ContentsSection = ContentsSection & ThisEncoded
 17        Next i
 18        SaveTextFile JuliaArgsFile, "*1," & CStr(NumElements) & ";" & LengthsSection & ";" & ContentsSection, TristateTrue
-19        Assign JuliaCallNew, JuliaCallNew_LowLevel(IsFromWorksheet:=True)
+19        Assign JuliaCall, JuliaCall_LowLevel(IsFromWorksheet:=True)
 
 20        Exit Function
 ErrHandler:
-21        JuliaCallNew = ReThrow("JuliaCallNew", Err, True)
+21        JuliaCall = ReThrow("JuliaCall", Err, True)
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
-' Procedure : JuliaCallVBANew
+' Procedure : JuliaCallVBA
 ' Purpose   : Call a named Julia function from VBA, passing data in the JuliaExcel wire format.
-'             Differs from JuliaCallNew in handling of 1-dimensional arrays and strings longer
+'             Differs from JuliaCall in handling of 1-dimensional arrays and strings longer
 '             than 32,767 characters. May return data not displayable on a worksheet (e.g. a
 '             dictionary or array of arrays).
 ' Arguments
@@ -813,7 +813,7 @@ End Function
 ' Args...   : Zero or more arguments. Each may be a number, string, Boolean, empty cell, array
 '             or Range. Ranges are expanded to their .Value2 before encoding.
 ' -----------------------------------------------------------------------------------------------------------------------
-Public Function JuliaCallVBANew(JuliaFunction As String, ParamArray Args())
+Public Function JuliaCallVBA(JuliaFunction As String, ParamArray Args())
           Dim Arg As Variant
           Dim ContentsSection As String
           Dim i As Long
@@ -837,11 +837,11 @@ Public Function JuliaCallVBANew(JuliaFunction As String, ParamArray Args())
 12            ContentsSection = ContentsSection & ThisEncoded
 13        Next i
 14        SaveTextFile JuliaArgsFile, "*1," & CStr(NumElements) & ";" & LengthsSection & ";" & ContentsSection, TristateTrue
-15        Assign JuliaCallVBANew, JuliaCallNew_LowLevel(IsFromWorksheet:=False)
+15        Assign JuliaCallVBA, JuliaCall_LowLevel(IsFromWorksheet:=False)
 
 16        Exit Function
 ErrHandler:
-17        ReThrow "JuliaCallVBANew", Err
+17        ReThrow "JuliaCallVBA", Err
 End Function
 
 Private Sub SpeedTest2()

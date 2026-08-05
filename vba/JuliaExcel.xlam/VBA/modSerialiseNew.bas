@@ -8,13 +8,10 @@ Option Private Module
 
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : Serialise
-' Purpose    : Convenience wrapper for SerialiseArgs allowing a ParamArray call signature. Encodes
-'              JuliaFunctionName and Arguments into the JuliaExcel wire format (a 1D array where
-'              element 0 is the function name and elements 1..n are the serialised arguments).
-'              The result is a string suitable for passing to SaveTextFile.
-'
-'              SerialiseArgs is the implementation; Serialise is a thin ParamArray wrapper.
-'              JuliaCallNew calls SerialiseArgs directly to forward its own ParamArray.
+' Purpose    : Encodes JuliaFunctionName and Arguments into the JuliaExcel wire format (a 1D
+'              array where element 0 is the function name and elements 1..n are the serialised
+'              arguments). The result is a string suitable for passing to SaveTextFile.
+'              Offers a ParamArray call signature; see SerialiseArgs for the Variant equivalent.
 '
 ' Example    : Serialise("sum", Range("A1:A100000")) -- encodes range values in wire format
 ' -----------------------------------------------------------------------------------------------------------------------
@@ -57,24 +54,25 @@ End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : SerialiseArgs
-' Purpose    : Implementation of Serialise. Takes Arguments as a plain Variant (an array) rather
-'              than ParamArray, so that JuliaCallNew can forward its ParamArray directly:
-'                  SerialiseArgs(fn, Args)   -- Args is JuliaCallNew's ParamArray
+' Purpose    : Variant-argument equivalent of Serialise. Takes Arguments as a plain Variant
+'              array rather than ParamArray, for VBA callers that have already assembled their
+'              arguments into an array.
 '
 '              Wire format (same as Julia's encode_for_xl / VBA's Unserialise):
-'                Double   -> "#" + 16 hex chars (IEEE-754 bit pattern via DoubleToHex)
-'                Single   -> "S" + 8 hex chars
-'                String   -> Chr(163) + content          (Chr(163) = pound sign = £)
-'                Boolean  -> "T" or "F"
-'                Long     -> "&" + decimal
-'                Integer  -> "%" + decimal
-'                LongLong -> "^" + decimal               (64-bit only)
-'                Date     -> "D" + excel serial (date-only) or "G" + 16 hex (datetime)
-'                Empty    -> "E"
-'                Null     -> "N"
-'                Error    -> "!" + error number
-'                Array 1D -> "*1,N;<len1>,<len2>,...,;<elements>"  (column-major)
-'                Array 2D -> "*2,NR,NC;<len1>,...,;<elements>"     (column-major)
+'                Double     -> "#" + 16 hex chars (IEEE-754 bit pattern via DoubleToHex)
+'                Single     -> "S" + 8 hex chars
+'                String     -> Chr(163) + content          (Chr(163) = pound sign = £)
+'                Boolean    -> "T" or "F"
+'                Long       -> "&" + decimal
+'                Integer    -> "%" + decimal
+'                LongLong   -> "^" + decimal               (64-bit only)
+'                Date       -> "D" + excel serial (date-only) or "G" + 16 hex (datetime)
+'                Empty      -> "E"
+'                Null       -> "N"
+'                Error      -> "!" + error number
+'                Array 1D   -> "*1,N;<len1>,<len2>,...,;<elements>"        (column-major)
+'                Array 2D   -> "*2,NR,NC;<len1>,...,;<elements>"           (column-major)
+'                Dictionary -> "H<count>;<k1_len>,<v1_len>,...,;<k1><v1>..." (key-value pairs)
 '
 '              Lengths in the lengths section use Len(), which counts UTF-16 code units and
 '              thus matches Julia's xl_length (supplementary chars each count as 2).

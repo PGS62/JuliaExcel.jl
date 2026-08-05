@@ -1,4 +1,6 @@
 ﻿Version	Date	Time	Author	Comment
+115	05-Aug-2026	17:50	Philip Swannell	More renaming
+114	05-Aug-2026	16:54	Philip Swannell	Renaming JuliaCall -> JuliaCallOld, JuliaCallNew -> JuliaCall.
 113	05-Aug-2026	10:43	Philip Swannell	Imported work done by Claude and PGS to implement JuliaCallNew and JuliaCallVBANew. Aim is for better performance of the data transport by abandoning use of Julia literals and instead using the same wire format for transporting data from Excel to Julia as we currently use for transporting data from Julia to Excel.
 112	04-Aug-2026	17:26	Philip Swannell	Reverted UTF changes. Now back to using UTF-16 in both directions.
 111	04-Aug-2026	16:41	Philip Swannell	Fix in UnserialiseFromFile, declare Stream as Static.
