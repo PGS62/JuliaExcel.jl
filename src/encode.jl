@@ -6,10 +6,15 @@ unserialise than csv.
 - Arrays are written with type indicator *, then three sections separated by semi-colons:
   First section gives the number of dimensions and the dimensions themselves, comma
   delimited e.g. a 3 x 4 array would have a dimensions section "2,3,4".
-  Second section gives the lengths of the encodings of each element, comma delimited with a 
+  Second section gives the lengths of the encodings of each element, comma delimited with a
   terminating comma.
   Third section gives the encodings, concatenated with no delimiter.
   - Note that arrays are written in column-major order.
+- Dictionaries are written with type indicator H, then three sections separated by semi-colons:
+  First section gives the number of key-value pairs.
+  Second section gives the lengths of the encodings of each key and value in alternating order
+  (key1_len, val1_len, key2_len, val2_len, ...), comma delimited with a terminating comma.
+  Third section gives the encodings of each key and value concatenated with no delimiter.
 
 When decoded (by VBA function modSerialise.Unserialise), the type indicator characters are 
 interpreted as follows:
