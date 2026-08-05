@@ -17,9 +17,13 @@ try {
     exit 1
 }
 
-$book = $excel.Workbooks | Where-Object { $_.Name -like "JuliaExcel*" } | Select-Object -First 1
+try {
+    $book = $excel.Workbooks.Item("JuliaExcel.xlam")
+} catch {
+    $book = $null
+}
 if ($null -eq $book) {
-    Write-Error "No JuliaExcel workbook/addin found among open workbooks."
+    Write-Error "JuliaExcel.xlam not found in Excel. Open or install it first."
     exit 1
 }
 
