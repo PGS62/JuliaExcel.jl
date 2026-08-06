@@ -136,22 +136,21 @@ End Function
 ' -----------------------------------------------------------------------------------------------------------------------
 Public Function SerialiseElement(ByVal x As Variant) As String
 
+          Dim d As Long
+          Dim DictKey As Variant
+          Dim Dims() As Long
+          Dim DimStr() As String
           Dim Encoded() As String
           Dim i As Long
+          Dim Idx() As Long
           Dim j As Long
           Dim k As Long
+          Dim Lb() As Long
           Dim Lens() As String
           Dim n As Long
-          Dim DictKey As Variant
           Dim NC As Long
           Dim NR As Long
-          Dim d As Long
-          Dim DimStr() As String
-          Dim Dims() As Long
-          Dim Idx() As Long
-          Dim Lb() As Long
           Dim Rank As Long
-          Dim ThisEncoded As String
 
 1         On Error GoTo ErrHandler
 
@@ -177,112 +176,123 @@ Public Function SerialiseElement(ByVal x As Variant) As String
 19                    NR = UBound(x, 1) - LBound(x, 1) + 1
 20                    NC = UBound(x, 2) - LBound(x, 2) + 1
 21                    If NR = 0 Or NC = 0 Then
-                          SerialiseElement = "*2," & CStr(NR) & "," & CStr(NC) & ";;"
-                          Exit Function
-                      End If
+22                        If NC = 1 Then
+23                            SerialiseElement = "*1,0;;"
+24                        Else
+25                            SerialiseElement = "*2," & CStr(NR) & "," & CStr(NC) & ";;"
+26                        End If
+27                        Exit Function
+28                    End If
 
-22                    ReDim Encoded(1 To NR * NC)
-23                    ReDim Lens(1 To NR * NC)
-24                    k = 1
-25                    For j = LBound(x, 2) To UBound(x, 2)    ' column-major to match Julia
-26                        For i = LBound(x, 1) To UBound(x, 1)
-27                            Encoded(k) = SerialiseElement(x(i, j))
-28                            Lens(k) = CStr(Len(Encoded(k)))
-29                            k = k + 1
-30                        Next i
-31                    Next j
-32                    SerialiseElement = "*2," & CStr(NR) & "," & CStr(NC) & ";" & VBA.Join$(Lens, ",") & ",;" & VBA.Join$(Encoded, "")
+29                    ReDim Encoded(1 To NR * NC)
+30                    ReDim Lens(1 To NR * NC)
+31                    k = 1
+32                    For j = LBound(x, 2) To UBound(x, 2)    ' column-major to match Julia
+33                        For i = LBound(x, 1) To UBound(x, 1)
+34                            Encoded(k) = SerialiseElement(x(i, j))
+35                            Lens(k) = CStr(Len(Encoded(k)))
+36                            k = k + 1
+37                        Next i
+38                    Next j
+                      ' Nx1 -> 1D Vector (matches JuliaCallOld / README "single-column ranges arrive as vectors").
+                      ' 1xN stays as 2D Matrix; 3D+ arrays are left as-is (no prior behaviour to replicate).
+39                    If NC = 1 Then
+40                        SerialiseElement = "*1," & CStr(NR) & ";" & VBA.Join$(Lens, ",") & ",;" & VBA.Join$(Encoded, "")
+41                    Else
+42                        SerialiseElement = "*2," & CStr(NR) & "," & CStr(NC) & ";" & VBA.Join$(Lens, ",") & ",;" & VBA.Join$(Encoded, "")
+43                    End If
 
-33                Case Else
-82                    Rank = NumDimensions(x)
-83                    If Rank > 9 Then Throw "Cannot serialise arrays with more than 9 dimensions"
-84                    ReDim Dims(1 To Rank)
-85                    ReDim Lb(1 To Rank)
-86                    ReDim DimStr(1 To Rank)
-87                    ReDim Idx(1 To Rank)
-88                    n = 1
-89                    For i = 1 To Rank
-90                        Lb(i) = LBound(x, i)
-91                        Dims(i) = UBound(x, i) - Lb(i) + 1
-92                        DimStr(i) = CStr(Dims(i))
-93                        n = n * Dims(i)
-94                    Next i
-95                    If n = 0 Then
-96                        SerialiseElement = "*" & CStr(Rank) & "," & VBA.Join$(DimStr, ",") & ";;"
-97                        Exit Function
-98                    End If
-99                    ReDim Encoded(1 To n)
-100                   ReDim Lens(1 To n)
-101                   For i = 1 To Rank: Idx(i) = Lb(i): Next i
-102                   k = 1
-103                   Do
-104                       Encoded(k) = SerialiseElement(GetAt(x, Idx))
-105                       Lens(k) = CStr(Len(Encoded(k)))
-106                       k = k + 1
-107                       d = 1
-108                       Do While d <= Rank
-109                           Idx(d) = Idx(d) + 1
-110                           If Idx(d) <= UBound(x, d) Then Exit Do
-111                           Idx(d) = Lb(d)
-112                           d = d + 1
-113                       Loop
-114                       If d > Rank Then Exit Do
-115                   Loop
-116                   SerialiseElement = "*" & CStr(Rank) & "," & VBA.Join$(DimStr, ",") & ";" & VBA.Join$(Lens, ",") & ",;" & VBA.Join$(Encoded, "")
-35            End Select
+44                Case Else
+45                    Rank = NumDimensions(x)
+46                    If Rank > 9 Then Throw "Cannot serialise arrays with more than 9 dimensions"
+47                    ReDim Dims(1 To Rank)
+48                    ReDim Lb(1 To Rank)
+49                    ReDim DimStr(1 To Rank)
+50                    ReDim Idx(1 To Rank)
+51                    n = 1
+52                    For i = 1 To Rank
+53                        Lb(i) = LBound(x, i)
+54                        Dims(i) = UBound(x, i) - Lb(i) + 1
+55                        DimStr(i) = CStr(Dims(i))
+56                        n = n * Dims(i)
+57                    Next i
+58                    If n = 0 Then
+59                        SerialiseElement = "*" & CStr(Rank) & "," & VBA.Join$(DimStr, ",") & ";;"
+60                        Exit Function
+61                    End If
+62                    ReDim Encoded(1 To n)
+63                    ReDim Lens(1 To n)
+64                    For i = 1 To Rank: Idx(i) = Lb(i): Next i
+65                    k = 1
+66                    Do
+67                        Encoded(k) = SerialiseElement(GetAt(x, Idx))
+68                        Lens(k) = CStr(Len(Encoded(k)))
+69                        k = k + 1
+70                        d = 1
+71                        Do While d <= Rank
+72                            Idx(d) = Idx(d) + 1
+73                            If Idx(d) <= UBound(x, d) Then Exit Do
+74                            Idx(d) = Lb(d)
+75                            d = d + 1
+76                        Loop
+77                        If d > Rank Then Exit Do
+78                    Loop
+79                    SerialiseElement = "*" & CStr(Rank) & "," & VBA.Join$(DimStr, ",") & ";" & VBA.Join$(Lens, ",") & ",;" & VBA.Join$(Encoded, "")
+80            End Select
 
-36        Else
-37            Select Case VarType(x)
+81        Else
+82            Select Case VarType(x)
                     Case vbDouble:   SerialiseElement = "#" & DoubleToHex(CDbl(x))
-38                  Case vbString:   SerialiseElement = Chr(163) & CStr(x)      ' Chr(163) = £
-39                  Case vbBoolean:  SerialiseElement = IIf(CBool(x), "T", "F")
-40                  Case vbEmpty:    SerialiseElement = "E"
-41                  Case vbNull:     SerialiseElement = "N"
-42                  Case vbInteger:  SerialiseElement = "%" & CStr(CInt(x))
-43                  Case vbLong:     SerialiseElement = "&" & CStr(CLng(x))
-44                  Case vbSingle:   SerialiseElement = "S" & SingleToHex(CSng(x))
-45                  Case vbDate
+83                  Case vbString:   SerialiseElement = Chr(163) & CStr(x)      ' Chr(163) = £
+84                  Case vbBoolean:  SerialiseElement = IIf(CBool(x), "T", "F")
+85                  Case vbEmpty:    SerialiseElement = "E"
+86                  Case vbNull:     SerialiseElement = "N"
+87                  Case vbInteger:  SerialiseElement = "%" & CStr(CInt(x))
+88                  Case vbLong:     SerialiseElement = "&" & CStr(CLng(x))
+89                  Case vbSingle:   SerialiseElement = "S" & SingleToHex(CSng(x))
+90                  Case vbDate
                       ' CDbl of a VBA date gives the Excel serial number directly:
                       ' integer part = days since 1899-12-30, fractional part = time of day.
-46                      If CDbl(x) = Int(CDbl(x)) Then
-47                          SerialiseElement = "D" & CStr(CLng(CDbl(x)))         ' date only
-48                      Else
-49                          SerialiseElement = "G" & DoubleToHex(CDbl(x))        ' date + time
-50                      End If
-51                  Case vbError
+91                      If CDbl(x) = Int(CDbl(x)) Then
+92                          SerialiseElement = "D" & CStr(CLng(CDbl(x)))         ' date only
+93                      Else
+94                          SerialiseElement = "G" & DoubleToHex(CDbl(x))        ' date + time
+95                      End If
+96                  Case vbError
                       ' CStr(CVErr(n)) = "Error n"; extract the number after the space.
-52                      SerialiseElement = "!" & Mid(CStr(x), InStr(CStr(x), " ") + 1)
-53                  Case vbObject
-54                      If TypeName(x) = "Dictionary" Then
-62                          n = x.Count
-63                          If n = 0 Then
-64                              SerialiseElement = "H0;;"
-65                              Exit Function
-66                          End If
-67                          ReDim Encoded(1 To 2 * n)
-68                          ReDim Lens(1 To 2 * n)
-69                          k = 1
-70                          For Each DictKey In x.Keys
-71                              Encoded(k) = SerialiseElement(DictKey)
-72                              Lens(k) = CStr(Len(Encoded(k)))
-73                              k = k + 1
-74                              Encoded(k) = SerialiseElement(x(DictKey))
-75                              Lens(k) = CStr(Len(Encoded(k)))
-76                              k = k + 1
-77                          Next DictKey
-78                          SerialiseElement = "H" & CStr(n) & ";" & VBA.Join$(Lens, ",") & ",;" & VBA.Join$(Encoded, "")
-79                      Else
-80                          Throw "Cannot serialise object of type " & TypeName(x)
-81                      End If
+97                      SerialiseElement = "!" & Mid(CStr(x), InStr(CStr(x), " ") + 1)
+98                  Case vbObject
+99                      If TypeName(x) = "Dictionary" Then
+100                         n = x.Count
+101                         If n = 0 Then
+102                             SerialiseElement = "H0;;"
+103                             Exit Function
+104                         End If
+105                         ReDim Encoded(1 To 2 * n)
+106                         ReDim Lens(1 To 2 * n)
+107                         k = 1
+108                         For Each DictKey In x.Keys
+109                             Encoded(k) = SerialiseElement(DictKey)
+110                             Lens(k) = CStr(Len(Encoded(k)))
+111                             k = k + 1
+112                             Encoded(k) = SerialiseElement(x(DictKey))
+113                             Lens(k) = CStr(Len(Encoded(k)))
+114                             k = k + 1
+115                         Next DictKey
+116                         SerialiseElement = "H" & CStr(n) & ";" & VBA.Join$(Lens, ",") & ",;" & VBA.Join$(Encoded, "")
+117                     Else
+118                         Throw "Cannot serialise object of type " & TypeName(x)
+119                     End If
 #If Win64 Then
-55                  Case vbLongLong: SerialiseElement = "^" & CStr(x)
+120                 Case vbLongLong: SerialiseElement = "^" & CStr(x)
 #End If
-56                  Case Else
-57                      Throw "Cannot serialise VarType=" & CStr(VarType(x))
-58            End Select
-59        End If
+121                 Case Else
+122                     Throw "Cannot serialise VarType=" & CStr(VarType(x))
+123           End Select
+124       End If
 
-60        Exit Function
+125       Exit Function
 ErrHandler:
-61        ReThrow "SerialiseElement", Err
+126       ReThrow "SerialiseElement", Err
 End Function
+

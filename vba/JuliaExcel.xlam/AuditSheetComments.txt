@@ -1,4 +1,5 @@
 ﻿Version	Date	Time	Author	Comment
+119	06-Aug-2026	10:07	Philip Swannell	Fixed bug with respect to handling 1-d arrays. Improved tests.
 118	05-Aug-2026	20:08	Philip Swannell	Benchmarking DoubleToHexOld vs DoubleToHex.
 117	05-Aug-2026	19:51	Philip Swannell	Optimising function DoubleToHex
 116	05-Aug-2026	19:15	Philip Swannell	JuliaEval can now handle arrays being returned of up to dimension 9, was previously 8 but 9 is a more natural limit since the code of unserialise assumes the rank of the array has only 1 character.

@@ -14,5 +14,4 @@ VBA\modSerialise.bas
 VBA\modSerialiseNew.bas
 VBA\modTest.bas
 VBA\modTestDependents.bas
-VBA\Module1.bas
 VBA\modUtils.bas

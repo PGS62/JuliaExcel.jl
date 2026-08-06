@@ -57,6 +57,21 @@ communication.Julia To Excel gets faster Excel To Julia gets slower.
 'One-way data transport test, Julia to Excel
 'Average time for JuliaEval("collect((1:100000).*pi)") = 0.31337268999996 seconds (averaged over 10 calls)
 
+'========================================================================================================================
+'Running method PerformanceTest
+'Time now = 2026-08-06 17:40:36
+'JuliaExcel Version = 119
+'Computer = MSI
+'Latency test
+'Average time for JuliaEval("1+1") = 11.8458608000074 miliseconds (averaged over 500 calls)
+'Two-way data transport test
+'Average time for JuliaCall("identity", vector of length 100,000) = 0.555459060001885 seconds (averaged over 10 calls)
+'One-way data transport test, Excel to Julia
+'Average time for JuliaCall("sum", vector of length 100,000) = 0.154651710001053 seconds (averaged over 10 calls)
+'One-way data transport test, Julia to Excel
+'Average time for JuliaEval("collect((1:100000).*pi)") = 0.479368480000994 seconds (averaged over 10 calls)
+
+
 
 Sub PerformanceTest()
           Const NumCallsOnePlusOne As Long = 500
@@ -160,17 +175,17 @@ End Sub
 Sub BenchmarkDoubleToHex()
           Const NumOuterLoops As Long = 1000
           Const NumInnerLoops As Long = 1000
-          Dim NumCalls As Long
           Dim CheckValues(1 To 10) As Double
           Dim i As Long
           Dim j As Long
           Dim Mismatches As Long
+          Dim NumCalls As Long
           Dim t1 As Double
           Dim t2 As Double
           Dim TestData() As Double
+          Dim Tmp As String
           Dim tNew As Double
           Dim tOld As Double
-          Dim Tmp As String
 
 1         On Error GoTo ErrHandler
 2         NumCalls = NumOuterLoops * NumInnerLoops
@@ -246,14 +261,103 @@ ErrHandler:
 54        ReThrow "BenchmarkDoubleToHex", Err
 End Sub
 
+'========================================================================================================================
+'Running method BenchmarkSingleToHex
+'JuliaExcel Version = 118
+'Time now = 2026-08-06 07:31:07
+'Correctness check: PASSED (10 values agree)
+'SingleToHexOld: 0.215 microseconds/call (10,000,000 calls)
+'SingleToHex:    0.182 microseconds/call (10,000,000 calls)
+'Speedup:        1.2x
+' -----------------------------------------------------------------------------------------------------------------------
+' Procedure  : BenchmarkSingleToHex
+' Purpose    : Correctness check and speed comparison of SingleToHexOld (original, Hex$/LPad approach)
+'              vs SingleToHex (lookup table approach). Run from the Immediate window or press F5.
+' -----------------------------------------------------------------------------------------------------------------------
+Sub BenchmarkSingleToHex()
+          Const NumOuterLoops As Long = 10000
+          Const NumInnerLoops As Long = 1000
+          Dim CheckValues(1 To 10) As Single
+          Dim i As Long
+          Dim j As Long
+          Dim Mismatches As Long
+          Dim NumCalls As Long
+          Dim t1 As Double
+          Dim t2 As Double
+          Dim TestData(1 To 1000) As Single
+          Dim Tmp As String
+          Dim tNew As Double
+          Dim tOld As Double
 
+1         On Error GoTo ErrHandler
+2         NumCalls = NumOuterLoops * NumInnerLoops
 
+3         Debug.Print "'" & String(120, "=")
+4         Debug.Print "'Running method BenchmarkSingleToHex"
+5         Debug.Print "'JuliaExcel Version = " & CStr(shAudit.Range("Headers").Cells(2, 1).Value)
+6         Debug.Print "'Time now = " & Format$(Now(), "yyyy-mm-dd hh:mm:ss")
 
+          ' ---- Correctness check: both functions must agree on 10 varied inputs ----
+7         CheckValues(1) = 0!
+8         CheckValues(2) = 1!
+9         CheckValues(3) = -1!
+10        CheckValues(4) = 4! * Atn(1!)          ' pi as Single
+11        CheckValues(5) = -4! * Atn(1!)          ' -pi as Single
+12        CheckValues(6) = 0.1!
+13        CheckValues(7) = 12345.68!
+14        CheckValues(8) = 1.234568E+37!
+15        CheckValues(9) = 1.234568E-37!
+16        CheckValues(10) = -9.876544E+12!
 
+17        Mismatches = 0
+18        For i = 1 To 10
+19            If SingleToHexOld(CheckValues(i)) <> SingleToHex(CheckValues(i)) Then
+20                Debug.Print "MISMATCH for input " & i & " (" & CheckValues(i) & "): " & _
+                      "SingleToHexOld=" & SingleToHexOld(CheckValues(i)) & _
+                      " SingleToHex=" & SingleToHex(CheckValues(i))
+21                Mismatches = Mismatches + 1
+22            End If
+23        Next i
+24        If Mismatches = 0 Then
+25            Debug.Print "'Correctness check: PASSED (10 values agree)"
+26        Else
+27            Debug.Print "'Correctness check: FAILED (" & Mismatches & " mismatches)"
+28        End If
 
+          ' ---- Speed benchmark ----
+          ' Seed the static lookup table in SingleToHex before timing begins
+29        Tmp = SingleToHex(1!)
 
+30        For i = 1 To NumInnerLoops
+31            TestData(i) = CSng(i) * 3.14159!
+32        Next i
 
+33        t1 = ElapsedTime()
+34        For j = 1 To NumOuterLoops
+35            For i = 1 To NumInnerLoops
+36                Tmp = SingleToHexOld(TestData(i))
+37            Next i
+38        Next j
+39        t2 = ElapsedTime()
+40        tOld = t2 - t1
 
+41        t1 = ElapsedTime()
+42        For j = 1 To NumOuterLoops
+43            For i = 1 To NumInnerLoops
+44                Tmp = SingleToHex(TestData(i))
+45            Next i
+46        Next j
+47        t2 = ElapsedTime()
+48        tNew = t2 - t1
 
+49        Debug.Print "'SingleToHexOld: " & Format$(tOld / NumCalls * 1000000#, "0.000") & _
+              " microseconds/call (" & Format(NumCalls, "###,###") & " calls)"
+50        Debug.Print "'SingleToHex:    " & Format$(tNew / NumCalls * 1000000#, "0.000") & _
+              " microseconds/call (" & Format(NumCalls, "###,###") & " calls)"
+51        Debug.Print "'Speedup:        " & Format$(tOld / tNew, "0.0") & "x"
 
+52        Exit Sub
+ErrHandler:
+53        ReThrow "BenchmarkSingleToHex", Err
+End Sub
 

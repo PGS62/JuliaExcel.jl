@@ -25,6 +25,10 @@ Private Type TLong
     x As Long    ' all 32 bits
 End Type
 
+Private Type TBytes4
+    B(0 To 3) As Byte
+End Type
+
 Private Type TBytes8
     B(0 To 7) As Byte
 End Type
@@ -467,18 +471,44 @@ End Function
 ' Purpose    : Return a 8-character uppercase hexadecimal string representing the IEEE-754 bit pattern of x (Single).
 '              Does not special-case NaN, +0.0 or -0.0.
 ' -----------------------------------------------------------------------------------------------------------------------
-Function SingleToHex(ByVal x As Single) As String
+Function SingleToHexOld(ByVal x As Single) As String
 
           Dim Tl As TLong
           Dim TS As TSingle
-          
+
 1         On Error GoTo ErrHandler
 2         TS.s = x
 3         LSet Tl = TS  ' reinterpret the 4 bytes of the Single as a Long
-4         SingleToHex = LPad(Hex$(Tl.x), 8, "0")
+4         SingleToHexOld = LPad(Hex$(Tl.x), 8, "0")
 5         Exit Function
 ErrHandler:
-6         ReThrow "SingleToHex", Err
+6         ReThrow "SingleToHexOld", Err
+End Function
+
+' -----------------------------------------------------------------------------------------------------------------------
+' Procedure  : SingleToHex
+' Purpose    : Faster alternative to SingleToHexOld. Uses LSet to reinterpret the 4 bytes of x as
+'              a Byte array, then maps each byte through a static 256-entry lookup table (seeded on
+'              first call) to produce the two-character hex pair.
+' -----------------------------------------------------------------------------------------------------------------------
+Function SingleToHex(ByVal x As Single) As String
+          Static HexByte(0 To 255) As String
+          Static Initialized As Boolean
+          Dim i As Long
+          Dim TB As TBytes4
+          Dim TS As TSingle
+
+1         If Not Initialized Then
+2             For i = 0 To 255
+3                 HexByte(i) = Right$("0" & Hex$(i), 2)
+4             Next i
+5             Initialized = True
+6         End If
+
+7         TS.s = x
+8         LSet TB = TS   ' reinterpret the 4 bytes of the Single as a Byte array (little-endian)
+
+9         SingleToHex = HexByte(TB.B(3)) & HexByte(TB.B(2)) & HexByte(TB.B(1)) & HexByte(TB.B(0))
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------

@@ -55,7 +55,6 @@ Sub PostMessageToJulia(HwndJulia As LongPtr)
             
           'https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-char
           Const WM_CHAR = &H102
-            
 
           'In case there's some random text at the Julia REPL, send {ESCAPE}{BACKSPACE} three times, _
            which will work if there are three or fewer words at the REPL. Sending Ctrl+U _
