@@ -17,17 +17,33 @@ try {
     exit 1
 }
 
-try {
-    $book = $excel.Workbooks.Item("JuliaExcel.xlam")
-} catch {
-    $book = $null
+# Locate workbooks\JuliaExcel.xlam by its full path so we always get the editable
+# copy, not an installed add-in whose VBProject is inaccessible.
+$xlPath = (Resolve-Path (Join-Path $PSScriptRoot "..\workbooks\JuliaExcel.xlam")).Path
+
+$book = $null
+foreach ($wb in $excel.Workbooks) {
+    if ($wb.FullName -ieq $xlPath) {
+        $book = $wb
+        break
+    }
 }
 if ($null -eq $book) {
-    Write-Error "JuliaExcel.xlam not found in Excel. Open or install it first."
+    Write-Error "workbooks\JuliaExcel.xlam is not open in Excel. Open it from:`n  $xlPath"
+    exit 1
+}
+Write-Host "Found workbook: $($book.FullName)"
+
+$proj   = $book.VBProject
+if ($null -eq $proj -or $null -eq $proj.VBComponents) {
+    Write-Error @"
+Cannot access the VBA project object model.
+In Excel: File -> Options -> Trust Center -> Trust Center Settings -> Macro Settings
+Check: Trust access to the VBA project object model
+"@
     exit 1
 }
 
-$proj   = $book.VBProject
 $basDir = Join-Path $PSScriptRoot "..\vba\JuliaExcel.xlam\VBA"
 $basDir = (Resolve-Path $basDir).Path
 
@@ -39,6 +55,15 @@ if ($files.Count -eq 0) {
 
 foreach ($file in $files) {
     $name = [IO.Path]::GetFileNameWithoutExtension($file.Name)
+    Write-Host "  Importing $name ..."
+
+    # Refresh the project reference each iteration in case the COM object goes stale.
+    $proj = $book.VBProject
+    if ($null -eq $proj -or $null -eq $proj.VBComponents) {
+        Write-Error "VBProject/VBComponents became null while processing $name"
+        exit 1
+    }
+
     try {
         $proj.VBComponents.Remove($proj.VBComponents.Item($name))
     } catch {
