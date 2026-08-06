@@ -387,6 +387,7 @@ ErrHandler:
 10        TestDictionaryOfArrays = False
 End Function
 
+
 Function TestDictionaryOfTypes()
 
           Dim x As New Scripting.Dictionary
