@@ -12,7 +12,8 @@
             "presentation": {
                 "reveal": "always",
                 "panel": "shared",
-                "clear": true
+                "clear": true,
+                "focus": true
             },
             "problemMatcher": []
         },
@@ -24,7 +25,8 @@
             "presentation": {
                 "reveal": "always",
                 "panel": "shared",
-                "clear": true
+                "clear": true,
+                "focus": true
             },
             "problemMatcher": []
         }

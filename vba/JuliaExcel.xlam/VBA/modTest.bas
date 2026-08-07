@@ -449,7 +449,7 @@ Function TestElType()
               JuliaCall("eltype", Array("a", "b", "c")) = "String" And _
               JuliaCall("eltype", Array("a", 1, True)) = "Any" And _
               JuliaCall("eltype", Array(True, False, True)) = "Bool" And _
-              JuliaCallOld("eltype", Array(Empty, Empty, Empty)) = "Missing"
+              JuliaCall("eltype", Array(Empty, Empty, Empty)) = "Missing"
 
 3         Exit Function
 ErrHandler:

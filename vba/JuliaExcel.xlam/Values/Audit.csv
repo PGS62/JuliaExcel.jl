@@ -5,10 +5,11 @@
 ,"The password to view the VBA code is JuliaExcel",,,,,,
 ,"Copyright 2021 Philip Swannell",,,,,,
 ,"License MIT (https://opensource.org/licenses/MIT)",,,,,,
-,"All 119 rows shown.",,,,,,
+,"All 120 rows shown.",,,,,,
 ,"Dbl-click","Double-click","Dbl-click","Double-click","Double-click to filter",,"ToDo"
 ,"Version","Date","Time","Author","Comment",,"Amend method PostMessageToJulia to clear the REPL via Ctrl+E, Ctrl+U."
-,119,2026-08-06,0.422060185184819,"Philip Swannell","Fixed bug with respect to handling 1-d arrays. Improved tests.",,"Code review of Copilot-generated code to handle >=3 dimension arrays."
+,120,2026-08-07,0.415358796293731,"Philip Swannell","Made JuliaCallOld and JuliaCallVBAOld Private.",,"Code review of Copilot-generated code to handle >=3 dimension arrays."
+,119,2026-08-06,0.422060185184819,"Philip Swannell","Fixed bug with respect to handling 1-d arrays. Improved tests.",,
 ,118,2026-08-05,0.839398148149485,"Philip Swannell","Benchmarking DoubleToHexOld vs DoubleToHex.",,
 ,117,2026-08-05,0.827430555553292,"Philip Swannell","Optimising function DoubleToHex",,
 ,116,2026-08-05,0.802719907405844,"Philip Swannell","JuliaEval can now handle arrays being returned of up to dimension 9, was previously 8 but 9 is a more natural limit since the code of unserialise assumes the rank of the array has only 1 character.",,

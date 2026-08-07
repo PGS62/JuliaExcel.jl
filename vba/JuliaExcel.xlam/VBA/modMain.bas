@@ -365,7 +365,7 @@ End Function
 ' Args...   : Zero or more arguments. Each argument may be a number, string, Boolean value, empty cell, an
 '             array of such values or an Excel range.
 ' -----------------------------------------------------------------------------------------------------------------------
-Public Function JuliaCallOld(JuliaFunction As String, ParamArray Args())
+Private Function JuliaCallOld(JuliaFunction As String, ParamArray Args())
           Dim Expression As String
           Dim i As Long
           Dim Tmp() As String
@@ -407,7 +407,7 @@ End Function
 ' Args...   : Zero or more arguments. Each argument may be a number, string, Boolean value, empty cell, an
 '             array of such values or an Excel range.
 ' -----------------------------------------------------------------------------------------------------------------------
-Public Function JuliaCallVBAOld(JuliaFunction As String, ParamArray Args())
+Private Function JuliaCallVBAOld(JuliaFunction As String, ParamArray Args())
           Dim Expression As String
           Dim i As Long
           Dim Tmp() As String
