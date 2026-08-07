@@ -55,9 +55,12 @@ Sub PostMessageToJulia(HwndJulia As LongPtr)
             
           'https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-char
           Const WM_CHAR = &H102
-            
-          'In case there's some random text at the Julia REPL, send {ESCAPE}{BACKSPACE} three times.
-          'Would be better to send Ctrl+E, Ctrl+U
+
+          'In case there's some random text at the Julia REPL, send {ESCAPE}{BACKSPACE} three times, _
+           which will work if there are three or fewer words at the REPL. Sending Ctrl+U _
+           (PostMessage HwndJulia, WM_CHAR, ByVal 21, ByVal &H1) would clear the REPL no matter how _
+           much text is at the REPL, but turns out to be MUCH slower (extra 225 milliseconds!) for an unknown reason.
+             
 1         For i = 1 To 3
 2             PostMessage HwndJulia, WM_CHAR, ByVal 27, ByVal &H1
 3             PostMessage HwndJulia, WM_CHAR, ByVal 8, ByVal &H1
@@ -65,7 +68,7 @@ Sub PostMessageToJulia(HwndJulia As LongPtr)
 
           'One more {BACKSPACE} should be enough to switch Julia out of Package REPL mode if it's in it.
 5         PostMessage HwndJulia, WM_CHAR, ByVal 8, ByVal &H1
-
+          
           'Send "srv_xl". _
            https://docs.microsoft.com/en-gb/windows/win32/inputdev/wm-char?redirectedfrom=MSDN
 6         PostMessage HwndJulia, WM_CHAR, ByVal Asc("s"), ByVal &H1 '&H1F0001

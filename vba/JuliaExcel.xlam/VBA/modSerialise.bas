@@ -5,545 +5,294 @@ Attribute VB_Name = "modSerialise"
 
 Option Explicit
 Option Private Module
-Option Base 1
-' Reinterpret a Double as two 32-bit Longs (little-endian on Windows VBA)
-Private Type TDouble
-    d As Double
-End Type
-
-Private Type TLongs
-    Lo As Long    ' low 32 bits
-    Hi As Long    ' high 32 bits
-End Type
-
-' Reinterpret a Single as one 32-bit Long (little-endian on Windows VBA)
-Private Type TSingle
-    s As Single
-End Type
-
-Private Type TLong
-    x As Long    ' all 32 bits
-End Type
-
-'Notes re round-tripping (Copilot assited)
-'=========================================
-'In Julia, string(x) for Float64 uses a shortest, round-trip algorithm
-'(Ryu/Grisu class) that prints the minimal decimal digits that, when parsed
-'back to a binary IEEE-754 double, reconstruct exactly the same 64-bit value.
-'This ensures parse(Float64, string(x)) === x, for all Float64 values.
-
-'VBA's CStr is not a round-trip formatter for IEEE-754 Double:
-'* It typically emits ~15 significant digits, while a binary64 (Double) can
-'  require 17 to guarantee an exact round-trip.
-'* It obeys locale (decimal separator).
-'* It may choose scientific vs. fixed forms inconsistently and trim trailing
-'  zeros, none of which are guaranteed to be "shortest-round-trip".
-
-'Data format used by Unserialise
-'=============================================
-'Format designed to be as fast as possible to unserialise.
-'- Singleton types are prefixed with a type indicator character.
-'- Dates are shown in their Excel representation as a number - faster to unserialise in VBA.
-'- Floating point numbers (Double, Single) are represented in hexadecimal. See functions _
- DoubleToHex, HexToDouble, SingleToHex, HexToSingle. This ensures exact round-tripping _
- and avoids having to cope with the decimal separator being a comma.
-'- Arrays are written with type indicator *, then three sections separated by semi-colons:
-'  First section gives the number of dimensions and the dimensions themselves, comma
-'  delimited e.g. a 3 x 4 array would have a dimensions section "2,3,4".
-'  Second section gives the lengths of the encodings of each element, comma delimited with a
-'  terminating comma.
-'  Third section gives the encodings, concatenated with no delimiter.
-'- Note that arrays are written in column-major order.
-'- Nested arrays (arrays containing arrays) are supported by the format, and by VBA but
-'  cannot be returned to a worksheet.
-'- Dictionaries are written with a type indicator H, then three sections separated by semi-colons:
-'  First section gives the number of items in the dictionary
-'  Second section gives the lengths of the encodings of the dictionary keys and items. The section
-'  is comma-delimited with a terminating comma. The first element is the length of the encoding of
-'  the first key, then the second item is the length of the encoding of the first item.
-'  Third section gives the encodings of the dictionary keys and items, interleaved
-'  first key, first item, second key second item etc.
-
-'Type indicator characters are as follows:
-' # Double, payload is hex e.g. 1.5 encoded as D3FF8000000000000
-' £ (pound sterling) String
-' T Boolean True
-' F Boolean False
-' D Date, payload is decimal of Excel's date representation. e.g. 22-Dec-2025 is D64013
-' G DateTime, payload is hex
-' E Empty
-' N Null
-' % Integer
-' & Long
-' S Single, payload is hex
-' C Currency
-' ! Error
-' @ Decimal
-' * Array
-' ^ LongLong
-' H Dictionary
-
-'Examples:
-'#3FF0000000000000 unserialises to Double 1
-'&1 unserailises to Long 1
-'£Hello unserialises to String Hello
-'T unserialises to Boolean True
-'F unserialises to Boolean False
-'*1,7;2,2,17,1,1,6,6,;%1%2#4008000000000000TF£Hello£World  unserialises to Array(1,2,3.0,True,False,"Hello","World")
-'^2;2,3,4,5,;£a%10£abc%1000 unserialises to a Dictionary with two elements, element "a" contains 10 and element "abc" contains 1000
 
 ' -----------------------------------------------------------------------------------------------------------------------
-' Procedure  : UnserialiseFromFile
-' Purpose    : Read the file saved by the Julia code and unserialise its contents.
+' Procedure  : Serialise
+' Purpose    : Encodes JuliaFunctionName and Arguments into the JuliaExcel wire format (a 1D
+'              array where element 0 is the function name and elements 1..n are the serialised
+'              arguments). The result is a string suitable for passing to SaveTextFile.
+'              Offers a ParamArray call signature; see SerialiseArgs for the Variant equivalent.
+'
+' Example    : Serialise("sum", Range("A1:A100000")) -- encodes range values in wire format
 ' -----------------------------------------------------------------------------------------------------------------------
-Function UnserialiseFromFile(FileName As String, AllowNested As Boolean, StringLengthLimit As Long, JuliaVectorToXLColumn As Boolean)
-          Dim Contents As String
-          Dim ErrMsg As String
-          Dim fso As New Scripting.FileSystemObject
-          Dim TS As Scripting.TextStream
-
-1         On Error GoTo ErrHandler
-2         Set TS = fso.OpenTextFile(FileName, ForReading, , TristateTrue)
-3         Contents = TS.ReadAll
-4         TS.Close
-5         Set TS = Nothing
-6         Assign UnserialiseFromFile, Unserialise(Contents, AllowNested, 0, StringLengthLimit, JuliaVectorToXLColumn)
-
-7         Exit Function
-ErrHandler:
-8         ErrMsg = ReThrow("UnserialiseFromFile", Err, True)
-9         If Not TS Is Nothing Then TS.Close
-10        Throw ErrMsg
-End Function
-
-' -----------------------------------------------------------------------------------------------------------------------
-' Procedure  : GetStringLengthLimit
-' Purpose    : Different versions of Excel have different limits for the longest string that can be an element of an
-'              array passed from a VBA UDF back to Excel. I know the limit is 255 for Excel 2013 and earlier, and is
-'              32,767 for Excel 365 (as of Sep 2021). But don't yet know the limit for Excel 2016 and 2019.
-' Tried to get info from StackOverflow, without much joy:
-' https://stackoverflow.com/questions/69303804/excel-versions-and-limits-on-the-length-of-string-elements-in-arrays-returned-by
-' Note that this function returns 1 more than the maximum allowed string length, i.e. the minimum not-allowed string length.
-' -----------------------------------------------------------------------------------------------------------------------
-Function GetStringLengthLimit() As Long
-          Static Res As Long
-1         If Res = 0 Then
-2             Select Case Val(Application.Version)
-                  Case Is <= 15 'Excel 2010
-3                     Res = 256
-4                 Case Else
-5                     Res = 32768 'Excel 2016, 2019, 365. Hopefully these versions (which all _
-                                   return 16 as Application.Version) have the same limit.
-6             End Select
-7         End If
-8         GetStringLengthLimit = Res
-9     End Function
-
-' -----------------------------------------------------------------------------------------------------------------------
-' Procedure  : Unserialise
-' Purpose    : Unserialises the contents of the results file saved by JuliaExcel julia code.
-' -----------------------------------------------------------------------------------------------------------------------
-Function Unserialise(Chars As String, AllowNesting As Boolean, ByRef Depth As Long, StringLengthLimit As Long, _
-          JuliaVectorToXLColumn As Boolean)
-
-1         On Error GoTo ErrHandler
-2         Depth = Depth + 1
-3         Select Case Asc(Left$(Chars, 1))
-              Case 35    '# vbDouble
-4                 Unserialise = HexToDouble(Mid$(Chars, 2))
-5             Case 163    '£ (pound sterling) vbString
-6                 If StringLengthLimit > 0 Then 'Calling from worksheet formula, StringLengthLimit applies to elements of an array
-7                     If Len(Chars) > IIf(Depth = 1, 32768, StringLengthLimit) Then 'Remember Chars includes an initial type indicator character of "£"
-8                         If StringLengthLimit = 32768 Then
-9                             Throw "Data contains a string of length " & Format(Len(Chars) - 1, "###,###") & _
-                                  ", too long to be returned to an Excel worksheet in Excel version " + _
-                                  Application.Version() + ", for which the limit is 32,767"
-10                        Else
-11                            Throw "Data contains a string of length " & Format(Len(Chars) - 1, "###,###") & _
-                                  ", too long to be returned to an Excel worksheet in Excel version " + _
-                                  Application.Version() + ", for which the limit is " & _
-                                  "32,767 for a string and " & Format(StringLengthLimit - 1, "###,###") + _
-                                  " for string elements of an array"
-12                        End If
-13                    End If
-14                End If
-15                Unserialise = Mid$(Chars, 2)
-16            Case 84     'T Boolean True
-17                Unserialise = True
-18            Case 68     'D vbDate from Date in Julia
-19                Unserialise = CDate(Mid$(Chars, 2))
-20            Case 70     'F Boolean False
-21                Unserialise = False
-22            Case 71     'G vbDate, from DateTime in Julia
-23                Unserialise = CDate(HexToDouble(Mid$(Chars, 2)))
-24            Case 69     'E vbEmpty
-25                Unserialise = Empty
-26            Case 78     'N vbNull
-27                Unserialise = Null
-28            Case 37     '% vbInteger
-29                Unserialise = CInt(Mid$(Chars, 2))
-30            Case 38     '& vbLong
-31                Unserialise = CLng(Mid$(Chars, 2))
-32            Case 94     '^ vbLongLong
-33                Unserialise = parseInt64(Mid$(Chars, 2))
-34            Case 83     'S vbSingle
-35                Unserialise = HexToSingle(Mid$(Chars, 2))
-36            Case 67     'C vbCurrency, not currently implemented in Julia function encode_for_xl
-37                Unserialise = CCur(Mid$(Chars, 2))
-38            Case 33     '! vbError
-39                Unserialise = CVErr(Mid$(Chars, 2))
-40            Case 64     '@ vbDecimal, not currently implemented in Julia function encode_for_xl
-41                Unserialise = CDec(Mid$(Chars, 2))
-                  
-42            Case 42     '* vbArray
-43                If Depth > 1 Then If Not AllowNesting Then Throw "Excel cannot display arrays containing arrays"
-
-                  Dim Ret() As Variant
-                  Dim p1 As Long    ' Position of first ';'
-                  Dim p2 As Long    ' Position of second ';'
-                  Dim m As Long     ' Pointer into lengths section
-                  Dim m2 As Long
-                  Dim k As Long     ' Pointer into payload section
-                  Dim ThisLength As Long
-
-44                p1 = InStr(Chars, ";")
-45                p2 = InStr(p1 + 1, Chars, ";")
-46                m = p1 + 1
-47                k = p2 + 1
-
-                  ' Rank is the single character after '*', e.g. "*2,3,4;..."
-                  Dim Rank As Long
-48                Rank = CInt(Mid$(Chars, 2, 1))
-
-49                Select Case Rank
-                      Case 1
-                          Dim i As Long
-                          Dim n As Long
-50                        n = CLng(Mid$(Chars, 4, p1 - 4))
-51                        If n = 0 Then
-52                            If Not AllowNesting Then Throw "Excel cannot display arrays with zero elements"
-53                            Unserialise = VBA.Split(vbNullString)
-54                        Else
-55                            If JuliaVectorToXLColumn Then
-56                                ReDim Ret(1 To n, 1 To 1)
-57                                For i = 1 To n
-58                                    m2 = InStr(m, Chars, ",") + 1
-59                                    ThisLength = CLng(Mid$(Chars, m, m2 - m - 1))
-60                                    Assign Ret(i, 1), Unserialise(Mid$(Chars, k, ThisLength), AllowNesting, Depth, StringLengthLimit, JuliaVectorToXLColumn)
-61                                    k = k + ThisLength
-62                                    m = m2
-63                                Next i
-64                            Else
-65                                ReDim Ret(1 To n)
-66                                For i = 1 To n
-67                                    m2 = InStr(m, Chars, ",") + 1
-68                                    ThisLength = CLng(Mid$(Chars, m, m2 - m - 1))
-69                                    Assign Ret(i), Unserialise(Mid$(Chars, k, ThisLength), AllowNesting, Depth, StringLengthLimit, JuliaVectorToXLColumn)
-70                                    k = k + ThisLength
-71                                    m = m2
-72                                Next i
-73                            End If
-74                            Unserialise = Ret
-75                        End If
-
-76                    Case 2
-                          Dim CommaPos As Long
-                          Dim j As Long
-                          Dim NC As Long
-                          Dim NR As Long
-77                        CommaPos = InStr(4, Chars, ",")
-78                        NR = CLng(Mid$(Chars, 4, CommaPos - 4))
-79                        NC = CLng(Mid$(Chars, CommaPos + 1, p1 - CommaPos - 1))
-80                        If NR = 0 Or NC = 0 Then Throw "Cannot create array of size zero"
-81                        ReDim Ret(1 To NR, 1 To NC)
-82                        For j = 1 To NC
-83                            For i = 1 To NR
-84                                m2 = InStr(m, Chars, ",") + 1
-85                                ThisLength = CLng(Mid$(Chars, m, m2 - m - 1))
-86                                Assign Ret(i, j), Unserialise(Mid$(Chars, k, ThisLength), AllowNesting, Depth, StringLengthLimit, JuliaVectorToXLColumn)
-87                                k = k + ThisLength
-88                                m = m2
-89                            Next i
-90                        Next j
-91                        Unserialise = Ret
-
-92                    Case Else
-                          ' === Section to handle >=3 dimensional arrays written by Copilot 23 Dec 2025
-                          Dim Dims() As Long
-93                        Dims = ParseDims(Mid$(Chars, 4, p1 - 4), Rank)  ' section between "*,<rank>," and first ';'
-
-                          ' Guard: Excel cannot display >2-D arrays; allow only when nesting is permitted i.e. when unserialising to VBA variable
-94                        If Not AllowNesting Then
-95                            Throw "Excel cannot display arrays with more than 2 dimensions"
-96                        End If
-
-                          ' None of the dims may be zero
-                          Dim q As Long
-                          Dim Total As Long
-97                        Total = 1
-98                        For q = 1 To Rank
-99                            If Dims(q) <= 0 Then Throw "Cannot create array of size zero"
-100                           Total = Total * Dims(q)
-101                       Next q
-
-                          ' Allocate Ret() to the requested rank (up to MAX_RANK supported)
-102                       ReDimVariantArray Ret, Dims
-
-                          ' Walk in column-major order (dim 1 fastest), assigning elements
-                          Dim Idx() As Long
-103                       ReDim Idx(1 To Rank)
-104                       For q = 1 To Rank: Idx(q) = 1: Next q
-
-                          Dim Count As Long
-                          Dim Val As Variant
-105                       For Count = 1 To Total
-106                           m2 = InStr(m, Chars, ",") + 1
-107                           ThisLength = CLng(Mid$(Chars, m, m2 - m - 1))
-108                           Assign Val, Unserialise(Mid$(Chars, k, ThisLength), AllowNesting, Depth, StringLengthLimit, JuliaVectorToXLColumn)
-109                           AssignByRank Ret, Idx, Val  ' Assign Ret(i1, i2, ..., irank) = val
-
-110                           k = k + ThisLength
-111                           m = m2
-
-                              ' Increment indices: dim 1 fastest
-112                           q = 1
-113                           Do While q <= Rank
-114                               Idx(q) = Idx(q) + 1
-115                               If Idx(q) <= Dims(q) Then Exit Do
-116                               Idx(q) = 1
-117                               q = q + 1
-118                           Loop
-119                           If q > Rank Then Exit For
-120                       Next Count
-
-121                       Unserialise = Ret
-122               End Select
-123           Case 72 'H Dictionary
-124               If Not AllowNesting Then Throw "Excel cannot display variables of type Dictionary"
-125               p1 = InStr(Chars, ";")
-126               p2 = InStr(p1 + 1, Chars, ";")
-127               m = p1 + 1 '"pointer" to read from lengths section. Points to the first character after each comma.
-128               k = p2 + 1 '"pointer" to read from contents section. Points to the first character of each "chunk".
-                  Dim DictRet As New Scripting.Dictionary
-                  Dim KeyLength As Long
-                  Dim m3 As Long
-                  Dim ThisKey As Variant
-                  Dim ThisValue As Variant
-                  Dim ValueLength As Long
-129               n = Mid$(Chars, 2, p1 - 2) 'Num elements in dictionary
-130               For i = 1 To n
-131                   m2 = InStr(m, Chars, ",") + 1
-132                   m3 = InStr(m2, Chars, ",") + 1
-133                   KeyLength = Mid$(Chars, m, m2 - m - 1)
-134                   ValueLength = Mid$(Chars, m2, m3 - m2 - 1)
-135                   Assign ThisKey, Unserialise(Mid$(Chars, k, KeyLength), AllowNesting, Depth, StringLengthLimit, JuliaVectorToXLColumn)
-136                   k = k + KeyLength
-137                   Assign ThisValue, Unserialise(Mid$(Chars, k, ValueLength), AllowNesting, Depth, StringLengthLimit, JuliaVectorToXLColumn)
-138                   k = k + ValueLength
-139                   m = m3
-
-140                   If VarType(ThisKey) = vbLongLong Then 'LongLong not allowed as key?
-141                       DictRet.Add CLng(ThisKey), ThisValue
-142                   Else
-143                       DictRet.Add ThisKey, ThisValue
-144                   End If
-145               Next i
-146               Set Unserialise = DictRet
-147           Case Else
-148               Throw "Character '" & Left$(Chars, 1) & "' is not recognised as a type identifier"
-149       End Select
-
-150       Exit Function
-ErrHandler:
-151       ReThrow "Unserialise", Err
-End Function
-
-'Values of type Int64 in Julia must be handled differently on Excel 32-bit and Excel 64bit
-#If Win64 Then
-      Function parseInt64(x As String)
-1         parseInt64 = CLngLng(x)
-      End Function
-#Else
-      Function parseInt64(x As String)
-1         parseInt64 = CDbl(x)
-      End Function
-#End If
-
-' -----------------------------------------------------------------------------------------------------------------------
-' Procedure  : DoubleToHex
-' Purpose    : Return a 16-character uppercase hexadecimal string representing the IEEE-754 bit pattern of x (Double).
-'              Does not special-case NaN, +0.0 or -0.0.
-' -----------------------------------------------------------------------------------------------------------------------
-Function DoubleToHex(ByVal x As Double) As String
-
-          Dim H1 As String
-          Dim H2 As String
-          Dim Out As String
-          Dim TD As TDouble
-          Dim Tl As TLongs
-          
-1         On Error GoTo ErrHandler
-2         TD.d = x
-3         LSet Tl = TD  ' reinterpret the 8 bytes of the Double as two Longs
-
-4         Out = "0000000000000000"
-5         H1 = Hex$(Tl.Hi)
-6         H2 = Hex$(Tl.Lo)
-
-7         Mid$(Out, 9 - Len(H1)) = H1
-8         Mid$(Out, 17 - Len(H2)) = H2
-9         DoubleToHex = Out
-
-10        Exit Function
-ErrHandler:
-11        ReThrow "DoubleToHex", Err
-End Function
-
-' -----------------------------------------------------------------------------------------------------------------------
-' Procedure  : HexToDouble
-' Purpose    : Parse a 16-character hex string (uppercase or lowercase) as the IEEE-754
-'              bit pattern of a Double and return the corresponding Double.
-' -----------------------------------------------------------------------------------------------------------------------
-Function HexToDouble(ByVal Hex As String) As Double
-
-          Dim Hi As Long
-          Dim Lo As Long
-          Dim TD As TDouble
-          Dim Tl As TLongs
-
-1         On Error GoTo ErrHandler
-2         If Len(Hex) <> 16 Then Throw "Hex must be 16 hex characters, but got " & Len(Hex)
-3         Hi = CLng("&H" & Left$(Hex, 8))
-4         Lo = CLng("&H" & Right$(Hex, 8))
-5         Tl.Hi = Hi
-6         Tl.Lo = Lo
-7         LSet TD = Tl
-8         HexToDouble = TD.d
-
-9         Exit Function
-ErrHandler:
-10        ReThrow "HexToDouble", Err
-End Function
-
-' -----------------------------------------------------------------------------------------------------------------------
-' Procedure  : SingleToHex
-' Purpose    : Return a 8-character uppercase hexadecimal string representing the IEEE-754 bit pattern of x (Single).
-'              Does not special-case NaN, +0.0 or -0.0.
-' -----------------------------------------------------------------------------------------------------------------------
-Function SingleToHex(ByVal x As Single) As String
-
-          Dim Tl As TLong
-          Dim TS As TSingle
-          
-1         On Error GoTo ErrHandler
-2         TS.s = x
-3         LSet Tl = TS  ' reinterpret the 4 bytes of the Single as a Long
-4         SingleToHex = LPad(Hex$(Tl.x), 8, "0")
-5         Exit Function
-ErrHandler:
-6         ReThrow "SingleToHex", Err
-End Function
-
-' -----------------------------------------------------------------------------------------------------------------------
-' Procedure  : LPad
-' Purpose    : Pad s on the left with p to make it n characters long. If s is already n characters long, an equal string
-'              is returned.
-' -----------------------------------------------------------------------------------------------------------------------
-Function LPad(s As String, n As Long, p As String)
-1         If Len(s) < n Then
-2             LPad = String(n - Len(s), p) & s
-3         Else
-4             LPad = s
-5         End If
-End Function
-
-' -----------------------------------------------------------------------------------------------------------------------
-' Procedure  : HexToSingle
-' Purpose    : Parse an 8-character hex string (uppercase or lowercase) as the IEEE-754
-'              bit pattern of a Single and return the corresponding Single.
-' -----------------------------------------------------------------------------------------------------------------------
-Function HexToSingle(ByVal Hex As String) As Single
-
-          Dim Tl As TLong
-          Dim TS As TSingle
-          Dim Wx As Long
-
-1         On Error GoTo ErrHandler
-2         If Len(Hex) <> 8 Then Throw "Hex must be 8 hex characters, but got " & Len(Hex)
-3         Wx = CLng("&H" & Hex)
-4         Tl.x = Wx
-5         LSet TS = Tl
-6         HexToSingle = TS.s
-
-7         Exit Function
-ErrHandler:
-8         ReThrow "HexToSingle", Err
-End Function
-
-' -----------------------------------------------------------------------------------------------------------------------
-' Procedure  : ParseDims
-' Purpose    : Parse a comma-delimited list of dimension sizes (e.g., "3,4,5") into dims(1..Rank).
-' -----------------------------------------------------------------------------------------------------------------------
-Private Function ParseDims(ByVal s As String, ByVal Rank As Long) As Long()
-          Dim Parts() As String
-1         On Error GoTo ErrHandler
-2         Parts = Split(s, ",")
-3         If UBound(Parts) + 1 <> Rank Then
-4             Throw "Malformed array header: expected " & Rank & " dimensions, found " & (UBound(Parts) + 1)
-5         End If
-          Dim Dims() As Long
+Function Serialise(JuliaFunctionName As String, ParamArray Arguments()) As String
+          ' VBA does not allow a ParamArray to be forwarded to another function, so the outer
+          ' array encoding is done here. SerialiseElement handles each value.
+          Dim Arg As Variant
+          Dim ContentsSection As String
           Dim i As Long
-6         ReDim Dims(1 To Rank)
-7         For i = 1 To Rank
-8             Dims(i) = CLng(Parts(i - 1))
-9         Next i
-10        ParseDims = Dims
+          Dim LengthsSection As String
+          Dim NumArgs As Long
+          Dim NumElements As Long
+          Dim ThisEncoded As String
 
-11        Exit Function
+1         On Error GoTo ErrHandler
+
+          ' Element 0: function name encoded as a string (Chr(163) = Â£ = string type indicator)
+2         ThisEncoded = Chr(163) & JuliaFunctionName
+3         LengthsSection = CStr(Len(ThisEncoded)) & ","
+4         ContentsSection = ThisEncoded
+
+          ' Elements 1..n: serialised arguments
+5         NumArgs = IIf(UBound(Arguments) >= LBound(Arguments), _
+              UBound(Arguments) - LBound(Arguments) + 1, 0)
+6         NumElements = 1 + NumArgs
+7         For i = 0 To NumArgs - 1
+8             Arg = Arguments(LBound(Arguments) + i)
+9             If TypeName(Arg) = "Range" Then Arg = Arg.Value2
+10            ThisEncoded = SerialiseElement(Arg)
+11            LengthsSection = LengthsSection & CStr(Len(ThisEncoded)) & ","
+12            ContentsSection = ContentsSection & ThisEncoded
+13        Next i
+
+14        Serialise = "*1," & CStr(NumElements) & ";" & LengthsSection & ";" & ContentsSection
+
+15        Exit Function
 ErrHandler:
-12        ReThrow "ParseDims", Err
+16        ReThrow "Serialise", Err
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
-' Procedure  : ReDimVariantArray
-' Purpose    : ReDim Ret() to the specified dims (1..rank). Increase MAX_RANK if needed.
+' Procedure  : SerialiseArgs
+' Purpose    : Variant-argument equivalent of Serialise. Takes Arguments as a plain Variant
+'              array rather than ParamArray, for VBA callers that have already assembled their
+'              arguments into an array.
+'
+'              Wire format (same as Julia's encode_for_xl / VBA's Unserialise):
+'                Double     -> "#" + 16 hex chars (IEEE-754 bit pattern via DoubleToHex)
+'                Single     -> "S" + 8 hex chars
+'                String     -> Chr(163) + content          (Chr(163) = pound sign = Â£)
+'                Boolean    -> "T" or "F"
+'                Long       -> "&" + decimal
+'                Integer    -> "%" + decimal
+'                LongLong   -> "^" + decimal               (64-bit only)
+'                Date       -> "D" + excel serial (date-only) or "G" + 16 hex (datetime)
+'                Empty      -> "E"
+'                Null       -> "N"
+'                Error      -> "!" + error number
+'                Array 1D   -> "*1,N;<len1>,<len2>,...,;<elements>"        (column-major)
+'                Array 2D   -> "*2,NR,NC;<len1>,...,;<elements>"           (column-major)
+'                Dictionary -> "H<count>;<k1_len>,<v1_len>,...,;<k1><v1>..." (key-value pairs)
+'
+'              Lengths in the lengths section use Len(), which counts UTF-16 code units and
+'              thus matches Julia's xl_length (supplementary chars each count as 2).
 ' -----------------------------------------------------------------------------------------------------------------------
-Private Sub ReDimVariantArray(ByRef Ret() As Variant, ByRef Dims() As Long)
-          Const MAX_RANK As Long = 8
-          Dim r As Long
-1         r = UBound(Dims)
-2         If r < 1 Or r > MAX_RANK Then
-3             Throw "Cannot unserialise arrays with " & r & " dimensions (max supported: " & MAX_RANK & ")"
-4         End If
+Function SerialiseArgs(JuliaFunctionName As String, Arguments As Variant) As String
 
-5         Select Case r
-              Case 1: ReDim Ret(1 To Dims(1))
-6             Case 2: ReDim Ret(1 To Dims(1), 1 To Dims(2))
-7             Case 3: ReDim Ret(1 To Dims(1), 1 To Dims(2), 1 To Dims(3))
-8             Case 4: ReDim Ret(1 To Dims(1), 1 To Dims(2), 1 To Dims(3), 1 To Dims(4))
-9             Case 5: ReDim Ret(1 To Dims(1), 1 To Dims(2), 1 To Dims(3), 1 To Dims(4), 1 To Dims(5))
-10            Case 6: ReDim Ret(1 To Dims(1), 1 To Dims(2), 1 To Dims(3), 1 To Dims(4), 1 To Dims(5), 1 To Dims(6))
-11            Case 7: ReDim Ret(1 To Dims(1), 1 To Dims(2), 1 To Dims(3), 1 To Dims(4), 1 To Dims(5), 1 To Dims(6), 1 To Dims(7))
-12            Case 8: ReDim Ret(1 To Dims(1), 1 To Dims(2), 1 To Dims(3), 1 To Dims(4), 1 To Dims(5), 1 To Dims(6), 1 To Dims(7), 1 To Dims(8))
-13        End Select
-End Sub
+          Dim Arg As Variant
+          Dim ContentsSection As String
+          Dim i As Long
+          Dim LengthsSection As String
+          Dim NumArgs As Long
+          Dim NumElements As Long
+          Dim ThisEncoded As String
+
+1         On Error GoTo ErrHandler
+
+2         If IsArray(Arguments) Then
+3             NumArgs = IIf(UBound(Arguments) >= LBound(Arguments), _
+                  UBound(Arguments) - LBound(Arguments) + 1, 0)
+4         Else
+              ' Scalar passed directly -- treat as a single argument
+5             NumArgs = 1
+6         End If
+7         NumElements = 1 + NumArgs
+
+          ' Element 0: function name, encoded as a string (Chr(163) = Â£ = string type indicator)
+8         ThisEncoded = Chr(163) & JuliaFunctionName
+9         LengthsSection = CStr(Len(ThisEncoded)) & ","
+10        ContentsSection = ThisEncoded
+
+          ' Elements 1..n: serialised arguments
+11        If NumArgs = 1 And Not IsArray(Arguments) Then
+              ' Scalar passed directly to SerialiseArgs (not via ParamArray)
+12            Arg = Arguments
+13            If TypeName(Arg) = "Range" Then Arg = Arg.Value2
+14            ThisEncoded = SerialiseElement(Arg)
+15            LengthsSection = LengthsSection & CStr(Len(ThisEncoded)) & ","
+16            ContentsSection = ContentsSection & ThisEncoded
+17        Else
+18            For i = 0 To NumArgs - 1
+19                Arg = Arguments(LBound(Arguments) + i)
+20                If TypeName(Arg) = "Range" Then Arg = Arg.Value2
+21                ThisEncoded = SerialiseElement(Arg)
+22                LengthsSection = LengthsSection & CStr(Len(ThisEncoded)) & ","
+23                ContentsSection = ContentsSection & ThisEncoded
+24            Next i
+25        End If
+
+26        SerialiseArgs = "*1," & CStr(NumElements) & ";" & LengthsSection & ";" & ContentsSection
+
+27        Exit Function
+ErrHandler:
+28        ReThrow "SerialiseArgs", Err
+End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
-' Procedure  : AssignByRank
-' Purpose    : Assign Ret(i1, i2, ..., irank) = Val, where idx(1..r) holds indices.
+' Procedure  : SerialiseElement
+' Purpose    : Encode a single VBA value (scalar or array) into the JuliaExcel wire format.
+'              Mirror of Unserialise in modSerialise.bas. Arrays are written column-major to
+'              match Julia's default array layout and encode_for_xl.
 ' -----------------------------------------------------------------------------------------------------------------------
-Private Sub AssignByRank(ByRef Ret() As Variant, ByRef Idx() As Long, ByRef Val As Variant)
-1         Select Case UBound(Idx)
-              Case 1: Assign Ret(Idx(1)), Val
-2             Case 2: Assign Ret(Idx(1), Idx(2)), Val
-3             Case 3: Assign Ret(Idx(1), Idx(2), Idx(3)), Val
-4             Case 4: Assign Ret(Idx(1), Idx(2), Idx(3), Idx(4)), Val
-5             Case 5: Assign Ret(Idx(1), Idx(2), Idx(3), Idx(4), Idx(5)), Val
-6             Case 6: Assign Ret(Idx(1), Idx(2), Idx(3), Idx(4), Idx(5), Idx(6)), Val
-7             Case 7: Assign Ret(Idx(1), Idx(2), Idx(3), Idx(4), Idx(5), Idx(6), Idx(7)), Val
-8             Case 8: Assign Ret(Idx(1), Idx(2), Idx(3), Idx(4), Idx(5), Idx(6), Idx(7), Idx(8)), Val
-9             Case Else
-10                Throw "Rank > 8 not supported by AssignByRank"
-11        End Select
-End Sub
+Public Function SerialiseElement(ByVal x As Variant) As String
+
+          Dim d As Long
+          Dim DictKey As Variant
+          Dim Dims() As Long
+          Dim DimStr() As String
+          Dim Encoded() As String
+          Dim i As Long
+          Dim Idx() As Long
+          Dim j As Long
+          Dim k As Long
+          Dim Lb() As Long
+          Dim Lens() As String
+          Dim n As Long
+          Dim NC As Long
+          Dim NR As Long
+          Dim Rank As Long
+
+1         On Error GoTo ErrHandler
+
+2         If IsArray(x) Then
+3             Select Case NumDimensions(x)
+                  Case 1
+4                     n = UBound(x) - LBound(x) + 1
+5                     If n = 0 Then
+6                         SerialiseElement = "*1,0;;"
+7                         Exit Function
+8                     End If
+9                     ReDim Encoded(1 To n)
+10                    ReDim Lens(1 To n)
+11                    k = 1
+12                    For i = LBound(x) To UBound(x)
+13                        Encoded(k) = SerialiseElement(x(i))
+14                        Lens(k) = CStr(Len(Encoded(k)))
+15                        k = k + 1
+16                    Next i
+17                    SerialiseElement = "*1," & CStr(n) & ";" & VBA.Join$(Lens, ",") & ",;" & VBA.Join$(Encoded, "")
+
+18                Case 2
+19                    NR = UBound(x, 1) - LBound(x, 1) + 1
+20                    NC = UBound(x, 2) - LBound(x, 2) + 1
+21                    If NR = 0 Or NC = 0 Then
+22                        If NC = 1 Then
+23                            SerialiseElement = "*1,0;;"
+24                        Else
+25                            SerialiseElement = "*2," & CStr(NR) & "," & CStr(NC) & ";;"
+26                        End If
+27                        Exit Function
+28                    End If
+
+29                    ReDim Encoded(1 To NR * NC)
+30                    ReDim Lens(1 To NR * NC)
+31                    k = 1
+32                    For j = LBound(x, 2) To UBound(x, 2)    ' column-major to match Julia
+33                        For i = LBound(x, 1) To UBound(x, 1)
+34                            Encoded(k) = SerialiseElement(x(i, j))
+35                            Lens(k) = CStr(Len(Encoded(k)))
+36                            k = k + 1
+37                        Next i
+38                    Next j
+                      ' Nx1 -> 1D Vector (matches JuliaCallOld / README "single-column ranges arrive as vectors").
+                      ' 1xN stays as 2D Matrix; 3D+ arrays are left as-is (no prior behaviour to replicate).
+39                    If NC = 1 Then
+40                        SerialiseElement = "*1," & CStr(NR) & ";" & VBA.Join$(Lens, ",") & ",;" & VBA.Join$(Encoded, "")
+41                    Else
+42                        SerialiseElement = "*2," & CStr(NR) & "," & CStr(NC) & ";" & VBA.Join$(Lens, ",") & ",;" & VBA.Join$(Encoded, "")
+43                    End If
+
+44                Case Else
+45                    Rank = NumDimensions(x)
+46                    If Rank > 9 Then Throw "Cannot serialise arrays with more than 9 dimensions"
+47                    ReDim Dims(1 To Rank)
+48                    ReDim Lb(1 To Rank)
+49                    ReDim DimStr(1 To Rank)
+50                    ReDim Idx(1 To Rank)
+51                    n = 1
+52                    For i = 1 To Rank
+53                        Lb(i) = LBound(x, i)
+54                        Dims(i) = UBound(x, i) - Lb(i) + 1
+55                        DimStr(i) = CStr(Dims(i))
+56                        n = n * Dims(i)
+57                    Next i
+58                    If n = 0 Then
+59                        SerialiseElement = "*" & CStr(Rank) & "," & VBA.Join$(DimStr, ",") & ";;"
+60                        Exit Function
+61                    End If
+62                    ReDim Encoded(1 To n)
+63                    ReDim Lens(1 To n)
+64                    For i = 1 To Rank: Idx(i) = Lb(i): Next i
+65                    k = 1
+66                    Do
+67                        Encoded(k) = SerialiseElement(GetAt(x, Idx))
+68                        Lens(k) = CStr(Len(Encoded(k)))
+69                        k = k + 1
+70                        d = 1
+71                        Do While d <= Rank
+72                            Idx(d) = Idx(d) + 1
+73                            If Idx(d) <= UBound(x, d) Then Exit Do
+74                            Idx(d) = Lb(d)
+75                            d = d + 1
+76                        Loop
+77                        If d > Rank Then Exit Do
+78                    Loop
+79                    SerialiseElement = "*" & CStr(Rank) & "," & VBA.Join$(DimStr, ",") & ";" & VBA.Join$(Lens, ",") & ",;" & VBA.Join$(Encoded, "")
+80            End Select
+
+81        Else
+82            Select Case VarType(x)
+                    Case vbDouble:   SerialiseElement = "#" & DoubleToHex(CDbl(x))
+83                  Case vbString:   SerialiseElement = Chr(163) & CStr(x)      ' Chr(163) = Â£
+84                  Case vbBoolean:  SerialiseElement = IIf(CBool(x), "T", "F")
+85                  Case vbEmpty:    SerialiseElement = "E"
+86                  Case vbNull:     SerialiseElement = "N"
+87                  Case vbInteger:  SerialiseElement = "%" & CStr(CInt(x))
+88                  Case vbLong:     SerialiseElement = "&" & CStr(CLng(x))
+89                  Case vbSingle:   SerialiseElement = "S" & SingleToHex(CSng(x))
+90                  Case vbDate
+                      ' CDbl of a VBA date gives the Excel serial number directly:
+                      ' integer part = days since 1899-12-30, fractional part = time of day.
+91                      If CDbl(x) = Int(CDbl(x)) Then
+92                          SerialiseElement = "D" & CStr(CLng(CDbl(x)))         ' date only
+93                      Else
+94                          SerialiseElement = "G" & DoubleToHex(CDbl(x))        ' date + time
+95                      End If
+96                  Case vbError
+                      ' CStr(CVErr(n)) = "Error n"; extract the number after the space.
+97                      SerialiseElement = "!" & Mid(CStr(x), InStr(CStr(x), " ") + 1)
+98                  Case vbObject
+99                      If TypeName(x) = "Dictionary" Then
+100                         n = x.Count
+101                         If n = 0 Then
+102                             SerialiseElement = "H0;;"
+103                             Exit Function
+104                         End If
+105                         ReDim Encoded(1 To 2 * n)
+106                         ReDim Lens(1 To 2 * n)
+107                         k = 1
+108                         For Each DictKey In x.Keys
+109                             Encoded(k) = SerialiseElement(DictKey)
+110                             Lens(k) = CStr(Len(Encoded(k)))
+111                             k = k + 1
+112                             Encoded(k) = SerialiseElement(x(DictKey))
+113                             Lens(k) = CStr(Len(Encoded(k)))
+114                             k = k + 1
+115                         Next DictKey
+116                         SerialiseElement = "H" & CStr(n) & ";" & VBA.Join$(Lens, ",") & ",;" & VBA.Join$(Encoded, "")
+117                     Else
+118                         Throw "Cannot serialise object of type " & TypeName(x)
+119                     End If
+#If Win64 Then
+120                 Case vbLongLong: SerialiseElement = "^" & CStr(x)
+#End If
+121                 Case Else
+122                     Throw "Cannot serialise VarType=" & CStr(VarType(x))
+123           End Select
+124       End If
+
+125       Exit Function
+ErrHandler:
+126       ReThrow "SerialiseElement", Err
+End Function
 

@@ -10,5 +10,6 @@ const global commsfolder = Ref("")
 
 include("comms.jl")
 include("encode.jl")
+include("decode.jl")
 
 end

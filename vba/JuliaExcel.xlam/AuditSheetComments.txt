@@ -1,4 +1,19 @@
 ﻿Version	Date	Time	Author	Comment
+121	07-Aug-2026	10:06	Philip Swannell	Rename modules: ModSerialise -> modUnserialise, ModSerialiseNew -> modSerialise
+120	07-Aug-2026	09:58	Philip Swannell	Made JuliaCallOld and JuliaCallVBAOld Private.
+119	06-Aug-2026	10:07	Philip Swannell	Fixed bug with respect to handling 1-d arrays. Improved tests.
+118	05-Aug-2026	20:08	Philip Swannell	Benchmarking DoubleToHexOld vs DoubleToHex.
+117	05-Aug-2026	19:51	Philip Swannell	Optimising function DoubleToHex
+116	05-Aug-2026	19:15	Philip Swannell	JuliaEval can now handle arrays being returned of up to dimension 9, was previously 8 but 9 is a more natural limit since the code of unserialise assumes the rank of the array has only 1 character.
+115	05-Aug-2026	17:50	Philip Swannell	More renaming
+114	05-Aug-2026	16:54	Philip Swannell	Renaming JuliaCall -> JuliaCallOld, JuliaCallNew -> JuliaCall.
+113	05-Aug-2026	10:43	Philip Swannell	Imported work done by Claude and PGS to implement JuliaCallNew and JuliaCallVBANew. Aim is for better performance of the data transport by abandoning use of Julia literals and instead using the same wire format for transporting data from Excel to Julia as we currently use for transporting data from Julia to Excel.
+112	04-Aug-2026	17:26	Philip Swannell	Reverted UTF changes. Now back to using UTF-16 in both directions.
+111	04-Aug-2026	16:41	Philip Swannell	Fix in UnserialiseFromFile, declare Stream as Static.
+110	04-Aug-2026	16:15	Philip Swannell	Now use UTF8 for Julia-> Excel, UTF-16 for Excel -> Julia.
+109	04-Aug-2026	16:00	Philip Swannell	Experimenting with using UTF-8 in place of UTF16.
+108	04-Aug-2026	15:59	Philip Swannell	Added comments in method PostMessageToJulia describing how sending keystrokes Ctrl+U turned out to be a slowdown not a speedup. 
+107	03-Aug-2026	18:04	Philip Swannell	Added module modPerformance.
 106	27-Dec-2025	19:43	Philip Swannell	Code comments, additional tests.
 105	27-Dec-2025	18:29	Philip Swannell	Tests now check that round-tripping VBA -> Julia -> VBA preserves a variable's type.
 104	27-Dec-2025	16:19	Philip Swannell	Can now pass Dictionaries from VBA to Julia (previously Dictionaries could only be passed from Julia to VBA).

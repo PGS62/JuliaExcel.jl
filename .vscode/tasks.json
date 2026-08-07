@@ -1,0 +1,34 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "VBA: Push to Excel",
+            "type": "shell",
+            "command": "powershell -File \"${workspaceFolder}/scripts/Push-VbaModules.ps1\"",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "clear": true,
+                "focus": true
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "VBA: Pull from Excel",
+            "type": "shell",
+            "command": "powershell -File \"${workspaceFolder}/scripts/Pull-VbaModules.ps1\"",
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "clear": true,
+                "focus": true
+            },
+            "problemMatcher": []
+        }
+    ]
+}

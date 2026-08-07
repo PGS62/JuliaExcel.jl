@@ -194,7 +194,6 @@ Function MakeJuliaLiteral(x As Variant)
 109               If TypeName(x) = "Dictionary" Then
                       Dim Key As Variant
                       Dim Tokens() As String
-                      Dim v As Variant
 110                   ReDim Tokens(1 To x.Count)
 111                   k = 1
 112                   For Each Key In x.Keys

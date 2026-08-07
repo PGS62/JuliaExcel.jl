@@ -251,14 +251,13 @@ JuliaExcel has been tested on Excel under Microsoft 365, both 32-bit and 64-bit.
 
 ## How JuliaExcel works
 The implementation of JuliaExcel is very "low-tech". When `JuliaEval` is called from a worksheet, the following happens:
-1) VBA code (in JuliaExcel.xlam) writes the expression to a file in the `@JuliaExcel` sub-folder of the temporary folder.
+1) VBA code (in JuliaExcel.xlam) writes the expression to a file and creates a flag file, both in the `@JuliaExcel` sub-folder of the temporary folder.
 2) VBA code then uses the Windows API `PostMessage` to send keystrokes `srv_xl()` to the Julia window.
-3) That causes the Julia function `srv_xl` (defined in JuliaExcel.jl) to execute. The function reads the expression from file, evaluates it and writes to a result file.
-4) The VBA code (in a wait loop since step 1) detects that the result file has been (completely) written, and unserialises its contents.
+3) That causes the Julia function `srv_xl` (defined in JuliaExcel.jl) to execute. The function reads the expression from file, evaluates it, writes the result to a result file, and then deletes the flag file.
+4) The VBA code (in a wait loop since step 1) detects that the flag file has been deleted, and unserialises the result file.
 
 Other points to note:
- * `JuliaCall` is simply a wrapper to JuliaEval, with the arguments to `JuliaCall` being encoded using Julia's syntax for array literals.
- * The result file is written in a custom format designed to be fast to unserialise.
+ * `JuliaCall` is simply a wrapper to `JuliaEval`, with the arguments serialised in a custom text format that Julia decodes before invoking the function. The same format is used for the result file, and is designed to be fast to unserialise.
  * The "wait loop" includes a heart-beat check that Julia is still alive, so executing `=JuliaEval("exit()")` errors gracefully. 
  * There is obvious scope to improve this implementation by switching away from a file-based messaging system to one based on sockets.
  * But best performance would be achieved using C via the [Excel SDK](https://docs.microsoft.com/en-us/office/client-developer/excel/welcome-to-the-excel-software-development-kit) and [Julia Embedding](https://docs.julialang.org/en/v1/manual/embedding/).
@@ -270,7 +269,6 @@ The VBA project is password protected to prevent accidental changes. You can see
 Given how JuliaExcel works, with file-based messaging and serialisation in VBA, an interpreted and hence relatively slow language, the most obvious shortcoming will be performance of the data-transfer Excel to Julia and back. That's not always a problem however, notably if the time for marshalling data between Excel and Julia is small (milliseconds) compared with the execution time of the Julia code (tens of seconds). I wrote JuliaExcel for a project where that situation holds.
 
 Other shortcomings are:
- *  There is a limit on the length of expression that Julia is able to parse, which leads to errors when passing large arrays as arguments to `JuliaCall`. For example this formula to evaluate the sum of 700,000 random numbers: `JuliaCall("sum",RANDARRAY(700000))` produces the error `#(ErrorException("syntax: expression too large"))!`. 
  *  JuliaExcel does not work if Windows Terminal is the default terminal application. See [this issue](https://github.com/PGS62/JuliaExcel.jl/issues/9).
 
 &nbsp;

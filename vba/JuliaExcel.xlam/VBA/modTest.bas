@@ -43,25 +43,28 @@ Sub RunTests()
 21        AccResult "TestDictionary", TestDictionary, NumPassed, NumFailed
 22        AccResult "TestExactRoundTripping", TestExactRoundTripping, NumPassed, NumFailed
 23        AccResult "TestArrayOfDictionaries", TestArrayOfDictionaries, NumPassed, NumFailed
-24        AccResult "TestDictionaryOfTypes", TestDictionaryOfTypes, NumPassed, NumFailed
+24        AccResult "TestDictionaryOfArrays", TestDictionaryOfArrays, NumPassed, NumFailed
+25        AccResult "TestDictionaryOfTypes", TestDictionaryOfTypes, NumPassed, NumFailed
+26        AccResult "TestOneDArraysDisplayAsOneColumnOnSheet", TestOneDArraysDisplayAsOneColumnOnSheet, NumPassed, NumFailed
+27        AccResult "TestElType", TestElType, NumPassed, NumFailed
 
-25        Prompt = NumPassed & " test(s) passed" & vbLf & _
+28        Prompt = NumPassed & " test(s) passed" & vbLf & _
               NumFailed & " test(s) failed"
 
-26        If NumFailed > 0 Then
-27            Prompt = Prompt & vbLf & vbLf & _
+29        If NumFailed > 0 Then
+30            Prompt = Prompt & vbLf & vbLf & _
                   "See VBA Immediate window for details"
-28        End If
+31        End If
 
-29        Debug.Print NumPassed & " test(s) passed"
-30        Debug.Print NumFailed & " test(s) failed"
-31        Debug.Print String(80, "=")
+32        Debug.Print NumPassed & " test(s) passed"
+33        Debug.Print NumFailed & " test(s) failed"
+34        Debug.Print String(80, "=")
 
-32        MsgBox Prompt, IIf(NumFailed = 0, vbInformation, vbCritical), Title
+35        MsgBox Prompt, IIf(NumFailed = 0, vbInformation, vbCritical), Title
 
-33        Exit Sub
+36        Exit Sub
 ErrHandler:
-34        MsgBox ReThrow("RunTests", Err, True), vbCritical, Title
+37        MsgBox ReThrow("RunTests", Err, True), vbCritical, Title
 End Sub
 
 Sub AccResult(TestName As String, Result As Boolean, ByRef NumPassed, ByRef NumFailed)
@@ -195,6 +198,7 @@ ErrHandler:
 6         Debug.Print ReThrow("TestDate", Err, True)
 7         TestDate = False
 End Function
+
 Function TestDateTime()
           Dim x As Date
           Dim y As Variant
@@ -360,11 +364,34 @@ ErrHandler:
 13        TestArrayOfDictionaries = False
 End Function
 
+Function TestDictionaryOfArrays()
+
+          Dim x As New Scripting.Dictionary
+          Dim y As Scripting.Dictionary
+
+1         On Error GoTo ErrHandler
+
+2         x("doubles") = Array(1#, 2#, 3#)
+3         x("strings") = Array("foo", "bar")
+
+4         Set y = JuliaCallVBA("identity", x)
+
+5         ThrowIfError JuliaSetVar("first_dict_of_arrays", x)
+6         ThrowIfError JuliaSetVar("second_dict_of_arrays", y)
+
+7         TestDictionaryOfArrays = JuliaEval("first_dict_of_arrays == second_dict_of_arrays")
+
+8         Exit Function
+ErrHandler:
+9         Debug.Print ReThrow("TestDictionaryOfArrays", Err, True)
+10        TestDictionaryOfArrays = False
+End Function
+
+
 Function TestDictionaryOfTypes()
 
           Dim x As New Scripting.Dictionary
           Dim y As Scripting.Dictionary
-          Dim z As New Scripting.Dictionary
             
 1         On Error GoTo ErrHandler
 
@@ -388,5 +415,45 @@ Function TestDictionaryOfTypes()
 ErrHandler:
 15        Debug.Print ReThrow("TestDictionary", Err, True)
 16        TestDictionaryOfTypes = False
+End Function
+
+Function TestOneDArraysDisplayAsOneColumnOnSheet()
+
+          Dim OneDArray() As Variant
+
+1         On Error GoTo ErrHandler
+2         ReDim OneDArray(1 To 3)
+3         OneDArray(1) = 1
+4         OneDArray(2) = 2
+5         OneDArray(3) = 3
+
+6         TestOneDArraysDisplayAsOneColumnOnSheet = _
+              NumDimensions(JuliaCall("identity", OneDArray)) = 2 And _
+              NumDimensions(JuliaCallVBA("identity", OneDArray)) = 1
+
+7         Exit Function
+ErrHandler:
+8         Debug.Print ReThrow("TestOneDArraysDisplayAsOneColumnOnSheet", Err, True)
+9         TestOneDArraysDisplayAsOneColumnOnSheet = False
+End Function
+
+Function TestElType()
+
+1         On Error GoTo ErrHandler
+
+2         TestElType = _
+              JuliaCall("eltype", Array(1, 2, 3)) = "Int16" And _
+              JuliaCall("eltype", Array(1!, 2!, 3!)) = "Float32" And _
+              JuliaCall("eltype", Array(1#, 2#, 3#)) = "Float64" And _
+              JuliaCall("eltype", Array(1, 2#, 3#)) = "Any" And _
+              JuliaCall("eltype", Array("a", "b", "c")) = "String" And _
+              JuliaCall("eltype", Array("a", 1, True)) = "Any" And _
+              JuliaCall("eltype", Array(True, False, True)) = "Bool" And _
+              JuliaCall("eltype", Array(Empty, Empty, Empty)) = "Missing"
+
+3         Exit Function
+ErrHandler:
+4         Debug.Print ReThrow("TestElType", Err, True)
+5         TestElType = False
 End Function
 
