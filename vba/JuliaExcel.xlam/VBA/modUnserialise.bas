@@ -127,6 +127,18 @@ ErrHandler:
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
+' Procedure  : UnserialiseFromString
+' Purpose    : Unserialise a result string returned directly from the Julia HTTP server.
+' -----------------------------------------------------------------------------------------------------------------------
+Function UnserialiseFromString(Contents As String, AllowNested As Boolean, StringLengthLimit As Long, JuliaVectorToXLColumn As Boolean)
+1         On Error GoTo ErrHandler
+2         Assign UnserialiseFromString, Unserialise(Contents, AllowNested, 0, StringLengthLimit, JuliaVectorToXLColumn)
+3         Exit Function
+ErrHandler:
+4         ReThrow "UnserialiseFromString", Err
+End Function
+
+' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : GetStringLengthLimit
 ' Purpose    : Different versions of Excel have different limits for the longest string that can be an element of an
 '              array passed from a VBA UDF back to Excel. I know the limit is 255 for Excel 2013 and earlier, and is

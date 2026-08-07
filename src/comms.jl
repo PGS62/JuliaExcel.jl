@@ -21,8 +21,7 @@ end
 
 """
     getcommsfolder()
-Returns the name of the folder to which request files are written by VBA code in 
-JuliaExcel.xlam and to which `srv_xl` writes results. See also `setcommsfolder`.
+Returns the name of the comms folder used by JuliaExcel. See also `setcommsfolder`.
 """
 function getcommsfolder()
     if commsfolder[] == ""
@@ -34,8 +33,7 @@ end
 
 """
     setcommsfolder(folder::String="")
-Sets the name of the folder to which request files are written by VBA code in 
-JuliaExcel.xlam and to which `srv_xl` writes results. See also `getcommsfolder`.
+Sets the name of the comms folder used by JuliaExcel. See also `getcommsfolder`.
 Argument folder can be omitted as a convenience when developing this package.
 """
 function setcommsfolder(folder::String="")
@@ -70,70 +68,28 @@ function installme()
     nothing
 end
 
-flagfile() = joinpath(getcommsfolder(), "Flag_$(getxlpid()).txt")
-resultfile() = joinpath(getcommsfolder(), "Result_$(getxlpid()).txt")
-expressionfile() = joinpath(getcommsfolder(), "Expression_$(getxlpid()).txt")
-
-"""
-    killflagfile()
-Deletes the "flag file" whose existence indicates to VBA code in JuliaExcel.xlam that 
-`srv_xl()` has not yet completed its evaluation of the contents of the expression to be
-evaluated. `killflagfile` can thus be used manually from the REPL if (for example) the
-expression to be evaluated includes an infinite loop.
-"""
-function killflagfile()
-    rm_retry(flagfile())
-end
-
-"""
-    rm_retry(path::AbstractString; retries::Int=10, wait::Real=0.25)
-Attempts to delete the file or directory at `path` with retry logic for handling transient errors.
-"""
-function rm_retry(path::AbstractString; retries::Int=10, wait::Real=0.25)
-    retries > 0 || throw(ArgumentError("retries must be positive"))
-    for attempt in 1:retries
-        try
-            rm(path)
-            attempt == 1 || @info "Successfully deleted $path on attempt $attempt"
-            return true  # Success
-        catch e
-            @warn "Attempt $attempt to delete $path failed: $e, will retry after $wait seconds..."
-            if attempt == retries
-                @error "All $retries attempts to delete $path failed."
-                rethrow(e)  # Final failure
-            elseif isa(e, Base.IOError)
-                sleep(wait)
-            else
-                rethrow(e)  # Unexpected error
-            end
-        end
-    end
-    return false  # Shouldn't reach here
-end
+portfile() = joinpath(getcommsfolder(), "Port_$(getxlpid()).txt")
 
 """
     read_utf16(filename::String)
 Returns the contents of a UTF-16 LE encoded text file, stripping the leading BOM.
-The expression file is written by VBA's FileSystemObject as UTF-16 LE with BOM.
+The args file is written by VBA's FileSystemObject as UTF-16 LE with BOM.
 See https://discourse.julialang.org/t/reading-a-utf-16-le-file/11687
 """
 read_utf16(filename::String) = transcode(String, reinterpret(UInt16, read(filename)))[4:end]
 
 """
-    srv_xl()
-Read the expression file created by JuliaExcel.xlam, evaluate it and write the result to
-file, to be unserialised by JuliaExcel.xlam. Files are read from and written to the folder
-given by `getcommsfolder`.
+    srv_xl_inner(expression::String)::String
+Evaluate a Julia expression and return the encoded result as a string.
+Called by the HTTP request handler in `start_server`.
 """
-function srv_xl()
-
-    expression = read_utf16(expressionfile())
+function srv_xl_inner(expression::String)::String
     global result = try
         Main.eval(Meta.parse(expression))
     catch e
         println("="^100)
         if length(expression) > 500
-            println("Something went wrong evaluating the contents of $(expressionfile())")
+            println("Something went wrong evaluating the contents of an expression")
         else
             println("Something went wrong evaluating the expression:")
             println(expression)
@@ -153,21 +109,49 @@ function srv_xl()
                       " which cannot be returned to Excel because: $(e)!")
     end
 
-    io = open(resultfile(), "w")
-    write(io, StringEncodings.encode(encodedresult, "UTF-16"))
-    close(io)
-
-    killflagfile()
     canencode || (println("");
-    @error "Result of type $(typeof(result)) could not be " *
-           "encoded for return to Excel.")
+    @error "Result of type $(typeof(result)) could not be encoded for return to Excel.")
 
+    return encodedresult
+end
+
+"""
+    _find_free_port(start::Int=2700)
+Scan for an available TCP port starting from `start`, trying up to 100 candidates.
+"""
+function _find_free_port(start::Int=2700)::Int
+    for p in start:(start + 100)
+        try
+            srv = Sockets.listen(Sockets.IPv4(0), p)
+            close(srv)
+            return p
+        catch
+        end
+    end
+    error("no free port found in range $start to $(start + 100)")
+end
+
+"""
+    start_server()
+Start an HTTP server on a free local port that handles evaluation requests from Excel.
+Writes the chosen port to the port file so VBA can discover it during JuliaLaunch.
+"""
+function start_server()
+    port = _find_free_port()
+    HTTP.serve!("127.0.0.1", port) do req
+        HTTP.Response(200, ["Content-Type" => "text/plain; charset=utf-8"],
+                      srv_xl_inner(String(req.body)))
+    end
+    open(portfile(), "w") do f
+        write(f, string(port))
+    end
+    println("JuliaExcel HTTP server listening on port $port")
     nothing
 end
 
 """
     setvar(name::String, arg)
-Set a variable in global scope. Called by VBA function JuliaSetVar.    
+Set a variable in global scope. Called by VBA function JuliaSetVar.
 """
 function setvar(name::String, arg)
 
@@ -210,7 +194,7 @@ function settitle()
 end
 
 """
-    truncate(x::String)
+    truncate(x::String, maxlength::Int)
 Abbreviate a string to show only `maxlength` characters.
 """
 function truncate(x::String, maxlength::Int)

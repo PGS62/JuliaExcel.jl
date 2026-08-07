@@ -1,9 +1,10 @@
 module JuliaExcel
-export srv_xl, setxlpid, killflagfile, getcommsfolder, htd, hts
+export start_server, setxlpid, getcommsfolder, htd, hts
 
 using DataFrames: DataFrames, DataFrame, Missing
 using Dates: Dates, Date, DateTime
-import StringEncodings
+using HTTP: HTTP
+using Sockets: Sockets
 
 const global xlpid = Ref(0)
 const global commsfolder = Ref("")

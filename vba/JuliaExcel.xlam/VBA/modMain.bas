@@ -182,6 +182,7 @@ Public Function JuliaLaunch(Optional UseLinux As Boolean, Optional MinimiseWindo
               "    JuliaExcel.setcommsfolder(""" & CommsFolderX & """)" & vbLf & _
               "    println(""Julia $VERSION, using " & gPackageName & " to serve Excel running as process ID " & GetCurrentProcessId() & "."")" & vbLf & _
               "    println(""Julia launched with command: " & LiteralCommand & " "")" & vbLf & _
+              "    JuliaExcel.start_server()" & vbLf & _
               "    rm(""" & FlagFileX & """)" & vbLf & _
               "catch e" & vbLf & _
               "    theerror = ""$e""" & vbLf & _
@@ -216,6 +217,14 @@ Public Function JuliaLaunch(Optional UseLinux As Boolean, Optional MinimiseWindo
 80                End If
 81            End If
 82        Wend
+          Dim PortFile As String
+          Dim PortStr As String
+          PortFile = LocalTemp() & "\Port_" & CStr(PID) & ".txt"
+          PortStr = ""
+          On Error Resume Next
+          PortStr = ReadTextFile(PortFile, TristateFalse)
+          On Error GoTo ErrHandler
+          If IsNumeric(PortStr) And CLng(PortStr) > 0 Then SetJuliaPort CLng(PortStr)
 83        CleanLocalTemp
 84        If FileExists(ErrorFile) Then
 85            Throw "Julia launched but encountered an error when executing '" & LoadFile & "' the error was: " & ReadTextFile(ErrorFile, TristateFalse)
@@ -250,47 +259,19 @@ End Function
 Private Function JuliaEval_LowLevel(ByVal JuliaExpression As Variant, _
           Optional AllowNested As Boolean, Optional StringLengthLimit As Long, _
           Optional JuliaVectorToXLColumn As Boolean = True)
-          
+
           Dim strJuliaExpression As String
-          Dim WindowTitle As String
-          Static HwndJulia As LongPtr
-          Static JuliaExe As String
-          Static PID As Long
 
 1         On Error GoTo ErrHandler
-
-2         strJuliaExpression = ConcatenateExpressions(JuliaExpression)
-3         If JuliaExe = "" Then
-4             JuliaExe = JuliaExeLocation()
+2         If GetJuliaPort() = 0 Then
+3             JuliaEval_LowLevel = "#Please call JuliaLaunch before calling JuliaEval or JuliaCall!"
+4             Exit Function
 5         End If
-6         If PID = 0 Then
-7             PID = GetCurrentProcessId()
-8         End If
-9         If HwndJulia = 0 Or IsWindow(HwndJulia) = 0 Then
-10            WindowTitle = "serving Excel PID " & CStr(PID)
-11            GetHandleFromPartialCaption HwndJulia, WindowTitle
-12        End If
-13        If HwndJulia = 0 Or IsWindow(HwndJulia) = 0 Then
-14            JuliaEval_LowLevel = "#Please call JuliaLaunch before calling JuliaEval or JuliaCall!"
-15            Exit Function
-16        End If
-
-17        SaveTextFile JuliaFlagFile, "", TristateTrue
-18        SaveTextFile JuliaExpressionFile, strJuliaExpression, TristateTrue
-
-          'Line below tells Julia to "do the work" by pasting "srv_xl()" to the REPL
-19        PostMessageToJulia HwndJulia
-20        Do While FileExists(JuliaFlagFile)
-21            If IsWindow(HwndJulia) = 0 Then
-22                JuliaEval_LowLevel = "#Julia shut down while evaluating the expression!"
-23                Exit Function
-24            End If
-25        Loop
-
-26        Assign JuliaEval_LowLevel, UnserialiseFromFile(JuliaResultFile, AllowNested, StringLengthLimit, JuliaVectorToXLColumn)
-27        Exit Function
+6         strJuliaExpression = ConcatenateExpressions(JuliaExpression)
+7         Assign JuliaEval_LowLevel, UnserialiseFromString(JuliaHttpPost(strJuliaExpression), AllowNested, StringLengthLimit, JuliaVectorToXLColumn)
+8         Exit Function
 ErrHandler:
-28        ReThrow "JuliaEval_LowLevel", Err
+9         ReThrow "JuliaEval_LowLevel", Err
 End Function
 
 Sub PreciseSleep(Milliseconds As Double)
@@ -488,19 +469,6 @@ Private Function JuliaFlagFile() As String
 2             FlagFile = LocalTemp() & "\Flag_" & CStr(GetCurrentProcessId()) & ".txt"
 3         End If
 4         JuliaFlagFile = FlagFile
-End Function
-
-' -----------------------------------------------------------------------------------------------------------------------
-' Procedure : JuliaExpressionFile
-' Purpose   : Returns the name of the file containing the JuliaExpression that's passed to JuliaEval,
-'             JuliaCall etc.
-' -----------------------------------------------------------------------------------------------------------------------
-Private Function JuliaExpressionFile() As String
-          Static ExpressionFile As String
-1         If ExpressionFile = "" Then
-2             ExpressionFile = LocalTemp() & "\Expression_" & CStr(GetCurrentProcessId()) & ".txt"
-3         End If
-4         JuliaExpressionFile = ExpressionFile
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
