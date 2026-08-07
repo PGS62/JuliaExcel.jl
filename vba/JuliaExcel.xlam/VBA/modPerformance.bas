@@ -84,9 +84,6 @@ communication.Julia To Excel gets faster Excel To Julia gets slower.
 'One-way data transport test, Julia to Excel
 'Average time for JuliaEval("collect((1:100000).*pi)") = 0.154756969999289 seconds (averaged over 10 calls)
 
-
-
-
 Sub PerformanceTest()
           Const NumCallsOnePlusOne As Long = 500
           Const NumCallsVectors = 10
