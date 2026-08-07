@@ -11,7 +11,7 @@ VBA\modPostMessage.bas
 VBA\modPrivate.bas
 VBA\modRegister.bas
 VBA\modSerialise.bas
-VBA\modSerialiseNew.bas
 VBA\modTest.bas
 VBA\modTestDependents.bas
+VBA\modUnserialise.bas
 VBA\modUtils.bas
