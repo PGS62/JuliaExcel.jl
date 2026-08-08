@@ -23,11 +23,16 @@ Sub SetJuliaPort(Port As Long)
 1         On Error GoTo ErrHandler
 2         gJuliaPort = Port
 3         PortFile = LocalTemp() & "\Port_" & CStr(GetCurrentProcessId()) & ".txt"
-4         SaveTextFile PortFile, CStr(Port), TristateFalse
-
-5         Exit Sub
+4         If Port = 0 Then
+5             If FileExists(PortFile) Then
+6                 Kill PortFile
+7             End If
+8         Else
+9             SaveTextFile PortFile, CStr(Port), TristateFalse
+10        End If
+11        Exit Sub
 ErrHandler:
-6         ReThrow "SetJuliaPort", Err
+12        ReThrow "SetJuliaPort", Err
 End Sub
 
 ' -----------------------------------------------------------------------------------------------------------------------
@@ -66,17 +71,19 @@ End Function
 '             has finished evaluating.
 ' -----------------------------------------------------------------------------------------------------------------------
 Function JuliaHttpPost(Payload As String) As String
-          Dim xhr As Object
+          Static xhr As Object
 1         On Error GoTo ErrHandler
-2         Set xhr = CreateObject("MSXML2.XMLHTTP.6.0")
-3         xhr.Open "POST", "http://127.0.0.1:" & GetJuliaPort() & "/eval", False
-4         xhr.setRequestHeader "Content-Type", "text/plain; charset=utf-8"
-5         xhr.Send Payload
-6         If xhr.Status <> 200 Then
-7             Throw "#HTTP " & xhr.Status & ": " & xhr.statusText & "!"
-8         End If
-9         JuliaHttpPost = xhr.responseText
-10        Exit Function
+2         If xhr Is Nothing Then
+3             Set xhr = CreateObject("MSXML2.XMLHTTP.6.0")
+4         End If
+5         xhr.Open "POST", "http://127.0.0.1:" & GetJuliaPort() & "/eval", False
+6         xhr.setRequestHeader "Content-Type", "text/plain; charset=utf-8"
+7         xhr.Send Payload
+8         If xhr.Status <> 200 Then
+9             Throw "#HTTP " & xhr.Status & ": " & xhr.statusText & "!"
+10        End If
+11        JuliaHttpPost = xhr.responseText
+12        Exit Function
 ErrHandler:
-11        ReThrow "JuliaHttpPost", Err
+13        ReThrow "JuliaHttpPost", Err
 End Function

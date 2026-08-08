@@ -85,33 +85,34 @@ Public Function JuliaLaunch(Optional UseLinux As Boolean, Optional MinimiseWindo
 
 1         On Error GoTo ErrHandler
 
-2         SetJuliaPort 0
+2         If IsFunctionWizardActive() Then
+3             JuliaLaunch = "#Disabled in Function Wizard!"
+4             Exit Function
+5         End If
 
-3         If IsFunctionWizardActive() Then
-4             JuliaLaunch = "#Disabled in Function Wizard!"
-5             Exit Function
-6         End If
+6         JuliaExe = JuliaExeLocation(UseLinux)
 
-7         JuliaExe = JuliaExeLocation(UseLinux)
-
-8         UserSuppliedCommandLineOptions = CommandLineOptions
-9         If InStr(CommandLineOptions, "-L") > 0 Or InStr(CommandLineOptions, "--load ") > 0 Then
-10            Throw "CommandLineOptions cannot include the -L or --load options. Instead use JuliaLaunch without that option and then use JuliaCall(""include"",""path_to_file"")"
-11        ElseIf InStr(CommandLineOptions, "-i") = 0 Then
+7         UserSuppliedCommandLineOptions = CommandLineOptions
+8         If InStr(CommandLineOptions, "-L") > 0 Or InStr(CommandLineOptions, "--load ") > 0 Then
+9             Throw "CommandLineOptions cannot include the -L or --load options. Instead use JuliaLaunch without that option and then use JuliaCall(""include"",""path_to_file"")"
+10        ElseIf InStr(CommandLineOptions, "-i") = 0 Then
               'It's convenient if Julia package OhMyREPL works correctly in the REPL, but that requires the -i (interactive) command line option.
               'https://github.com/KristofferC/OhMyREPL.jl/issues/271
-12            CommandLineOptions = Trim$(CommandLineOptions) & " -i"
-13        End If
+11            CommandLineOptions = Trim$(CommandLineOptions) & " -i"
+12        End If
 
-14        PID = GetCurrentProcessId
-15        WindowPartialTitle = "serving Excel PID " & CStr(PID) 'Must be in synch with Julia function JuliaExcel.settitle
-16        GetHandleFromPartialCaption HwndJulia, WindowPartialTitle
+13        PID = GetCurrentProcessId
+14        WindowPartialTitle = "serving Excel PID " & CStr(PID) 'Must be in synch with Julia function JuliaExcel.settitle
+15        GetHandleFromPartialCaption HwndJulia, WindowPartialTitle
 
-17        If HwndJulia <> 0 Then
-18            WindowTitle = WindowTitleFromHandle(HwndJulia)
-19            JuliaLaunch = "Julia is already running in window """ & WindowTitle & """"
-20            Exit Function
-21        End If
+16        If HwndJulia <> 0 Then
+17            WindowTitle = WindowTitleFromHandle(HwndJulia)
+18            JuliaLaunch = "Julia is already running in window """ & WindowTitle & """"
+19            Exit Function
+20        End If
+
+          'Now we are not exiting early set JuliaPort to zero so that we can test for the connection having been correctly established.
+21        SetJuliaPort 0
 
 22        ErrorFile = LocalTemp() & "\LoadError_" & CStr(GetCurrentProcessId()) & ".txt"
 23        If FileExists(ErrorFile) Then Kill ErrorFile
