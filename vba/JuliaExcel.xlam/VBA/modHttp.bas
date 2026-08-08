@@ -16,10 +16,18 @@ Private gJuliaPort As Long
 
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure : SetJuliaPort
-' Purpose   : Store the HTTP port used by the Julia server in the module-level variable.
+' Purpose   : Store the HTTP port used by the Julia server in the module-level variable, backed up to file
 ' -----------------------------------------------------------------------------------------------------------------------
 Sub SetJuliaPort(Port As Long)
-1         gJuliaPort = Port
+          Dim PortFile As String
+1         On Error GoTo ErrHandler
+2         gJuliaPort = Port
+3         PortFile = LocalTemp() & "\Port_" & CStr(GetCurrentProcessId()) & ".txt"
+4         SaveTextFile PortFile, CStr(Port), TristateFalse
+
+5         Exit Sub
+ErrHandler:
+6         ReThrow "SetJuliaPort", Err
 End Sub
 
 ' -----------------------------------------------------------------------------------------------------------------------
