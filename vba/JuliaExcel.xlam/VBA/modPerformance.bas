@@ -166,7 +166,7 @@ Sub PerformanceTest()
           
 54        Exit Sub
 ErrHandler:
-55        ReThrow "PerformanceTest", Err
+55        MsgBox ReThrow("PerformanceTest", Err, True)
 End Sub
 
 '========================================================================================================================

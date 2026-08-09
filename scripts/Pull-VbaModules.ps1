@@ -19,12 +19,16 @@ try {
     exit 1
 }
 
-# Locate workbook by full path (avoids matching an installed add-in of the same name)
+# Locate workbook by name, then verify full path.
+# Note: when the workbook is loaded as an installed add-in (IsAddin = True), it is excluded
+# from Workbooks.Count and foreach enumeration, but Workbooks.Item(name) still finds it.
 $xlPath = (Resolve-Path (Join-Path $PSScriptRoot "..\workbooks\JuliaExcel.xlam")).Path
+$xlName = [IO.Path]::GetFileName($xlPath)
 $book = $null
-foreach ($wb in $excel.Workbooks) {
-    if ($wb.FullName -ieq $xlPath) { $book = $wb; break }
-}
+try {
+    $wb = $excel.Workbooks.Item($xlName)
+    if ($wb.FullName -ieq $xlPath) { $book = $wb }
+} catch { }
 if ($null -eq $book) {
     Write-Error "workbooks\JuliaExcel.xlam is not open in Excel. Open it from:`n  $xlPath"
     exit 1

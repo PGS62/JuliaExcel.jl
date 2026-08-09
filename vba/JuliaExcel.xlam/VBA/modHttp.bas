@@ -43,6 +43,7 @@ End Sub
 '             and CleanLocalTemp will not remove it until it is more than 3 days old.
 ' -----------------------------------------------------------------------------------------------------------------------
 Function GetJuliaPort() As Long
+          Const ErrorString = "There is no connection between Excel and Julia. Call JuliaLaunch"
           Dim PortFile As String
           Dim PortStr As String
 1         On Error GoTo ErrHandler
@@ -55,13 +56,16 @@ Function GetJuliaPort() As Long
 7         On Error Resume Next
 8         PortStr = ReadTextFile(PortFile, TristateFalse)
 9         On Error GoTo ErrHandler
-10        If IsNumeric(PortStr) And CLng(PortStr) > 0 Then
-11            gJuliaPort = CLng(PortStr)
-12            GetJuliaPort = gJuliaPort
-13        End If
-14        Exit Function
+10        If IsNumeric(PortStr) Then
+11            If CLng(PortStr) > 0 Then
+12                gJuliaPort = CLng(PortStr)
+13                GetJuliaPort = gJuliaPort
+14            End If
+15        End If
+16        Throw ErrorString
+17        Exit Function
 ErrHandler:
-15        ReThrow "GetJuliaPort", Err
+18        ReThrow "GetJuliaPort", Err
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
@@ -86,4 +90,26 @@ Function JuliaHttpPost(Payload As String) As String
 12        Exit Function
 ErrHandler:
 13        ReThrow "JuliaHttpPost", Err
+End Function
+
+' -----------------------------------------------------------------------------------------------------------------------
+' Procedure : JuliaIsListening
+' Purpose   : Returns TRUE if the JuliaExcel HTTP server on the given port responds successfully within
+'             TimeoutMs milliseconds, FALSE otherwise (including on any connection error or timeout). Uses
+'             ServerXMLHTTP rather than the XMLHTTP object shared by JuliaHttpPost: XMLHTTP's setTimeouts is
+'             not reliably available when late-bound, whereas ServerXMLHTTP supports it directly, and using
+'             a separate object means a failed probe here cannot affect later calls that reuse that connection.
+' -----------------------------------------------------------------------------------------------------------------------
+Function JuliaIsListening(ByVal Port As Long, Optional ByVal TimeoutMs As Long = 2000) As Boolean
+          Dim xhr As Object
+1         On Error GoTo ErrHandler
+2         Set xhr = CreateObject("MSXML2.ServerXMLHTTP.6.0")
+3         xhr.setTimeouts TimeoutMs, TimeoutMs, TimeoutMs, TimeoutMs
+4         xhr.Open "POST", "http://127.0.0.1:" & CStr(Port) & "/eval", False
+5         xhr.setRequestHeader "Content-Type", "text/plain; charset=utf-8"
+6         xhr.Send "1+1"
+7         JuliaIsListening = (xhr.Status = 200)
+8         Exit Function
+ErrHandler:
+9         JuliaIsListening = False
 End Function
