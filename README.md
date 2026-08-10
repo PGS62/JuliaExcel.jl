@@ -250,17 +250,15 @@ JuliaComputing has recently (October 2021) made JuliaInXL open source, it having
 JuliaExcel has been tested on Excel under Microsoft 365, both 32-bit and 64-bit. It _should_ work on earlier versions of Excel (perhaps back to Excel 2010) but it has not been tested on them.
 
 ## How JuliaExcel works
-The implementation of JuliaExcel is very "low-tech". When `JuliaEval` is called from a worksheet, the following happens:
-1) VBA code (in JuliaExcel.xlam) writes the expression to a file and creates a flag file, both in the `@JuliaExcel` sub-folder of the temporary folder.
-2) VBA code then uses the Windows API `PostMessage` to send keystrokes `srv_xl()` to the Julia window.
-3) That causes the Julia function `srv_xl` (defined in JuliaExcel.jl) to execute. The function reads the expression from file, evaluates it, writes the result to a result file, and then deletes the flag file.
-4) The VBA code (in a wait loop since step 1) detects that the flag file has been deleted, and unserialises the result file.
+JuliaExcel communicates between Excel and Julia over a local HTTP connection:
+1) `JuliaLaunch` starts a Julia process (as a normal Windows process, or under WSL) running a small HTTP server (`JuliaExcel.start_server()`) on a free local port, and writes that port number to a file so VBA can discover it. If a session for the current Excel process already appears to be running, `JuliaLaunch` checks that it's actually responding before reusing it, rather than starting a duplicate.
+2) `JuliaEval` POSTs the Julia expression as plain text to the server's `/eval` endpoint. The Julia function `srv_xl_inner` (in `comms.jl`) evaluates it with `Meta.parse`/`eval` and returns the result - encoded in JuliaExcel's own compact text-based wire format - in the HTTP response body.
+3) `JuliaCall` and `JuliaCallVBA` instead encode the function name and its arguments (marshalled per the rules described in [Marshalling](#marshalling)) into that same wire format and POST it to the `/call` endpoint. `srv_call_inner` decodes it and invokes the named function directly, returning the result the same way. This avoids `Meta.parse`ing a literal expression, which is slow for calls passing large arrays.
+4) VBA unserialises the response body back into worksheet values or VBA variables.
 
 Other points to note:
- * `JuliaCall` is simply a wrapper to `JuliaEval`, with the arguments serialised in a custom text format that Julia decodes before invoking the function. The same format is used for the result file, and is designed to be fast to unserialise.
- * The "wait loop" includes a heart-beat check that Julia is still alive, so executing `=JuliaEval("exit()")` errors gracefully. 
- * There is obvious scope to improve this implementation by switching away from a file-based messaging system to one based on sockets.
- * But best performance would be achieved using C via the [Excel SDK](https://docs.microsoft.com/en-us/office/client-developer/excel/welcome-to-the-excel-software-development-kit) and [Julia Embedding](https://docs.julialang.org/en/v1/manual/embedding/).
+ * Each `JuliaEval`/`JuliaCall` is a simple synchronous HTTP request/response. If Julia isn't there to answer (e.g. after `=JuliaEval("exit()")`), the request fails with a connection error, which VBA reports as a normal error.
+ * Best performance would still be achieved using C via the [Excel SDK](https://docs.microsoft.com/en-us/office/client-developer/excel/welcome-to-the-excel-software-development-kit) and [Julia Embedding](https://docs.julialang.org/en/v1/manual/embedding/).
 
 ## Viewing the code
 The VBA project is password protected to prevent accidental changes. You can see the VBA code [here](https://github.com/PGS62/JuliaExcel.jl/blob/master/vba/JuliaExcel.xlam/modMain.bas), or view it in JuliaExcel.xlam by unprotecting with the password "JuliaExcel". Julia source code is always visible on your PC, and the [@functionloc](https://docs.julialang.org/en/v1/stdlib/InteractiveUtils/#InteractiveUtils.@functionloc) macro is an easy way to locate the code of any function you're interested in.

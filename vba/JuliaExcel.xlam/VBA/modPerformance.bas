@@ -84,6 +84,35 @@ communication.Julia To Excel gets faster Excel To Julia gets slower.
 'One-way data transport test, Julia to Excel
 'Average time for JuliaEval("collect((1:100000).*pi)") = 0.154756969999289 seconds (averaged over 10 calls)
 
+'========================================================================================================================
+'Running method PerformanceTest
+'Time now = 2026-08-10 13:17:53
+'JuliaExcel Version = 128
+'Computer = MSI
+'Latency test
+'Average time for JuliaEval("1+1") = 1.16016960004345 miliseconds (averaged over 500 calls)
+'Two-way data transport test
+'Average time for JuliaCall("identity", vector of length 100,000) = 0.557932109991089 seconds (averaged over 10 calls)
+'One-way data transport test, Excel to Julia
+'Average time for JuliaCall("sum", vector of length 100,000) = 0.276260319992434 seconds (averaged over 10 calls)
+'One-way data transport test, Julia to Excel
+'Average time for JuliaEval("collect((1:100000).*pi)") = 0.370191970001906 seconds (averaged over 10 calls)
+
+'========================================================================================================================
+'Running method PerformanceTest
+'Time now = 2026-08-10 14:39:57
+'JuliaExcel Version = 128
+'Computer = MSI
+'Latency test
+'Average time for JuliaEval("1+1") = 1.09734679991379 miliseconds (averaged over 500 calls)
+'Two-way data transport test
+'Average time for JuliaCall("identity", vector of length 100,000) = 0.274450039991643 seconds (averaged over 10 calls)
+'One-way data transport test, Excel to Julia
+'Average time for JuliaCall("sum", vector of length 100,000) = 0.112631449999753 seconds (averaged over 10 calls)
+'One-way data transport test, Julia to Excel
+'Average time for JuliaEval("collect((1:100000).*pi)") = 0.167135900002904 seconds (averaged over 10 calls)
+
+
 Sub PerformanceTest()
           Const NumCallsOnePlusOne As Long = 500
           Const NumCallsVectors = 10

@@ -674,37 +674,30 @@ End Sub
 'Average time in JuliaEval   0.015039338300001          Averaged over 1000 calls
 '--------------------------------------------------
 ' -----------------------------------------------------------------------------------------------------------------------
-' Procedure : JuliaArgsFile
-' Purpose   : Returns the name of the file to which serialised arguments are written by JuliaCall.
-' -----------------------------------------------------------------------------------------------------------------------
-Private Function JuliaArgsFile() As String
-          Static ArgsFile As String
-1         If ArgsFile = "" Then
-2             ArgsFile = LocalTemp() & "\Args_" & CStr(GetCurrentProcessId()) & ".txt"
-3         End If
-4         JuliaArgsFile = ArgsFile
-End Function
-
-' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : JuliaCall_LowLevel
-' Purpose    : Shared dispatch for JuliaCall and JuliaCallVBA. The args file must already
-'              have been written by the caller before this is called.
+' Purpose    : Shared dispatch for JuliaCall and JuliaCallVBA. POSTs EncodedArgs (a 1D array in the
+'              JuliaExcel wire format whose first element is a function name and remaining elements
+'              are its arguments) to the /call HTTP endpoint, handled by Julia's srv_call_inner.
 '              IsFromWorksheet controls result handling in the same way as for JuliaEval_LowLevel:
 '                False -> AllowNested=True, no string-length limit, vectors stay 1D  (VBA caller)
 '                True  -> AllowNested=False, GetStringLengthLimit(), vectors become columns (worksheet)
 '              Note: cannot accept ParamArray here - VBA forbids using a ParamArray parameter as
 '              an argument in any call, so the encoding loop is duplicated in each public wrapper.
 ' -----------------------------------------------------------------------------------------------------------------------
-Private Function JuliaCall_LowLevel(IsFromWorksheet As Boolean)
+Private Function JuliaCall_LowLevel(EncodedArgs As String, IsFromWorksheet As Boolean)
 1         On Error GoTo ErrHandler
-2         If IsFromWorksheet Then
-3             Assign JuliaCall_LowLevel, JuliaEval_LowLevel("JuliaExcel.call_from_xl()", False, GetStringLengthLimit(), True)
-4         Else
-5             Assign JuliaCall_LowLevel, JuliaEval_LowLevel("JuliaExcel.call_from_xl()", True, 0, False)
-6         End If
-7         Exit Function
+2         If GetJuliaPort() = 0 Then
+3             JuliaCall_LowLevel = "#Please call JuliaLaunch before calling JuliaEval or JuliaCall!"
+4             Exit Function
+5         End If
+6         If IsFromWorksheet Then
+7             Assign JuliaCall_LowLevel, UnserialiseFromString(JuliaHttpPost(EncodedArgs, "/call"), False, GetStringLengthLimit(), True)
+8         Else
+9             Assign JuliaCall_LowLevel, UnserialiseFromString(JuliaHttpPost(EncodedArgs, "/call"), True, 0, False)
+10        End If
+11        Exit Function
 ErrHandler:
-8         ReThrow "JuliaCall_LowLevel", Err
+12        ReThrow "JuliaCall_LowLevel", Err
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
@@ -747,12 +740,11 @@ Public Function JuliaCall(JuliaFunction As String, ParamArray Args())
 15            LengthsSection = LengthsSection & CStr(Len(ThisEncoded)) & ","
 16            ContentsSection = ContentsSection & ThisEncoded
 17        Next i
-18        SaveTextFile JuliaArgsFile, "*1," & CStr(NumElements) & ";" & LengthsSection & ";" & ContentsSection, TristateTrue
-19        Assign JuliaCall, JuliaCall_LowLevel(IsFromWorksheet:=True)
+18        Assign JuliaCall, JuliaCall_LowLevel("*1," & CStr(NumElements) & ";" & LengthsSection & ";" & ContentsSection, IsFromWorksheet:=True)
 
-20        Exit Function
+19        Exit Function
 ErrHandler:
-21        JuliaCall = ReThrow("JuliaCall", Err, True)
+20        JuliaCall = ReThrow("JuliaCall", Err, True)
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
@@ -789,12 +781,11 @@ Public Function JuliaCallVBA(JuliaFunction As String, ParamArray Args())
 11            LengthsSection = LengthsSection & CStr(Len(ThisEncoded)) & ","
 12            ContentsSection = ContentsSection & ThisEncoded
 13        Next i
-14        SaveTextFile JuliaArgsFile, "*1," & CStr(NumElements) & ";" & LengthsSection & ";" & ContentsSection, TristateTrue
-15        Assign JuliaCallVBA, JuliaCall_LowLevel(IsFromWorksheet:=False)
+14        Assign JuliaCallVBA, JuliaCall_LowLevel("*1," & CStr(NumElements) & ";" & LengthsSection & ";" & ContentsSection, IsFromWorksheet:=False)
 
-16        Exit Function
+15        Exit Function
 ErrHandler:
-17        ReThrow "JuliaCallVBA", Err
+16        ReThrow "JuliaCallVBA", Err
 End Function
 
 Private Sub SpeedTest2()

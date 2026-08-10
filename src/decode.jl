@@ -1,7 +1,8 @@
 #=
 decode_from_xl is the inverse of encode_for_xl (in encode.jl). It decodes a string in the
-JuliaExcel wire format back to a Julia value. The same format is used by VBA's Serialise
-function (in modSerialiseNew.bas) to encode arguments before calling call_from_xl.
+JuliaExcel wire format back to a Julia value. The same format is used by VBA's SerialiseElement
+function (in modSerialise.bas) to encode arguments before POSTing them to the /call HTTP
+endpoint, handled by srv_call_inner (in comms.jl).
 
 Type indicators:
  #   Float64  (followed by 16 hex chars, IEEE-754 bit pattern)
@@ -20,14 +21,8 @@ Type indicators:
  *   Array    (*<rank>,<d1>[,<d2>];<len1>,<len2>,...,;<elements> column-major)
  H   Dict     (H<count>;<key1_len>,<val1_len>,...,;<key1><val1>... pairs column-order)
 
-See also VBA function SerialiseArgs (modSerialiseNew.bas) which serialises i.e. inverts this.
+See also VBA function SerialiseElement (modSerialise.bas) which serialises i.e. inverts this.
 =#
-
-"""
-    argsfile()
-Path to the file containing serialised arguments written by VBA function `JuliaCallNew`.
-"""
-argsfile() = joinpath(getcommsfolder(), "Args_$(getxlpid()).txt")
 
 """
     decode_from_xl(s::String)
@@ -191,22 +186,4 @@ function _maybe_typed(a::Array{Any})
     catch
         a
     end
-end
-
-"""
-    call_from_xl()
-
-Read the args file written by `JuliaCallNew`, decode the function name and arguments, and
-call the named function. This replaces the `MakeJuliaLiteral` + `Meta.parse` path for
-data-heavy calls, avoiding the ~1s parse time for large array literals.
-
-The args file contains a 1D array in the JuliaExcel wire format where element 1 is the
-function name (a String) and elements 2..n are the arguments.
-"""
-function call_from_xl()
-    args_encoded = read_utf16(argsfile())
-    decoded = decode_from_xl(args_encoded)          # Vector{Any} (or typed) of n+1 elements
-    fn_name = decoded[1]::String
-    fn = Main.eval(Meta.parse(fn_name))             # fast: parses only the short function name
-    fn(decoded[2:end]...)
 end

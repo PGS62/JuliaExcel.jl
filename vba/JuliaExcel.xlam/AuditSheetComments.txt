@@ -1,4 +1,5 @@
 ﻿Version	Date	Time	Author	Comment
+128	10-Aug-2026	13:16	Philip Swannell	Route JuliaCall/JuliaCallVBA through HTTP, dropping the args file.
 127	10-Aug-2026	12:19	Philip Swannell	Fix JuliaLaunch timeout handling and GetJuliaPort's stale-recovery bug.
 126	10-Aug-2026	10:50	Philip Swannell	Remove obsolete functions and simplify MakeJuliaLiteral
 125	09-Aug-2026	20:01	Philip Swannell	Deleted DoubleToHexOld, SingleToHexOld, JuliaCallOld and JuliaCallVBAOld.

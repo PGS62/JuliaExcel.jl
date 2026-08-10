@@ -1,5 +1,6 @@
 ﻿AuditSheetComments.txt
 FilesInProject.txt
+Formulas\Audit.tsv
 Intellisense.txt
 JuliaExcel.xlam
 Values\_IntelliSense_.csv

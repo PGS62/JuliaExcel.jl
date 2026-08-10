@@ -71,17 +71,26 @@ end
 portfile() = joinpath(getcommsfolder(), "Port_$(getxlpid()).txt")
 
 """
-    read_utf16(filename::String)
-Returns the contents of a UTF-16 LE encoded text file, stripping the leading BOM.
-The args file is written by VBA's FileSystemObject as UTF-16 LE with BOM.
-See https://discourse.julialang.org/t/reading-a-utf-16-le-file/11687
+    _encode_result_for_xl(result)::String
+Encode `result` for return to Excel, shared by `srv_xl_inner` and `srv_call_inner`. If `result`
+itself can't be encoded (e.g. it's a type with no `encode_for_xl` method), reports that to the
+Julia console and returns an encoded error string describing the problem instead.
 """
-read_utf16(filename::String) = transcode(String, reinterpret(UInt16, read(filename)))[4:end]
+function _encode_result_for_xl(result)::String
+    try
+        encode_for_xl(result)
+    catch e
+        println("")
+        @error "Result of type $(typeof(result)) could not be encoded for return to Excel."
+        encode_for_xl("#Expression evaluated to a variable of type $(typeof(result))," *
+                      " which cannot be returned to Excel because: $(e)!")
+    end
+end
 
 """
     srv_xl_inner(expression::String)::String
 Evaluate a Julia expression and return the encoded result as a string.
-Called by the HTTP request handler in `start_server`.
+Called by the HTTP request handler in `start_server` for requests to `/eval`.
 """
 function srv_xl_inner(expression::String)::String
     global result = try
@@ -99,20 +108,32 @@ function srv_xl_inner(expression::String)::String
         println("="^100)
         truncate("#($e)!", 10000)
     end
+    _encode_result_for_xl(result)
+end
 
-    canencode = true
-    encodedresult = try
-        encode_for_xl(result)
+"""
+    srv_call_inner(payload::String)::String
+Decode `payload` (in the JuliaExcel wire format - a 1D array whose first element is a function
+name and remaining elements are its arguments), call the named function, and return the encoded
+result as a string. Called by the HTTP request handler in `start_server` for requests to `/call`.
+Avoids the `Meta.parse` of a literal expression that `srv_xl_inner` requires, which is slow for
+large arrays of arguments.
+"""
+function srv_call_inner(payload::String)::String
+    global result = try
+        decoded = decode_from_xl(payload)
+        fn_name = decoded[1]::String
+        fn = Main.eval(Meta.parse(fn_name))             # fast: parses only the short function name
+        fn(decoded[2:end]...)
     catch e
-        canencode = false
-        encode_for_xl("#Expression evaluated to a variable of type $(typeof(result))," *
-                      " which cannot be returned to Excel because: $(e)!")
+        println("="^100)
+        println("Something went wrong calling a Julia function from Excel")
+        showerror(stdout, e, catch_backtrace())
+        println("")
+        println("="^100)
+        truncate("#($e)!", 10000)
     end
-
-    canencode || (println("");
-    @error "Result of type $(typeof(result)) could not be encoded for return to Excel.")
-
-    return encodedresult
+    _encode_result_for_xl(result)
 end
 
 """
@@ -139,8 +160,9 @@ Writes the chosen port to the port file so VBA can discover it during JuliaLaunc
 function start_server()
     port = _find_free_port()
     HTTP.serve!("127.0.0.1", port) do req
+        handler = req.target == "/call" ? srv_call_inner : srv_xl_inner
         HTTP.Response(200, ["Content-Type" => "text/plain; charset=utf-8"],
-                      srv_xl_inner(String(req.body)))
+                      handler(String(req.body)))
     end
     open(portfile(), "w") do f
         write(f, string(port))

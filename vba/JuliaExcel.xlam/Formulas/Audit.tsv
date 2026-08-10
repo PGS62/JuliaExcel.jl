@@ -1,0 +1,2 @@
+Address	Formula
+G6	"=JuliaExcel.xlam!juliacall(""+"",1,1)"

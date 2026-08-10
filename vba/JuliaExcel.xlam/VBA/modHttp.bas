@@ -71,17 +71,20 @@ End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure : JuliaHttpPost
-' Purpose   : POST a serialised Julia expression to the JuliaExcel HTTP server and return
-'             the serialised result. Uses synchronous XMLHTTP so the call blocks until Julia
-'             has finished evaluating.
+' Purpose   : POST a payload to the JuliaExcel HTTP server and return the serialised result.
+'             Uses synchronous XMLHTTP so the call blocks until Julia has finished processing.
+' Arguments
+' Payload   : For Path = "/eval" (the default), a Julia expression to evaluate. For "/call", a
+'             1D array in the JuliaExcel wire format whose first element is a function name and
+'             remaining elements are its arguments.
 ' -----------------------------------------------------------------------------------------------------------------------
-Function JuliaHttpPost(Payload As String) As String
+Function JuliaHttpPost(Payload As String, Optional Path As String = "/eval") As String
           Static xhr As Object
 1         On Error GoTo ErrHandler
 2         If xhr Is Nothing Then
 3             Set xhr = CreateObject("MSXML2.XMLHTTP.6.0")
 4         End If
-5         xhr.Open "POST", "http://127.0.0.1:" & GetJuliaPort() & "/eval", False
+5         xhr.Open "POST", "http://127.0.0.1:" & GetJuliaPort() & Path, False
 6         xhr.setRequestHeader "Content-Type", "text/plain; charset=utf-8"
 7         xhr.Send Payload
 8         If xhr.Status <> 200 Then
