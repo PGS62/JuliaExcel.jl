@@ -1,4 +1,6 @@
 ﻿Version	Date	Time	Author	Comment
+130	10-Aug-2026	18:55	Philip Swannell	Updates on worksheet _Intellisense_.
+129	10-Aug-2026	18:07	Philip Swannell	Removed JuliaResultFile and JuliaUnserialiseFile from _Intellisense_worksheet - their VBA code has already been removed in an earlier git commit.
 128	10-Aug-2026	13:16	Philip Swannell	Route JuliaCall/JuliaCallVBA through HTTP, dropping the args file.
 127	10-Aug-2026	12:19	Philip Swannell	Fix JuliaLaunch timeout handling and GetJuliaPort's stale-recovery bug.
 126	10-Aug-2026	10:50	Philip Swannell	Remove obsolete functions and simplify MakeJuliaLiteral
