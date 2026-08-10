@@ -1,4 +1,5 @@
-Version	Date	Time	Author	Comment
+﻿Version	Date	Time	Author	Comment
+28	10-Aug-2026	18:24	Philip Swannell	Updates for socket-based version of JuliaExcel.
 27	08-Dec-2021	17:28	Philip Swannell	Refreshed.
 26	07-Dec-2021	15:23	Philip Swannell	Refreshed.
 25	06-Dec-2021	17:40	Philip Swannell	Refreshed.

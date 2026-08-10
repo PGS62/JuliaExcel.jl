@@ -1,0 +1,4 @@
+Address	Formula
+B7:B16	=MarkdownForSummaryOfFunctions()
+B22:B117	=HelpForVBEAll(SourceFile)
+G22:G107	=MarkdownHelpAll(SourceFile,$G$2:$H$3)
