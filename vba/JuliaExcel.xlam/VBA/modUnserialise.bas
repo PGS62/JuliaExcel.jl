@@ -395,41 +395,11 @@ End Function
 #End If
 
 ' -----------------------------------------------------------------------------------------------------------------------
-' Procedure  : DoubleToHexOld
-' Purpose    : Return a 16-character uppercase hexadecimal string representing the IEEE-754 bit pattern of x (Double).
-'              Does not special-case NaN, +0.0 or -0.0.
-' -----------------------------------------------------------------------------------------------------------------------
-Function DoubleToHexOld(ByVal x As Double) As String
-
-          Dim H1 As String
-          Dim H2 As String
-          Dim Out As String
-          Dim TD As TDouble
-          Dim Tl As TLongs
-          
-1         On Error GoTo ErrHandler
-2         TD.d = x
-3         LSet Tl = TD  ' reinterpret the 8 bytes of the Double as two Longs
-
-4         Out = "0000000000000000"
-5         H1 = Hex$(Tl.Hi)
-6         H2 = Hex$(Tl.Lo)
-
-7         Mid$(Out, 9 - Len(H1)) = H1
-8         Mid$(Out, 17 - Len(H2)) = H2
-9         DoubleToHexOld = Out
-
-10        Exit Function
-ErrHandler:
-11        ReThrow "DoubleToHexOld", Err
-End Function
-
-' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : DoubleToHex
-' Purpose    : Faster alternative to DoubleToHex. Uses LSet to reinterpret the 8 bytes of x as a
-'              Byte array, then maps each byte through a static 256-entry lookup table (seeded on
-'              first call) to produce the two-character hex pair.  Avoids the variable-length Hex$
-'              call and Mid$ placement that DoubleToHex requires.
+' Purpose    : Encode x as a 16-character hex string of its IEEE-754 bit pattern (big-endian), for
+'              inclusion in the wire format passed between Excel and Julia. Uses LSet to reinterpret
+'              the 8 bytes of x as a Byte array, then maps each byte through a static 256-entry
+'              lookup table (seeded on first call) to produce the two-character hex pair.
 ' -----------------------------------------------------------------------------------------------------------------------
 Function DoubleToHex(ByVal x As Double) As String
           Static HexByte(0 To 255) As String
@@ -480,28 +450,10 @@ End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : SingleToHex
-' Purpose    : Return a 8-character uppercase hexadecimal string representing the IEEE-754 bit pattern of x (Single).
-'              Does not special-case NaN, +0.0 or -0.0.
-' -----------------------------------------------------------------------------------------------------------------------
-Function SingleToHexOld(ByVal x As Single) As String
-
-          Dim Tl As TLong
-          Dim TS As TSingle
-
-1         On Error GoTo ErrHandler
-2         TS.s = x
-3         LSet Tl = TS  ' reinterpret the 4 bytes of the Single as a Long
-4         SingleToHexOld = LPad(Hex$(Tl.x), 8, "0")
-5         Exit Function
-ErrHandler:
-6         ReThrow "SingleToHexOld", Err
-End Function
-
-' -----------------------------------------------------------------------------------------------------------------------
-' Procedure  : SingleToHex
-' Purpose    : Faster alternative to SingleToHexOld. Uses LSet to reinterpret the 4 bytes of x as
-'              a Byte array, then maps each byte through a static 256-entry lookup table (seeded on
-'              first call) to produce the two-character hex pair.
+' Purpose    : Encode x as an 8-character hex string of its IEEE-754 bit pattern (big-endian), for
+'              inclusion in the wire format passed between Excel and Julia. Uses LSet to reinterpret
+'              the 4 bytes of x as a Byte array, then maps each byte through a static 256-entry
+'              lookup table (seeded on first call) to produce the two-character hex pair.
 ' -----------------------------------------------------------------------------------------------------------------------
 Function SingleToHex(ByVal x As Single) As String
           Static HexByte(0 To 255) As String

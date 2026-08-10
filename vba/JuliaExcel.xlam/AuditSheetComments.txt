@@ -1,4 +1,6 @@
 ﻿Version	Date	Time	Author	Comment
+126	10-Aug-2026	10:50	Philip Swannell	Remove obsolete functions and simplify MakeJuliaLiteral
+125	09-Aug-2026	20:01	Philip Swannell	Deleted DoubleToHexOld, SingleToHexOld, JuliaCallOld and JuliaCallVBAOld.
 124	09-Aug-2026	19:52	Philip Swannell	More changes in JuliaLaunch.
 123	08-Aug-2026	08:46	Philip Swannell	Improvements to error handling in JuliaLaunch.
 122	07-Aug-2026	12:46	Philip Swannell	Imported Claude's rewrite to use Sockets rather than file-based mechanism.

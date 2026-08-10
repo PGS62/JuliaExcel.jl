@@ -368,81 +368,6 @@ ErrHandler:
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
-' Procedure : JuliaCallOld
-' Purpose   : Call a named Julia function, passing in data from the worksheet.
-' Arguments
-' JuliaFunction: The name of a Julia function that's defined in the Julia session, perhaps as a result of
-'             prior calls to JuliaInclude.
-' Args...   : Zero or more arguments. Each argument may be a number, string, Boolean value, empty cell, an
-'             array of such values or an Excel range.
-' -----------------------------------------------------------------------------------------------------------------------
-Private Function JuliaCallOld(JuliaFunction As String, ParamArray Args())
-          Dim Expression As String
-          Dim i As Long
-          Dim Tmp() As String
-
-1         On Error GoTo ErrHandler
-
-2         If IsFunctionWizardActive() Then
-3             JuliaCallOld = "#Disabled in Function Wizard!"
-4             Exit Function
-5         End If
-
-6         If UBound(Args) >= LBound(Args) Then
-7             ReDim Tmp(LBound(Args) To UBound(Args))
-
-8             For i = LBound(Args) To UBound(Args)
-9                 If TypeName(Args(i)) = "Range" Then Args(i) = Args(i).Value2
-10                Tmp(i) = MakeJuliaLiteral(Args(i))
-11            Next i
-12            Expression = JuliaFunction & "(" & VBA.Join$(Tmp, ",") & ")"
-13        Else
-14            Expression = JuliaFunction & "()"
-15        End If
-
-16        JuliaCallOld = JuliaEval(Expression)
-
-17        Exit Function
-ErrHandler:
-18        JuliaCallOld = ReThrow("JuliaCallOld", Err, True)
-End Function
-
-' -----------------------------------------------------------------------------------------------------------------------
-' Procedure : JuliaCallVBAOld
-' Purpose   : Call a named Julia function from VBA. Differs from JuliaCallOld in handling of 1-dimensional
-'             arrays, and strings longer than 32,767 characters. May return data of types that cannot be
-'             displayed on a worksheet, such as a dictionary or an array of arrays.
-' Arguments
-' JuliaFunction: The name of a Julia function that's defined in the Julia session, perhaps as a result of
-'             prior calls to JuliaInclude.
-' Args...   : Zero or more arguments. Each argument may be a number, string, Boolean value, empty cell, an
-'             array of such values or an Excel range.
-' -----------------------------------------------------------------------------------------------------------------------
-Private Function JuliaCallVBAOld(JuliaFunction As String, ParamArray Args())
-          Dim Expression As String
-          Dim i As Long
-          Dim Tmp() As String
-
-1         On Error GoTo ErrHandler
-2         If UBound(Args) >= LBound(Args) Then
-3             ReDim Tmp(LBound(Args) To UBound(Args))
-4             For i = LBound(Args) To UBound(Args)
-5                 If TypeName(Args(i)) = "Range" Then Args(i) = Args(i).Value2
-6                 Tmp(i) = MakeJuliaLiteral(Args(i))
-7             Next i
-8             Expression = JuliaFunction & "(" & VBA.Join$(Tmp, ",") & ")"
-9         Else
-10            Expression = JuliaFunction & "()"
-11        End If
-
-12        Assign JuliaCallVBAOld, JuliaEval_LowLevel(Expression, AllowNested:=True, StringLengthLimit:=0, JuliaVectorToXLColumn:=False)
-
-13        Exit Function
-ErrHandler:
-14        ReThrow "JuliaCallVBAOld", Err
-End Function
-
-' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure : JuliaInclude
 ' Purpose   : Load a Julia source file into the Julia process, to make additional functions available
 '             via JuliaEval and JuliaCall.
@@ -737,8 +662,7 @@ End Function
 '                False -> AllowNested=True, no string-length limit, vectors stay 1D  (VBA caller)
 '                True  -> AllowNested=False, GetStringLengthLimit(), vectors become columns (worksheet)
 '              Note: cannot accept ParamArray here - VBA forbids using a ParamArray parameter as
-'              an argument in any call, so the encoding loop is duplicated in each public wrapper,
-'              exactly as JuliaCallOld and JuliaCallVBAOld both duplicate the MakeJuliaLiteral loop.
+'              an argument in any call, so the encoding loop is duplicated in each public wrapper.
 ' -----------------------------------------------------------------------------------------------------------------------
 Private Function JuliaCall_LowLevel(IsFromWorksheet As Boolean)
 1         On Error GoTo ErrHandler
