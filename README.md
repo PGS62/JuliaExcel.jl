@@ -51,13 +51,13 @@ JuliaExcel makes the following functions available from Excel worksheets and fro
 
 |Name|Description|
 |----|-----------|
-|[JuliaLaunch](#julialaunch)|Launches a local Julia session which "listens" to the current Excel session and responds to calls to `JuliaEval` etc..|
+|[JuliaLaunch](#julialaunch)|Launches a local Julia session which listens to the current Excel session and responds to calls to `JuliaEval` etc..|
 |[JuliaInclude](#juliainclude)|Load a Julia source file into the Julia process, to make additional functions available via `JuliaEval` and `JuliaCall`.|
 |[JuliaEval](#juliaeval)|Evaluate a Julia expression and return the result to an Excel worksheet.|
-|[JuliaCall](#juliacall)|Call a named Julia function, passing in data from the worksheet.|
+|[JuliaCall](#juliacall)|Call a named Julia function, passing in data from the worksheet. Returns an error string for results that cannot be displayed on a worksheet (nested arrays, dictionaries etc). `JuliaCallVBA` lifts those restrictions.|
 |[JuliaSetVar](#juliasetvar)|Set a global variable in the Julia process.|
-|[JuliaEvalVBA](#juliaevalvba)|Evaluate a Julia expression from VBA . Differs from `JuliaCall` in handling of 1-dimensional arrays, and strings longer than 32,767 characters. May return data of types that cannot be displayed on a worksheet, such as a dictionary or an array of arrays.|
-|[JuliaCallVBA](#juliacallvba)|Call a named Julia function from VBA. Differs from `JuliaCall` in handling of 1-dimensional arrays, and strings longer than 32,767 characters. May return data of types that cannot be displayed on a worksheet, such as a dictionary or an array of arrays.|
+|[JuliaEvalVBA](#juliaevalvba)|Evaluate a Julia expression from VBA . Differs from `JuliaCall` in handling of 1-d arrays and strings longer than 32,767 characters. May return data of types that cannot be displayed on a worksheet, such as a dictionary or an array of arrays.|
+|[JuliaCallVBA](#juliacallvba)|Call a named Julia function from VBA. Differs from `JuliaCall` in handling of 1-d arrays and strings longer than 32,767 characters. May return data of types that cannot be displayed on a worksheet, such as a dictionary, an array of arrays, or arrays of dimension up to 9.|
 |[JuliaIsRunning](#juliaisrunning)|Returns TRUE if an instance of Julia is running and "listening" to the current Excel session, or FALSE otherwise.|
 
 ## Demo
@@ -91,11 +91,11 @@ End Sub
 ## Function Documentation
 
 ### `JuliaLaunch`
-Launches a local Julia session which "listens" to the current Excel session and responds to calls to `JuliaEval` etc..
+Launches a local Julia session which listens to the current Excel session and responds to calls to `JuliaEval` etc..
 ```vba
 Public Function JuliaLaunch(Optional UseLinux As Boolean, Optional MinimiseWindow As Boolean, _
-    Optional ByVal CommandLineOptions As String, Optional ByVal Packages As String, _
-    Optional ByVal BashStatements As String, Optional TimeOut As Long = 30)
+          Optional ByVal CommandLineOptions As String, Optional ByVal Packages As String, _
+          Optional ByVal BashStatements As String, Optional TimeOut As Long = 30)
 ```
 
 |Argument|Description|
@@ -105,7 +105,7 @@ Public Function JuliaLaunch(Optional UseLinux As Boolean, Optional MinimiseWindo
 |`CommandLineOptions`|Command line options set when launching Julia.<br/>Example : `--threads=auto --banner=no`.<br/>https://docs.julialang.org/en/v1/manual/command-line-options/|
 |`Packages`|`Packages` to load, which must be available in the default Julia environment (or environment set via the `--project` command line option). Delimit multiple packages with commas.|
 |`BashStatements`|Relevant only when `UseLinux` is TRUE. Bash statements executed prior to launching Julia, which can be used to set environment variables. Example `export JULIA_PKG_DEVDIR=/mnt/c/Projects`. Delimit multiple statements with the line feed character.|
-|`TimeOut`|The number of seconds to wait for Julia to launch before the function assumes that launch has failed (perhaps because of mal-formed `CommandLineOptions`). Optional and defaults to 30.|
+|`TimeOut`|The number of seconds to wait for Julia to fully start (including any package precompilation) before `JuliaLaunch` gives up waiting and returns an informational message rather than an error - Julia is not killed, and calling `JuliaLaunch` or `JuliaEval` again once it has finished starting will work normally. A separate, much shorter internal check (the lesser of `TimeOut` and 5 seconds) detects a genuine launch failure, e.g. from mal-formed `CommandLineOptions`, and reports that as an error immediately. `TimeOut` is optional and defaults to 30.|
 
 ### `JuliaInclude`
 Load a Julia source file into the Julia process, to make additional functions available via `JuliaEval` and `JuliaCall`.
@@ -128,15 +128,15 @@ Public Function JuliaEval(ByVal JuliaExpression As Variant)
 |`JuliaExpression`|Any valid Julia code, as a string. Can also be a one-column range to evaluate multiple Julia statements.|
 
 ### `JuliaCall`
-Call a named Julia function, passing in data from the worksheet.
+Call a named Julia function, passing in data from the worksheet. Returns an error string for results that cannot be displayed on a worksheet (nested arrays, dictionaries etc). `JuliaCallVBA` lifts those restrictions.
 ```vba
 Public Function JuliaCall(JuliaFunction As String, ParamArray Args())
 ```
 
 |Argument|Description|
 |:-------|:----------|
-|`JuliaFunction`|The name of a Julia function that's defined in the Julia session, perhaps as a result of prior calls to `JuliaInclude`.|
-|`Args...`|Zero or more arguments. Each argument may be a number, string, Boolean value, empty cell, an array of such values or an Excel range.|
+|`JuliaFunction`|The name of a Julia function visible from the Julia REPL.|
+|`Args...`|Zero or more arguments. Each may be a number, string, Boolean, empty cell, array or Range. Ranges are expanded to their .Value2 before encoding.|
 
 ### `JuliaSetVar`
 Set a global variable in the Julia process.
@@ -150,7 +150,7 @@ Public Function JuliaSetVar(VariableName As String, RefersTo As Variant)
 |`RefersTo`|An Excel range (from which the .Value2 property is read) or more generally a number, string, Boolean, Empty or array of such types. When called from VBA, nested arrays are supported.|
 
 ### `JuliaEvalVBA`
-Evaluate a Julia expression from VBA . Differs from `JuliaCall` in handling of 1-dimensional arrays, and strings longer than 32,767 characters. May return data of types that cannot be displayed on a worksheet, such as a dictionary or an array of arrays.
+Evaluate a Julia expression from VBA . Differs from `JuliaCall` in handling of 1-d arrays and strings longer than 32,767 characters. May return data of types that cannot be displayed on a worksheet, such as a dictionary or an array of arrays.
 ```vba
 Public Function JuliaEvalVBA(ByVal JuliaExpression As Variant)
 ```
@@ -160,15 +160,22 @@ Public Function JuliaEvalVBA(ByVal JuliaExpression As Variant)
 |`JuliaExpression`|Any valid Julia code, as a string. Can also be a one-column range to evaluate multiple Julia statements.|
 
 ### `JuliaCallVBA`
-Call a named Julia function from VBA. Differs from `JuliaCall` in handling of 1-dimensional arrays, and strings longer than 32,767 characters. May return data of types that cannot be displayed on a worksheet, such as a dictionary or an array of arrays.
+Call a named Julia function from VBA. Differs from `JuliaCall` in handling of 1-d arrays and strings longer than 32,767 characters. May return data of types that cannot be displayed on a worksheet, such as a dictionary, an array of arrays, or arrays of dimension up to 9.
 ```vba
 Public Function JuliaCallVBA(JuliaFunction As String, ParamArray Args())
 ```
 
 |Argument|Description|
 |:-------|:----------|
-|`JuliaFunction`|The name of a Julia function that's defined in the Julia session, perhaps as a result of prior calls to `JuliaInclude`.|
-|`Args...`|Zero or more arguments. Each argument may be a number, string, Boolean value, empty cell, an array of such values or an Excel range.|
+|`JuliaFunction`|The name of a Julia function visible from the Julia REPL.|
+|`Args...`|Zero or more arguments. Each may be a number, string, Boolean, empty cell, array or Range. Ranges are expanded to their .Value2 before encoding.|
+
+### `JuliaIsRunning`
+Returns TRUE if an instance of Julia is running and "listening" to the current Excel session, or FALSE otherwise.
+```vba
+Public Function JuliaIsRunning() As Boolean
+```
+
 
 ### `JuliaIsRunning`
 Returns TRUE if an instance of Julia is running and "listening" to the current Excel session, or FALSE otherwise.
@@ -225,7 +232,7 @@ There is one alternative method of calling Julia from Excel of which I am aware:
 
 https://github.com/JuliaComputing/JuliaInXL.jl  
 
-JuliaComputing made JuliaInXL open source in October 2021; it previously required a licence for commercial use. At the time of writing, JuliaInXL is not compatible with dynamic array formulas, and does not permit calling Julia from VBA. My tests indicate that JuliaInXL and JuliaExcel have broadly similar performance in terms of latency and speed of data transfer.
+JuliaComputing made JuliaInXL open source in October 2021; it previously required a licence for commercial use. As of August 2026, JuliaInXL is not compatible with dynamic array formulas, and does not permit calling Julia from VBA. My tests indicate that JuliaInXL and JuliaExcel have broadly similar performance in terms of latency and speed of data transfer.
 
 ## Compatibility
 JuliaExcel has been tested on Excel under Microsoft 365, both 32-bit and 64-bit. It _should_ work on earlier versions of Excel (perhaps back to Excel 2010) but it has not been tested on them.
@@ -245,7 +252,7 @@ Other points to note:
 The VBA project is password protected to prevent accidental changes. You can see the VBA code [here](https://github.com/PGS62/JuliaExcel.jl/blob/master/vba/JuliaExcel.xlam/modMain.bas), or view it in JuliaExcel.xlam by unprotecting with the password "JuliaExcel". Julia source code is always visible on your PC, and the [@functionloc](https://docs.julialang.org/en/v1/stdlib/InteractiveUtils/#InteractiveUtils.@functionloc) macro is an easy way to locate the code of any function you're interested in.
 
 ## Shortcomings
-Given how JuliaExcel works, with file-based messaging and serialisation in VBA, an interpreted and hence relatively slow language, the most obvious shortcoming will be performance of the data-transfer Excel to Julia and back. That's not always a problem however, notably if the time for marshalling data between Excel and Julia is small (milliseconds) compared with the execution time of the Julia code (tens of seconds). I wrote JuliaExcel for a project where that situation holds.
+Given how JuliaExcel works, with serialisation done in VBA - an interpreted language - the most obvious shortcoming is the performance of data transfer between Excel and Julia for large arrays. In practice this is rarely a problem: latency for a simple call is a couple of milliseconds, and marshalling even a 100,000-element array takes a few tenths of a second - typically small compared with the execution time of the Julia code doing the actual work. I wrote JuliaExcel for a project where latency and marshalling time were indeed much smaller than Julia execution time.
 
 Other shortcomings are:
  *  JuliaExcel does not work if Windows Terminal is the default terminal application. See [this issue](https://github.com/PGS62/JuliaExcel.jl/issues/9).
