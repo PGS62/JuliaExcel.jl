@@ -23,8 +23,8 @@ Support Excel for Windows (not Mac). Julia can be run under Windows or Linux (vi
 ## Installation
 Installation does not require admin rights on the PC.
  * Both Julia and Microsoft Office must be installed on your PC, with Excel not running.
- * Ensure that the default terminal application is "Windows Console Host". See [issue 9](https://github.com/PGS62/JuliaExcel.jl/issues/9) for instructions.
- * Launch Julia, and copy-paste the following command into the REPL:  
+ * Launch Julia, and copy-paste the following command into the REPL:
+<!-- CHANGING THE VERSION NUMBER BELOW? DON'T FORGET TO ALSO CHANGE THE VERSION NUMBER IN THE "Installation (Linux)" SECTION -->
    ```
    using Pkg
    Pkg.add(url="https://github.com/PGS62/JuliaExcel.jl",rev="v0.2.17")
@@ -44,7 +44,7 @@ As an alternative to calling Julia running in a Windows process, JuliaExcel can 
  * If necessary, install [WSL](https://docs.microsoft.com/en-us/windows/wsl/install) with the default Linux distribution, Ubuntu.
  * Install Julia under WSL, as explained [here](https://ferrolho.github.io/blog/2019-01-26/how-to-install-julia-on-ubuntu). The last step in these instructions, to create a symbolic link to `julia` inside the `/usr/local/bin` folder is necessary.
  * At the Julia prompt (under WSL) install JuliaExcel by copy-pasting   
-  `using Pkg; Pkg.add(url="https://github.com/PGS62/JuliaExcel.jl",rev="0.2.10")` into the REPL. 
+  `using Pkg; Pkg.add(url="https://github.com/PGS62/JuliaExcel.jl",rev="0.2.17")` into the REPL. 
 
 ## Functions
 JuliaExcel makes the following functions available from Excel worksheets and from VBA:
@@ -254,12 +254,10 @@ The VBA project is password protected to prevent accidental changes. You can see
 ## Shortcomings
 Given how JuliaExcel works, with serialisation done in VBA - an interpreted language - the most obvious shortcoming is the performance of data transfer between Excel and Julia for large arrays. In practice this is rarely a problem: latency for a simple call is a couple of milliseconds, and marshalling even a 100,000-element array takes a few tenths of a second - typically small compared with the execution time of the Julia code doing the actual work. I wrote JuliaExcel for a project where latency and marshalling time were indeed much smaller than Julia execution time.
 
-Other shortcomings are:
- *  JuliaExcel does not work if Windows Terminal is the default terminal application. See [this issue](https://github.com/PGS62/JuliaExcel.jl/issues/9).
-
 &nbsp;
 
 &nbsp;
 
 Philip Swannell  
 8 December 2021
+Last updated 10 August 2026
