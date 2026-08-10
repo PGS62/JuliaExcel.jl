@@ -43,7 +43,7 @@ End Sub
 '             and CleanLocalTemp will not remove it until it is more than 3 days old.
 ' -----------------------------------------------------------------------------------------------------------------------
 Function GetJuliaPort() As Long
-          Const ErrorString = "There is no connection between Excel and Julia. Call JuliaLaunch"
+          Const ErrorString = "There is no connection between Excel and Julia. If you haven't already, call JuliaLaunch. If you have, Julia may still be starting (e.g. precompiling packages) - wait until you see ""JuliaExcel HTTP server listening"" printed in its window, then try again."
           Dim PortFile As String
           Dim PortStr As String
 1         On Error GoTo ErrHandler
@@ -60,12 +60,13 @@ Function GetJuliaPort() As Long
 11            If CLng(PortStr) > 0 Then
 12                gJuliaPort = CLng(PortStr)
 13                GetJuliaPort = gJuliaPort
-14            End If
-15        End If
-16        Throw ErrorString
-17        Exit Function
+14                Exit Function
+15            End If
+16        End If
+17        Throw ErrorString
+18        Exit Function
 ErrHandler:
-18        ReThrow "GetJuliaPort", Err
+19        ReThrow "GetJuliaPort", Err
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------

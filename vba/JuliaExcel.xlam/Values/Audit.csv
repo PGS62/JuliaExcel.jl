@@ -5,9 +5,10 @@
 ,"The password to view the VBA code is JuliaExcel",,,,
 ,"Copyright 2021 Philip Swannell",,,,
 ,"License MIT (https://opensource.org/licenses/MIT)",,,,
-,"All 126 rows shown.",,,,
+,"All 127 rows shown.",,,,
 ,"Dbl-click","Double-click","Dbl-click","Double-click","Double-click to filter"
 ,"Version","Date","Time","Author","Comment"
+,127,2026-08-10,0.513506944444089,"Philip Swannell","Fix JuliaLaunch timeout handling and GetJuliaPort's stale-recovery bug."
 ,126,2026-08-10,0.451655092590954,"Philip Swannell","Remove obsolete functions and simplify MakeJuliaLiteral"
 ,125,2026-08-09,0.83454861111386,"Philip Swannell","Deleted DoubleToHexOld, SingleToHexOld, JuliaCallOld and JuliaCallVBAOld."
 ,124,2026-08-09,0.828171296299843,"Philip Swannell","More changes in JuliaLaunch."

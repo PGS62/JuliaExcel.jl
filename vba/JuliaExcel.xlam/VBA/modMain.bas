@@ -53,8 +53,13 @@ End Function
 ' BashStatements: Relevant only when UseLinux is TRUE. Bash statements executed prior to launching Julia,
 '             which can be used to set environment variables. Example `export
 '             JULIA_PKG_DEVDIR=/mnt/c/Projects`. Delimit multiple statements with the line feed character.
-' TimeOut   : The number of seconds to wait for Julia to launch before the function assumes that launch has
-'             failed (perhaps because of mal-formed CommandLineOptions). Optional and defaults to 30.
+' TimeOut   : The number of seconds to wait for Julia to fully start (including any package
+'             precompilation) before JuliaLaunch gives up waiting and returns an informational
+'             message rather than an error - Julia is not killed, and calling JuliaLaunch or
+'             JuliaEval again once it has finished starting will work normally. A separate, much
+'             shorter internal check (the lesser of TimeOut and 5 seconds) detects a genuine launch
+'             failure, e.g. from mal-formed CommandLineOptions, and reports that as an error
+'             immediately. TimeOut is optional and defaults to 30.
 ' -----------------------------------------------------------------------------------------------------------------------
 Public Function JuliaLaunch(Optional UseLinux As Boolean, Optional MinimiseWindow As Boolean, _
           Optional ByVal CommandLineOptions As String, Optional ByVal Packages As String, _
@@ -219,55 +224,81 @@ Public Function JuliaLaunch(Optional UseLinux As Boolean, Optional MinimiseWindo
           Dim NumBefore As Long
           Dim StartTime As Double
 83        StartTime = ElapsedTime()
-          Dim PartialCaption As String
-84        PartialCaption = "serving Excel PID " & CStr(PID)
-85        NumBefore = NumWindowsWithCaption(PartialCaption)
+          'The title Julia gives its console window before settitle() customises it - which only
+          'happens once the "using" statements (and any package precompilation they trigger) have
+          'finished. Matching on this generic caption lets us detect "the process launched" without
+          'waiting for precompilation to complete.
+          Const GenericJuliaCaption As String = "Julia"
+          Dim LaunchDetected As Boolean
+          Dim LaunchDetectionSecs As Double
+84        LaunchDetectionSecs = IIf(TimeOut < 5, TimeOut, 5)
+85        NumBefore = NumWindowsWithCaption(GenericJuliaCaption)
 
 86        wsh.Run Command, IIf(MinimiseWindow, vbMinimizedFocus, vbNormalNoFocus), False
-          'Unfortunately, if the CommandLineOptions are invalid then Julia does not launch, but the
-          'call to wsh.Run does not throw an error. Work-around is to count the number of windows whose
-          'caption contains "Julia 1." before and TIMEOUT seconds after the call to wsh.Run.
-87        While FileExists(JuliaFlagFile)
+          'Unfortunately, if the CommandLineOptions are invalid, Julia's window can appear briefly and
+          'then close again as the process dies - and either way, the call to wsh.Run does not throw an
+          'error. Work-around is to track whether a window whose caption contains "Julia" has appeared
+          '(without depending on settitle() having run yet, so this also covers a launch that's just
+          'slow, e.g. because of package precompilation) and, if it later disappears again while
+          'JuliaFlagFile still exists, treat that as a launch failure rather than continuing to wait.
+87        Do While FileExists(JuliaFlagFile)
 88            Sleep 50
-89            If ElapsedTime() - StartTime > TimeOut Then
-90                If NumWindowsWithCaption(PartialCaption) <> NumBefore + 1 Then
-91                    ErrDescription = "Julia failed to launch after " + CStr(TimeOut) + " seconds."
-92                    If UserSuppliedCommandLineOptions <> "" Then
-93                        ErrDescription = ErrDescription & " Check the CommandLineOptions are valid (https://docs.julialang.org/en/v1/manual/command-line-options/)"
-94                    End If
-95                    Throw ErrDescription
-96                End If
-97            End If
-98        Wend
+89            If NumWindowsWithCaption(GenericJuliaCaption) > NumBefore Then
+90                LaunchDetected = True
+91                If ElapsedTime() - StartTime > TimeOut Then
+                      'Julia's window is present (so the process did launch) but it has not yet reported
+                      'success - most likely it's still precompiling packages. That's not a failure: once
+                      'it finishes, GetJuliaPort will recover the real port on the next call, so just let
+                      'the user know to try again rather than reporting an error.
+92                    JuliaLaunch = "Julia has not signalled it's ready after " & CStr(TimeOut) & " seconds - it may still be precompiling packages. Once you see ""JuliaExcel HTTP server listening"" printed in its window, call JuliaLaunch (or JuliaEval) again."
+93                    Exit Function
+94                End If
+95            ElseIf LaunchDetected Then
+                  'The window we detected has since disappeared, but Julia's startup script never
+                  'signalled completion (JuliaFlagFile still exists) - the process must have died before
+                  'finishing startup, typically because CommandLineOptions was invalid.
+96                ErrDescription = "Julia's console window closed before start-up finished."
+97                If UserSuppliedCommandLineOptions <> "" Then
+98                    ErrDescription = ErrDescription & " Check the CommandLineOptions are valid (https://docs.julialang.org/en/v1/manual/command-line-options/)"
+99                End If
+100               Throw ErrDescription
+101           ElseIf ElapsedTime() - StartTime > LaunchDetectionSecs Then
+102               ErrDescription = "Julia failed to launch after " & CStr(LaunchDetectionSecs) & " seconds."
+103               If UserSuppliedCommandLineOptions <> "" Then
+104                   ErrDescription = ErrDescription & " Check the CommandLineOptions are valid (https://docs.julialang.org/en/v1/manual/command-line-options/)"
+105               End If
+106               Throw ErrDescription
+107           End If
+108       Loop
           Dim PortFile As String
           Dim PortStr As String
-99        PortFile = LocalTemp() & "\Port_" & CStr(PID) & ".txt"
-100       PortStr = ""
-101       On Error Resume Next
-102       PortStr = ReadTextFile(PortFile, TristateFalse)
-103       On Error GoTo ErrHandler
-104       If IsNumeric(PortStr) Then
-105           If CLng(PortStr) > 0 Then
-106               SetJuliaPort CLng(PortStr)
-107           End If
-108       End If
-109       CleanLocalTemp
+109       PortFile = LocalTemp() & "\Port_" & CStr(PID) & ".txt"
+110       PortStr = ""
+111       On Error Resume Next
+112       PortStr = ReadTextFile(PortFile, TristateFalse)
+113       On Error GoTo ErrHandler
+114       If IsNumeric(PortStr) Then
+115           If CLng(PortStr) > 0 Then
+116               SetJuliaPort CLng(PortStr)
+117           End If
+118       End If
+119       CleanLocalTemp
 
-110       If FileExists(ErrorFile) Then
-111           Throw "Julia launched but encountered an error when executing '" & LoadFile & "' the error was: " & ReadTextFile(ErrorFile, TristateFalse)
-112       End If
-113       If GetJuliaPort() = 0 Then
-114           Throw "Failed to establish connection between Julia and Excel. Is JuliaExcel installed correctly. See https://github.com/PGS62/JuliaExcel.jl#installation"
-115       End If
+120       If FileExists(ErrorFile) Then
+121           Throw "Julia launched but encountered an error when executing '" & LoadFile & "' the error was: " & ReadTextFile(ErrorFile, TristateFalse)
+122       End If
+123       If GetJuliaPort() = 0 Then
+124           Throw "Failed to establish connection between Julia and Excel. Is JuliaExcel installed correctly. See https://github.com/PGS62/JuliaExcel.jl#installation"
+125       End If
 
-116       GetHandleFromPartialCaption HwndJulia, WindowPartialTitle
-117       WindowTitle = WindowTitleFromHandle(HwndJulia)
+126       GetHandleFromPartialCaption HwndJulia, WindowPartialTitle
+127       WindowTitle = WindowTitleFromHandle(HwndJulia)
 
-118       JuliaLaunch = "Julia launched in window """ & WindowTitle & """"
+128       JuliaLaunch = "Julia launched in window """ & WindowTitle & """"
 
-119       Exit Function
+129       Exit Function
 ErrHandler:
-120       JuliaLaunch = ReThrow("JuliaLaunch", Err, True)
+130       JuliaLaunch = ReThrow("JuliaLaunch", Err, True)
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
