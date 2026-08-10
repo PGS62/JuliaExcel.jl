@@ -101,32 +101,6 @@ End Type
 '^2;2,3,4,5,;�a%10�abc%1000 unserialises to a Dictionary with two elements, element "a" contains 10 and element "abc" contains 1000
 
 ' -----------------------------------------------------------------------------------------------------------------------
-' Procedure  : UnserialiseFromFile
-' Purpose    : Read the file saved by the Julia code and unserialise its contents.
-' -----------------------------------------------------------------------------------------------------------------------
-Function UnserialiseFromFile(FileName As String, AllowNested As Boolean, StringLengthLimit As Long, JuliaVectorToXLColumn As Boolean)
-          Dim Contents As String
-          Dim ErrMsg As String
-          Static fso As Scripting.FileSystemObject
-          Dim TS As Scripting.TextStream
-
-1         On Error GoTo ErrHandler
-2         If fso Is Nothing Then Set fso = New Scripting.FileSystemObject
-
-3         Set TS = fso.OpenTextFile(FileName, ForReading, , TristateTrue)
-4         Contents = TS.ReadAll
-5         TS.Close
-6         Set TS = Nothing
-7         Assign UnserialiseFromFile, Unserialise(Contents, AllowNested, 0, StringLengthLimit, JuliaVectorToXLColumn)
-
-8         Exit Function
-ErrHandler:
-9         ErrMsg = ReThrow("UnserialiseFromFile", Err, True)
-10        If Not TS Is Nothing Then TS.Close
-11        Throw ErrMsg
-End Function
-
-' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : UnserialiseFromString
 ' Purpose    : Unserialise a result string returned directly from the Julia HTTP server.
 ' -----------------------------------------------------------------------------------------------------------------------

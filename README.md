@@ -58,8 +58,6 @@ JuliaExcel makes the following functions available from Excel worksheets and fro
 |[JuliaSetVar](#juliasetvar)|Set a global variable in the Julia process.|
 |[JuliaEvalVBA](#juliaevalvba)|Evaluate a Julia expression from VBA . Differs from `JuliaCall` in handling of 1-dimensional arrays, and strings longer than 32,767 characters. May return data of types that cannot be displayed on a worksheet, such as a dictionary or an array of arrays.|
 |[JuliaCallVBA](#juliacallvba)|Call a named Julia function from VBA. Differs from `JuliaCall` in handling of 1-dimensional arrays, and strings longer than 32,767 characters. May return data of types that cannot be displayed on a worksheet, such as a dictionary or an array of arrays.|
-|[JuliaResultFile](#juliaresultfile)|Returns the name of the file to which the results of calls to `JuliaCall`, `JuliaEval` etc. are written. The file may be unserialised with function `JuliaUnserialiseFile`.|
-|[JuliaUnserialiseFile](#juliaunserialisefile)|Unserialises the contents of the JuliaResultsFile.|
 |[JuliaIsRunning](#juliaisrunning)|Returns TRUE if an instance of Julia is running and "listening" to the current Excel session, or FALSE otherwise.|
 
 ## Demo
@@ -171,23 +169,6 @@ Public Function JuliaCallVBA(JuliaFunction As String, ParamArray Args())
 |:-------|:----------|
 |`JuliaFunction`|The name of a Julia function that's defined in the Julia session, perhaps as a result of prior calls to `JuliaInclude`.|
 |`Args...`|Zero or more arguments. Each argument may be a number, string, Boolean value, empty cell, an array of such values or an Excel range.|
-
-### `JuliaResultFile`
-Returns the name of the file to which the results of calls to `JuliaCall`, `JuliaEval` etc. are written. The file may be unserialised with function `JuliaUnserialiseFile`.
-```vba
-Public Function JuliaResultFile() As String
-```
-
-### `JuliaUnserialiseFile`
-Unserialises the contents of the JuliaResultsFile.
-```vba
-Public Function JuliaUnserialiseFile(Optional ByVal FileName As String, Optional ForWorksheet As Boolean = True)
-```
-
-|Argument|Description|
-|:-------|:----------|
-|`FileName`|The name (including path) of the file to be unserialised. Optional and defaults to the file name returned by `JuliaResultFile`.|
-|`ForWorksheet`|Pass TRUE (the default) when calling from a worksheet, FALSE when calling from VBA. If FALSE, the function may return data structures that can exist in VBA but cannot be represented on a worksheet, such as a dictionary or an array of arrays.|
 
 ### `JuliaIsRunning`
 Returns TRUE if an instance of Julia is running and "listening" to the current Excel session, or FALSE otherwise.

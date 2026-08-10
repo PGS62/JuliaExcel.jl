@@ -414,37 +414,6 @@ Public Function JuliaInclude(FileName As String)
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
-' Procedure : JuliaUnserialiseFile
-' Purpose   : Unserialises the contents of the JuliaResultsFile.
-' Arguments
-' FileName  : The name (including path) of the file to be unserialised. Optional and defaults to the file
-'             name returned by JuliaResultsFile.
-' ForWorksheet: Pass TRUE (the default) when calling from a worksheet, FALSE when calling from VBA. If
-'             FALSE, the function may return data structures that can exist in VBA but cannot be
-'             represented on a worksheet, such as a dictionary or an array of arrays.
-' -----------------------------------------------------------------------------------------------------------------------
-Public Function JuliaUnserialiseFile(Optional ByVal FileName As String, Optional ForWorksheet As Boolean = True)
-          Dim JuliaVectorToXLColumn As Boolean
-          Dim StringLengthLimit As Long
-
-1         On Error GoTo ErrHandler
-2         If FileName = "" Then
-3             FileName = JuliaResultFile()
-4         End If
-
-5         If ForWorksheet Then
-6             StringLengthLimit = GetStringLengthLimit()
-7             JuliaVectorToXLColumn = True
-8         End If
-
-9         Assign JuliaUnserialiseFile, UnserialiseFromFile(FileName, Not ForWorksheet, StringLengthLimit, JuliaVectorToXLColumn)
-
-10        Exit Function
-ErrHandler:
-11        JuliaUnserialiseFile = ReThrow("JuliaUnserialiseFile", Err, True)
-End Function
-
-' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure : JuliaFlagFile
 ' Purpose   : Returns the name of a sentinel file. The file is created (by VBA code) at the same time as
 '             the expression file and deleted (by Julia code) when Julia execution has finished.
@@ -455,19 +424,6 @@ Private Function JuliaFlagFile() As String
 2             FlagFile = LocalTemp() & "\Flag_" & CStr(GetCurrentProcessId()) & ".txt"
 3         End If
 4         JuliaFlagFile = FlagFile
-End Function
-
-' -----------------------------------------------------------------------------------------------------------------------
-' Procedure : JuliaResultFile
-' Purpose   : Returns the name of the file to which the results of calls to JuliaCall, JuliaEval etc.
-'             are written. The file may be unserialised with function JuliaUnserialiseFile.
-' -----------------------------------------------------------------------------------------------------------------------
-Public Function JuliaResultFile() As String
-          Static ResultFile As String
-1         If ResultFile = "" Then
-2             ResultFile = LocalTemp() & "\Result_" & CStr(GetCurrentProcessId()) & ".txt"
-3         End If
-4         JuliaResultFile = ResultFile
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
