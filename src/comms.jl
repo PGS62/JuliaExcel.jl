@@ -137,36 +137,37 @@ function srv_call_inner(payload::String)::String
 end
 
 """
-    _find_free_port(start::Int=2700)
-Scan for an available TCP port starting from `start`, trying up to 100 candidates.
-"""
-function _find_free_port(start::Int=2700)::Int
-    for p in start:(start + 100)
-        try
-            srv = Sockets.listen(Sockets.IPv4(0), p)
-            close(srv)
-            return p
-        catch
-        end
-    end
-    error("no free port found in range $start to $(start + 100)")
-end
-
-"""
-    start_server()
-Start an HTTP server on a free local port that handles evaluation requests from Excel.
+    start_server(start::Int=2700)
+Start an HTTP server on a free local port that handles evaluation requests from Excel, trying
+up to 100 candidate ports starting from `start`. Tries the real bind directly rather than
+probing with a separate test-listener first: a probe-then-release check has a gap between
+"verified free" and the real bind moments later, during which another process (e.g. an
+orphaned Julia session from a previously-closed Excel session) could still be holding the
+port - or, since HTTP.jl's server binds with `reuseaddr=true`, could appear to succeed even
+though something else is already listening there. Retrying on the real bind failure avoids
+relying on that separate check being reliable.
 Writes the chosen port to the port file so VBA can discover it during JuliaLaunch.
 """
-function start_server()
-    port = _find_free_port()
-    HTTP.serve!("127.0.0.1", port) do req
-        handler = req.target == "/call" ? srv_call_inner : srv_xl_inner
-        HTTP.Response(200, ["Content-Type" => "text/plain; charset=utf-8"],
-                      handler(String(req.body)))
+function start_server(start::Int=2700)
+    port = start
+    while true
+        try
+            HTTP.serve!("127.0.0.1", port) do req
+                handler = req.target == "/call" ? srv_call_inner : srv_xl_inner
+                HTTP.Response(200, ["Content-Type" => "text/plain; charset=utf-8"],
+                              handler(String(req.body)))
+            end
+            break
+        catch
+            port += 1
+            port > start + 100 && rethrow()
+        end
     end
     open(portfile(), "w") do f
         write(f, string(port))
     end
+    xlport[] = port
+    settitle()
     println("JuliaExcel HTTP server listening on port $port")
     nothing
 end
@@ -212,7 +213,8 @@ function settitle()
         os = "Windows"
     end
 
-    print("\033]0;Julia $VERSION on $os serving Excel PID $(getxlpid())\a")
+    portpart = xlport[] == 0 ? "" : ", port $(xlport[])"
+    print("\033]0;Julia $VERSION on $os serving Excel PID $(getxlpid())$portpart\a")
 end
 
 """
