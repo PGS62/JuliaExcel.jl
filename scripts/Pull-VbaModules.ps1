@@ -1,11 +1,12 @@
 # Pull-VbaModules.ps1
-# Pulls VBA modules from the running Excel workbook to vba\JuliaExcel.xlam\VBA\ on disk,
-# replacing existing files.
-# Before overwriting, backs up the current disk files to .vba-backups\pre-pull-<timestamp>\.
+# Saves the JuliaExcel.xlam workbook and exports its VBA to disk, by delegating to SolumAddin.xlam's
+# SaveAddInAndExportVBA method.
 #
 # Prerequisites:
-#   Excel Trust Center -> Trust Center Settings -> Macro Settings ->
-#   [x] Trust access to the VBA project object model
+#   - Excel Trust Center -> Trust Center Settings -> Macro Settings ->
+#     [x] Trust access to the VBA project object model
+#   - SolumAddin.xlam and JuliaExcel.xlam both open in Excel (either as ordinary workbooks or as
+#     installed add-ins - IsAddin = True is fine, see note below).
 #
 # Run from VSCode via Terminal -> Run Task -> "VBA: Pull from Excel".
 
@@ -19,69 +20,56 @@ try {
     exit 1
 }
 
-# Locate workbook by name, then verify full path.
-# Note: when the workbook is loaded as an installed add-in (IsAddin = True), it is excluded
-# from Workbooks.Count and foreach enumeration, but Workbooks.Item(name) still finds it.
+# Locate a workbook by name, then optionally verify its full path.
+# Note: when a workbook is loaded as an installed add-in (IsAddin = True), it is excluded from
+# Workbooks.Count and foreach enumeration, but Workbooks.Item(name) still finds it.
+function Find-Workbook {
+    param(
+        [Parameter(Mandatory)][string]$Name,
+        [string]$ExpectedFullName
+    )
+    try {
+        $wb = $excel.Workbooks.Item($Name)
+    } catch {
+        return $null
+    }
+    if ($ExpectedFullName -and $wb.FullName -ine $ExpectedFullName) {
+        return $null
+    }
+    return $wb
+}
+
 $xlPath = (Resolve-Path (Join-Path $PSScriptRoot "..\workbooks\JuliaExcel.xlam")).Path
-$xlName = [IO.Path]::GetFileName($xlPath)
-$book = $null
-try {
-    $wb = $excel.Workbooks.Item($xlName)
-    if ($wb.FullName -ieq $xlPath) { $book = $wb }
-} catch { }
-if ($null -eq $book) {
+$juliaBook = Find-Workbook -Name "JuliaExcel.xlam" -ExpectedFullName $xlPath
+if ($null -eq $juliaBook) {
     Write-Error "workbooks\JuliaExcel.xlam is not open in Excel. Open it from:`n  $xlPath"
     exit 1
 }
-Write-Host "Found workbook: $($book.FullName)"
+Write-Host "Found workbook: $($juliaBook.FullName)"
 
-$proj = $book.VBProject
-if ($null -eq $proj -or $null -eq $proj.VBComponents) {
-    Write-Error @"
-Cannot access the VBA project object model.
-In Excel: File -> Options -> Trust Center -> Trust Center Settings -> Macro Settings
-Check: Trust access to the VBA project object model
-"@
+# SolumAddin.xlam lives outside this repo, so there's no known path to verify against - just
+# confirm Excel has a workbook of that name open.
+$solumBook = Find-Workbook -Name "SolumAddin.xlam"
+if ($null -eq $solumBook) {
+    Write-Error "SolumAddin.xlam is not open in Excel. Open (or install) it first."
+    exit 1
+}
+Write-Host "Found workbook: $($solumBook.FullName)"
+
+# Delegate to SolumAddin.xlam via a wrapper function in JuliaExcel.xlam (modUtils.CallSaveAddInAndExportVBA),
+# which passes ThisWorkbook (i.e. JuliaExcel.xlam itself) through to SaveAddInAndExportVBA.
+# The wrapper exists because when a macro invoked via Application.Run raises an unhandled error,
+# Excel's automation interface does not propagate the error's Description back to a COM caller like
+# this script - only an opaque HRESULT. The wrapper catches the error in VBA and returns it as a
+# string instead (in this project's usual "#FunctionName (line N): message!" error-string format),
+# so we detect failure by inspecting the returned string rather than by catching an exception here.
+Write-Host ""
+Write-Host "Calling SaveAddInAndExportVBA for $($juliaBook.Name) ..."
+$result = $excel.Run("'$xlPath'!modUtils.CallSaveAddInAndExportVBA")
+
+if ($result -like "#*!") {
+    Write-Error "SaveAddInAndExportVBA failed: $result"
     exit 1
 }
 
-# Collect exportable modules (skip document modules: Sheet1, ThisWorkbook etc.)
-$components = @($proj.VBComponents | Where-Object { $_.Type -in @(1, 2, 3) })
-if ($components.Count -eq 0) {
-    Write-Warning "No exportable modules found in the workbook."
-    exit 0
-}
-
-# Confirm
-$confirm = Read-Host "Pull $($components.Count) module(s) from Excel to disk? [Y/N]"
-if ($confirm -notmatch '^[Yy]') { Write-Host "Cancelled."; exit 0 }
-
-# Backup current disk files to .vba-backups\pre-pull-<timestamp>\
-$basDir = (Resolve-Path (Join-Path $PSScriptRoot "..\vba\JuliaExcel.xlam\VBA")).Path
-$projectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
-$timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
-$backupDir = Join-Path $projectRoot ".vba-backups\pre-pull-$timestamp"
-New-Item -ItemType Directory -Path $backupDir -Force | Out-Null
-
-$existingFiles = Get-ChildItem "$basDir\*.bas", "$basDir\*.cls", "$basDir\*.frm", "$basDir\*.frx" -ErrorAction SilentlyContinue
-foreach ($f in $existingFiles) {
-    Copy-Item $f.FullName -Destination $backupDir
-}
-Write-Host "Backup saved to $backupDir"
-Write-Host ""
-
-# Pull: export each module from the workbook to disk
-foreach ($comp in $components) {
-    $ext = switch ($comp.Type) {
-        1 { ".bas" }
-        2 { ".cls" }
-        3 { ".frm" }
-    }
-    $outPath = Join-Path $basDir "$($comp.Name)$ext"
-    Write-Host "  Pulling $($comp.Name) ..."
-    $comp.Export($outPath)
-    Write-Host "  Pulled $($comp.Name)"
-}
-
-Write-Host ""
-Write-Host "Done - $($components.Count) module(s) pulled from Excel to disk."
+Write-Host "Done - $result"
