@@ -323,3 +323,20 @@ ErrHandler:
 4         MsgBox ReThrow("MenuButton", Err, True), vbCritical
 End Sub
 
+' -----------------------------------------------------------------------------------------------------------------------
+' Procedure  : CallSaveAddInAndExportVBA
+' Purpose    : Thin wrapper around SolumAddin.xlam's SaveAddInAndExportVBA, callable via Application.Run
+'              from an external automation client such as a PowerShell script. This indirection is needed
+'              because when a macro invoked via Application.Run raises an unhandled error, Excel's
+'              automation interface does not propagate the error's Description back to the COM caller -
+'              only an opaque HRESULT. Catching the error here and returning it as a string (the same
+'              convention used elsewhere in this project, e.g. JuliaLaunch) avoids that loss of information.
+' -----------------------------------------------------------------------------------------------------------------------
+Public Function CallSaveAddInAndExportVBA() As String
+1         On Error GoTo ErrHandler
+2         ThrowIfError Application.Run("'SolumAddin.xlam'!SaveAddInAndExportVBA", ThisWorkbook, True)
+3         CallSaveAddInAndExportVBA = "OK"
+4         Exit Function
+ErrHandler:
+5         CallSaveAddInAndExportVBA = ReThrow("CallSaveAddInAndExportVBA", Err, True)
+End Function
