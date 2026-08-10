@@ -220,7 +220,3 @@ function hex_to_float32(hex::AbstractString)::Float32
     bits = parse(UInt32, hex; base=16)
     return reinterpret(Float32, bits)
 end
-
-# For brevity in the output of the VBA function MakeJuliaLiteral
-htd = hex_to_float64
-hts = hex_to_float32

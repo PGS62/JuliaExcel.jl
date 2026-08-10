@@ -1,5 +1,5 @@
 module JuliaExcel
-export start_server, setxlpid, getcommsfolder, htd, hts
+export start_server, setxlpid, getcommsfolder
 
 using DataFrames: DataFrames, DataFrame, Missing
 using Dates: Dates, Date, DateTime
