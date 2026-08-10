@@ -75,6 +75,11 @@ portfile() = joinpath(getcommsfolder(), "Port_$(getxlpid()).txt")
 Encode `result` for return to Excel, shared by `srv_xl_inner` and `srv_call_inner`. If `result`
 itself can't be encoded (e.g. it's a type with no `encode_for_xl` method), reports that to the
 Julia console and returns an encoded error string describing the problem instead.
+
+Callers should invoke this via `Base.invokelatest`: if `result` is a value just defined by an
+`eval` earlier in the same request (e.g. `JuliaEval("f(x)=x^2")` returns the function `f`
+itself), showing its type here can require looking up a global binding that didn't exist in the
+world the caller's own method was compiled in, which Julia 1.12+ reports as a "world age" warning.
 """
 function _encode_result_for_xl(result)::String
     try
@@ -108,7 +113,7 @@ function srv_xl_inner(expression::String)::String
         println("="^100)
         truncate("#($e)!", 10000)
     end
-    _encode_result_for_xl(result)
+    Base.invokelatest(_encode_result_for_xl, result)
 end
 
 """
@@ -118,13 +123,21 @@ name and remaining elements are its arguments), call the named function, and ret
 result as a string. Called by the HTTP request handler in `start_server` for requests to `/call`.
 Avoids the `Meta.parse` of a literal expression that `srv_xl_inner` requires, which is slow for
 large arrays of arguments.
+
+A trailing "." on the function name (e.g. "f.") requests broadcasting, matching Julia's `f.(...)`
+call syntax. That syntax is a transform on the call site itself (it lowers to `broadcast(f, ...)`)
+rather than a property of a standalone function reference, so "f." can't just be handed to
+`Meta.parse` as-is - the dot is stripped before resolving the function, and `broadcast` is called
+explicitly instead of a plain call.
 """
 function srv_call_inner(payload::String)::String
     global result = try
         decoded = decode_from_xl(payload)
         fn_name = decoded[1]::String
+        broadcasting = endswith(fn_name, ".")
+        broadcasting && (fn_name = chop(fn_name))
         fn = Main.eval(Meta.parse(fn_name))             # fast: parses only the short function name
-        fn(decoded[2:end]...)
+        broadcasting ? broadcast(fn, decoded[2:end]...) : fn(decoded[2:end]...)
     catch e
         println("="^100)
         println("Something went wrong calling a Julia function from Excel")
@@ -133,7 +146,7 @@ function srv_call_inner(payload::String)::String
         println("="^100)
         truncate("#($e)!", 10000)
     end
-    _encode_result_for_xl(result)
+    Base.invokelatest(_encode_result_for_xl, result)
 end
 
 """
