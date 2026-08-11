@@ -131,16 +131,21 @@ rather than a property of a standalone function reference, so "f." can't just be
 explicitly instead of a plain call.
 """
 function srv_call_inner(payload::String)::String
+    fn_name = "<unknown>"
+    global args_from_xl = ["<unknown>"]
+    broadcasting = false
     global result = try
         decoded = decode_from_xl(payload)
         fn_name = decoded[1]::String
         broadcasting = endswith(fn_name, ".")
         broadcasting && (fn_name = chop(fn_name))
-        fn = Main.eval(Meta.parse(fn_name))             # fast: parses only the short function name
-        broadcasting ? broadcast(fn, decoded[2:end]...) : fn(decoded[2:end]...)
+        fn_to_call = Main.eval(Meta.parse(fn_name))             # fast: parses only the short function name
+        args_from_xl = decoded[2:end]
+        broadcasting ? broadcast(fn_to_call, args_from_xl...) : fn_to_call(args_from_xl...)
     catch e
         println("="^100)
-        println("Something went wrong calling a Julia function from Excel")
+        call_desc = broadcasting ? "$fn_name.(JuliaExcel.args_from_xl...)" : "$fn_name(JuliaExcel.args_from_xl...)"
+        println("Something went wrong calling the Julia function $fn_name from Excel, against arguments saved in JuliaExcel.args_from_xl (until overwritten by the next call), so the error should be reproducible from here with '$call_desc'.")
         showerror(stdout, e, catch_backtrace())
         println("")
         println("="^100)
@@ -168,7 +173,7 @@ function start_server(start::Int=2700)
             HTTP.serve!("127.0.0.1", port) do req
                 handler = req.target == "/call" ? srv_call_inner : srv_xl_inner
                 HTTP.Response(200, ["Content-Type" => "text/plain; charset=utf-8"],
-                              handler(String(req.body)))
+                    handler(String(req.body)))
             end
             break
         catch
