@@ -47,24 +47,25 @@ Sub RunTests()
 25        AccResult "TestDictionaryOfTypes", TestDictionaryOfTypes, NumPassed, NumFailed
 26        AccResult "TestOneDArraysDisplayAsOneColumnOnSheet", TestOneDArraysDisplayAsOneColumnOnSheet, NumPassed, NumFailed
 27        AccResult "TestElType", TestElType, NumPassed, NumFailed
+28        AccResult "TestBroadcasting", TestBroadcasting, NumPassed, NumFailed
 
-28        Prompt = NumPassed & " test(s) passed" & vbLf & _
+29        Prompt = NumPassed & " test(s) passed" & vbLf & _
               NumFailed & " test(s) failed"
 
-29        If NumFailed > 0 Then
-30            Prompt = Prompt & vbLf & vbLf & _
+30        If NumFailed > 0 Then
+31            Prompt = Prompt & vbLf & vbLf & _
                   "See VBA Immediate window for details"
-31        End If
+32        End If
 
-32        Debug.Print NumPassed & " test(s) passed"
-33        Debug.Print NumFailed & " test(s) failed"
-34        Debug.Print String(80, "=")
+33        Debug.Print NumPassed & " test(s) passed"
+34        Debug.Print NumFailed & " test(s) failed"
+35        Debug.Print String(80, "=")
 
-35        MsgBox Prompt, IIf(NumFailed = 0, vbInformation, vbCritical), Title
+36        MsgBox Prompt, IIf(NumFailed = 0, vbInformation, vbCritical), Title
 
-36        Exit Sub
+37        Exit Sub
 ErrHandler:
-37        MsgBox ReThrow("RunTests", Err, True), vbCritical, Title
+38        MsgBox ReThrow("RunTests", Err, True), vbCritical, Title
 End Sub
 
 Sub AccResult(TestName As String, Result As Boolean, ByRef NumPassed, ByRef NumFailed)
@@ -456,4 +457,34 @@ ErrHandler:
 4         Debug.Print ReThrow("TestElType", Err, True)
 5         TestElType = False
 End Function
+
+
+Function TestBroadcasting()
+
+          Dim Xs(1 To 1, 1 To 2)
+          Dim Ys(1 To 2, 1 To 1)
+          Dim ExpRes(1 To 2, 1 To 2)
+          Dim ObsRes
+
+1         On Error GoTo ErrHandler
+
+2         Xs(1, 1) = 7#: Xs(1, 2) = 5#
+3         Ys(1, 1) = 2#: Ys(2, 1) = 3#
+
+4         ExpRes(1, 1) = 20#: ExpRes(1, 2) = 16#
+5         ExpRes(2, 1) = 23#: ExpRes(2, 2) = 19#
+
+6         ThrowIfError JuliaEval("fn(x,y) = 2x + 3y")
+          'Note the dot character below, makes this a broadcast use of fn
+7         ObsRes = JuliaCall("fn.", Xs, Ys)
+
+8         TestBroadcasting = ArraysIdentical(ExpRes, ObsRes)
+          
+9         Exit Function
+ErrHandler:
+10        Debug.Print ReThrow("TestBroadcasting", Err, True)
+11        TestBroadcasting = False
+End Function
+
+
 
