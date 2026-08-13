@@ -27,7 +27,7 @@ Installation does not require admin rights on the PC.
 <!-- CHANGING THE VERSION NUMBER BELOW? DON'T FORGET TO ALSO CHANGE THE VERSION NUMBER IN THE "Installation (Linux)" SECTION -->
    ```
    using Pkg
-   Pkg.add(url="https://github.com/PGS62/JuliaExcel.jl",rev="v0.2.17")
+   Pkg.add(url="https://github.com/PGS62/JuliaExcel.jl",rev="v1.0.0")
    using JuliaExcel;JuliaExcel.installme()
    
    ```
@@ -44,7 +44,7 @@ As an alternative to calling Julia running in a Windows process, JuliaExcel can 
  * If necessary, install [WSL](https://docs.microsoft.com/en-us/windows/wsl/install) with the default Linux distribution, Ubuntu.
  * Install Julia under WSL by running `curl -fsSL https://install.julialang.org | sh` at the Ubuntu prompt, per the [official instructions](https://julialang.org/downloads/). This installs `juliaup`, which puts `julia` on the PATH automatically.
  * At the Julia prompt (under WSL) install JuliaExcel by copy-pasting   
-  `using Pkg; Pkg.add(url="https://github.com/PGS62/JuliaExcel.jl",rev="0.2.17")` into the REPL. 
+  `using Pkg; Pkg.add(url="https://github.com/PGS62/JuliaExcel.jl",rev="1.0.0")` into the REPL. 
 
 ## Functions
 JuliaExcel makes the following functions available from Excel worksheets and from VBA:
