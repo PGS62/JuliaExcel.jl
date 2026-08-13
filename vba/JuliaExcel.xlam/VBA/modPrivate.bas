@@ -20,14 +20,14 @@ Function GetAt(ByRef Arr As Variant, ByRef Idx() As Long) As Variant
 7             Case 6: GetAt = Arr(Idx(1), Idx(2), Idx(3), Idx(4), Idx(5), Idx(6))
 8             Case 7: GetAt = Arr(Idx(1), Idx(2), Idx(3), Idx(4), Idx(5), Idx(6), Idx(7))
 9             Case 8: GetAt = Arr(Idx(1), Idx(2), Idx(3), Idx(4), Idx(5), Idx(6), Idx(7), Idx(8))
-              Case 9: GetAt = Arr(Idx(1), Idx(2), Idx(3), Idx(4), Idx(5), Idx(6), Idx(7), Idx(8), Idx(9))
-10            Case Else
-11                Throw "Rank > 9 not supported"
-12        End Select
+10            Case 9: GetAt = Arr(Idx(1), Idx(2), Idx(3), Idx(4), Idx(5), Idx(6), Idx(7), Idx(8), Idx(9))
+11            Case Else
+12                Throw "Rank > 9 not supported"
+13        End Select
 
-13        Exit Function
+14        Exit Function
 ErrHandler:
-14        ReThrow "GetAt", Err
+15        ReThrow "GetAt", Err
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
@@ -45,14 +45,14 @@ Function SetAt(ByRef Arr As Variant, ByRef Idx() As Long, Value As Variant) As V
 7             Case 6: Arr(Idx(1), Idx(2), Idx(3), Idx(4), Idx(5), Idx(6)) = Value
 8             Case 7: Arr(Idx(1), Idx(2), Idx(3), Idx(4), Idx(5), Idx(6), Idx(7)) = Value
 9             Case 8: Arr(Idx(1), Idx(2), Idx(3), Idx(4), Idx(5), Idx(6), Idx(7), Idx(8)) = Value
-              Case 9: Arr(Idx(1), Idx(2), Idx(3), Idx(4), Idx(5), Idx(6), Idx(7), Idx(8), Idx(9)) = Value
-10            Case Else
-11                Throw "Rank > 9 not supported"
-12        End Select
+10            Case 9: Arr(Idx(1), Idx(2), Idx(3), Idx(4), Idx(5), Idx(6), Idx(7), Idx(8), Idx(9)) = Value
+11            Case Else
+12                Throw "Rank > 9 not supported"
+13        End Select
 
-13        Exit Function
+14        Exit Function
 ErrHandler:
-14        ReThrow "SetAt", Err
+15        ReThrow "SetAt", Err
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------

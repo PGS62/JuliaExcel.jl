@@ -19,7 +19,7 @@ Option Explicit
 'Running method PerformanceTest
 'Time now = 2026-08-04 15:53:30
 'JuliaExcel Version = 109 <- Version 109 had experimental code to use UTF-8 for Excel-> Julia and Julia->Excel _
-communication.Julia To Excel gets faster Excel To Julia gets slower.
+ communication.Julia To Excel gets faster Excel To Julia gets slower.
 'Computer = MSI
 'Latency test
 'Average time for JuliaEval("1+1") = 8.14005120001093 miliseconds (averaged over 500 calls)
@@ -112,6 +112,19 @@ communication.Julia To Excel gets faster Excel To Julia gets slower.
 'One-way data transport test, Julia to Excel
 'Average time for JuliaEval("collect((1:100000).*pi)") = 0.167135900002904 seconds (averaged over 10 calls)
 
+'========================================================================================================================
+'Running method PerformanceTest
+'Time now = 2026-08-13 07:35:29
+'JuliaExcel Version = 131
+'Computer = MSI
+'Latency test
+'Average time for JuliaEval("1+1") = 1.31439220000175 miliseconds (averaged over 500 calls)
+'Two-way data transport test
+'Average time for JuliaCall("identity", vector of length 100,000) = 0.257647519999591 seconds (averaged over 10 calls)
+'One-way data transport test, Excel to Julia
+'Average time for JuliaCall("sum", vector of length 100,000) = 0.102828399999999 seconds (averaged over 10 calls)
+'One-way data transport test, Julia to Excel
+'Average time for JuliaEval("collect((1:100000).*pi)") = 0.148632560000988 seconds (averaged over 10 calls)
 
 Sub PerformanceTest()
           Const NumCallsOnePlusOne As Long = 500

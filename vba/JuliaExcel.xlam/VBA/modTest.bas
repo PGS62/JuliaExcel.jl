@@ -109,7 +109,7 @@ Function TestDouble()
 5         Exit Function
 ErrHandler:
 6         Debug.Print ReThrow("TestDouble", Err, True)
-TestDouble = False
+7         TestDouble = False
 End Function
 
 Function TestString()
@@ -388,7 +388,6 @@ ErrHandler:
 10        TestDictionaryOfArrays = False
 End Function
 
-
 Function TestDictionaryOfTypes()
 
           Dim x As New Scripting.Dictionary
@@ -458,13 +457,12 @@ ErrHandler:
 5         TestElType = False
 End Function
 
-
 Function TestBroadcasting()
 
-          Dim Xs(1 To 1, 1 To 2)
-          Dim Ys(1 To 2, 1 To 1)
-          Dim ExpRes(1 To 2, 1 To 2)
-          Dim ObsRes
+          Dim ExpRes(1 To 2, 1 To 2) As Variant
+          Dim ObsRes As Variant
+          Dim Xs(1 To 1, 1 To 2) As Variant
+          Dim Ys(1 To 2, 1 To 1) As Variant
 
 1         On Error GoTo ErrHandler
 
@@ -485,6 +483,4 @@ ErrHandler:
 10        Debug.Print ReThrow("TestBroadcasting", Err, True)
 11        TestBroadcasting = False
 End Function
-
-
 

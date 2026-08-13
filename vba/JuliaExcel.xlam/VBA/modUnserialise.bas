@@ -393,7 +393,7 @@ Function DoubleToHex(ByVal x As Double) As String
 8         LSet TB = TD   ' reinterpret the 8 bytes of the Double as a Byte array (little-endian)
 
 9         DoubleToHex = HexByte(TB.B(7)) & HexByte(TB.B(6)) & HexByte(TB.B(5)) & HexByte(TB.B(4)) & _
-                           HexByte(TB.B(3)) & HexByte(TB.B(2)) & HexByte(TB.B(1)) & HexByte(TB.B(0))
+              HexByte(TB.B(3)) & HexByte(TB.B(2)) & HexByte(TB.B(1)) & HexByte(TB.B(0))
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
