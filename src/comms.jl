@@ -21,8 +21,7 @@ end
 
 """
     getcommsfolder()
-Returns the name of the folder to which request files are written by VBA code in 
-JuliaExcel.xlam and to which `srv_xl` writes results. See also `setcommsfolder`.
+Returns the name of the comms folder used by JuliaExcel. See also `setcommsfolder`.
 """
 function getcommsfolder()
     if commsfolder[] == ""
@@ -34,8 +33,7 @@ end
 
 """
     setcommsfolder(folder::String="")
-Sets the name of the folder to which request files are written by VBA code in 
-JuliaExcel.xlam and to which `srv_xl` writes results. See also `getcommsfolder`.
+Sets the name of the comms folder used by JuliaExcel. See also `getcommsfolder`.
 Argument folder can be omitted as a convenience when developing this package.
 """
 function setcommsfolder(folder::String="")
@@ -70,70 +68,45 @@ function installme()
     nothing
 end
 
-flagfile() = joinpath(getcommsfolder(), "Flag_$(getxlpid()).txt")
-resultfile() = joinpath(getcommsfolder(), "Result_$(getxlpid()).txt")
-expressionfile() = joinpath(getcommsfolder(), "Expression_$(getxlpid()).txt")
+portfile() = joinpath(getcommsfolder(), "Port_$(getxlpid()).txt")
 
 """
-    killflagfile()
-Deletes the "flag file" whose existence indicates to VBA code in JuliaExcel.xlam that 
-`srv_xl()` has not yet completed its evaluation of the contents of the expression to be
-evaluated. `killflagfile` can thus be used manually from the REPL if (for example) the
-expression to be evaluated includes an infinite loop.
-"""
-function killflagfile()
-    rm_retry(flagfile())
-end
+    _encode_result_for_xl(result)::String
+Encode `result` for return to Excel, shared by `srv_eval_inner` and `srv_call_inner`. If
+`result` itself can't be encoded (e.g. it's a type with no `encode_for_xl` method), reports
+that to the Julia console and returns an encoded error string describing the problem
+instead.
 
+Callers should invoke this via `Base.invokelatest`: if `result` is a value just defined by
+an `eval` earlier in the same request (e.g. `JuliaEval("f(x)=x^2")` returns the function
+`f` itself), showing its type here can require looking up a global binding that didn't
+exist in the world the caller's own method was compiled in, which Julia 1.12+ reports as a
+"world age" warning.
 """
-    rm_retry(path::AbstractString; retries::Int=10, wait::Real=0.25)
-Attempts to delete the file or directory at `path` with retry logic for handling transient errors.
-"""
-function rm_retry(path::AbstractString; retries::Int=10, wait::Real=0.25)
-    retries > 0 || throw(ArgumentError("retries must be positive"))
-    for attempt in 1:retries
-        try
-            rm(path)
-            attempt == 1 || @info "Successfully deleted $path on attempt $attempt"
-            return true  # Success
-        catch e
-            @warn "Attempt $attempt to delete $path failed: $e, will retry after $wait seconds..."
-            if attempt == retries
-                @error "All $retries attempts to delete $path failed."
-                rethrow(e)  # Final failure
-            elseif isa(e, Base.IOError)
-                sleep(wait)
-            else
-                rethrow(e)  # Unexpected error
-            end
-        end
+function _encode_result_for_xl(result)::String
+    try
+        encode_for_xl(result)
+    catch e
+        println("")
+        @error "Result of type $(typeof(result)) could not be encoded for return to Excel."
+        encode_for_xl("#Expression evaluated to a variable of type $(typeof(result))," *
+                      " which cannot be returned to Excel because: $(e)!")
     end
-    return false  # Shouldn't reach here
 end
 
 """
-    read_utf16(filename::String)
-Returns the contents of a UTF-16 LE encoded text file, stripping the leading BOM.
-The expression file is written by VBA's FileSystemObject as UTF-16 LE with BOM.
-See https://discourse.julialang.org/t/reading-a-utf-16-le-file/11687
+    srv_eval_inner(expression::String)::String
+Evaluate a Julia expression and return the encoded result as a string.
+Called by the HTTP request handler in `start_server` for requests to `/eval`, originating
+from VBA calls to JuliaEval and JuliaEvalVBA.
 """
-read_utf16(filename::String) = transcode(String, reinterpret(UInt16, read(filename)))[4:end]
-
-"""
-    srv_xl()
-Read the expression file created by JuliaExcel.xlam, evaluate it and write the result to
-file, to be unserialised by JuliaExcel.xlam. Files are read from and written to the folder
-given by `getcommsfolder`.
-"""
-function srv_xl()
-
-    expression = read_utf16(expressionfile())
+function srv_eval_inner(expression::String)::String
     global result = try
         Main.eval(Meta.parse(expression))
     catch e
         println("="^100)
         if length(expression) > 500
-            println("Something went wrong evaluating the contents of $(expressionfile())")
+            println("Something went wrong evaluating the contents of an expression")
         else
             println("Something went wrong evaluating the expression:")
             println(expression)
@@ -143,31 +116,90 @@ function srv_xl()
         println("="^100)
         truncate("#($e)!", 10000)
     end
+    Base.invokelatest(_encode_result_for_xl, result)
+end
 
-    canencode = true
-    encodedresult = try
-        encode_for_xl(result)
+"""
+    srv_call_inner(payload::String)::String
+
+Decode `payload` (in the JuliaExcel wire format - a 1D array whose first element is a
+function name and remaining elements are its arguments), call the named function, and
+return the encoded result as a string. Called by the HTTP request handler in `start_server`
+for requests to `/call`, originating from VBA calls to functions JuliaCall and JuliaCallVBA.
+
+Avoids the `Meta.parse` of a literal expression that `srv_eval_inner` requires, which is
+slow for large arrays of arguments.
+
+A trailing "." on the function name (e.g. "f.") requests broadcasting, matching Julia's
+`f.(...)` call syntax. That syntax is a transform on the call site itself (it lowers to
+`broadcast(f, ...)`) rather than a property of a standalone function reference, so "f."
+can't just be handed to `Meta.parse` as-is - the dot is stripped before resolving the
+function, and `broadcast` is called explicitly instead of a plain call.
+"""
+function srv_call_inner(payload::String)::String
+    fn_name = "<unknown>"
+    global args_from_xl = ["<unknown>"]
+    broadcasting = false
+    global result = try
+        decoded = decode_from_xl(payload)
+        fn_name = decoded[1]::String
+        broadcasting = endswith(fn_name, ".")
+        broadcasting && (fn_name = chop(fn_name))
+        fn_to_call = Main.eval(Meta.parse(fn_name))             # fast: parses only the short function name
+        args_from_xl = decoded[2:end]
+        broadcasting ? broadcast(fn_to_call, args_from_xl...) : fn_to_call(args_from_xl...)
     catch e
-        canencode = false
-        encode_for_xl("#Expression evaluated to a variable of type $(typeof(result))," *
-                      " which cannot be returned to Excel because: $(e)!")
+        println("="^100)
+        call_desc = broadcasting ? "$fn_name.(JuliaExcel.args_from_xl...)" : "$fn_name(JuliaExcel.args_from_xl...)"
+        println("Something went wrong calling the Julia function $fn_name from Excel, against arguments saved in JuliaExcel.args_from_xl (until overwritten by the next call), so the error should be reproducible from here with '$call_desc'.")
+        showerror(stdout, e, catch_backtrace())
+        println("")
+        println("="^100)
+        truncate("#($e)!", 10000)
     end
+    Base.invokelatest(_encode_result_for_xl, result)
+end
 
-    io = open(resultfile(), "w")
-    write(io, StringEncodings.encode(encodedresult, "UTF-16"))
-    close(io)
+"""
+    start_server(start::Int=2700)
+Start an HTTP server on a free local port that handles evaluation requests from Excel,
+trying up to 100 candidate ports starting from `start`. Tries the real bind directly rather
+than probing with a separate test-listener first: a probe-then-release check has a gap
+between "verified free" and the real bind moments later, during which another process (e.g.
+an orphaned Julia session from a previously-closed Excel session) could still be holding
+the port - or, since HTTP.jl's server binds with `reuseaddr=true`, could appear to succeed
+even though something else is already listening there. Retrying on the real bind failure
+avoids relying on that separate check being reliable.
 
-    killflagfile()
-    canencode || (println("");
-    @error "Result of type $(typeof(result)) could not be " *
-           "encoded for return to Excel.")
-
+Writes the chosen port to the port file so VBA can discover it during JuliaLaunch.
+"""
+function start_server(start::Int=2700)
+    port = start
+    while true
+        try
+            HTTP.serve!("127.0.0.1", port) do req
+                handler = req.target == "/call" ? srv_call_inner : srv_eval_inner
+                HTTP.Response(200, ["Content-Type" => "text/plain; charset=utf-8"],
+                    handler(String(req.body)))
+            end
+            break
+        catch
+            port += 1
+            port > start + 100 && rethrow()
+        end
+    end
+    open(portfile(), "w") do f
+        write(f, string(port))
+    end
+    xlport[] = port
+    settitle()
+    println("JuliaExcel HTTP server listening on port $port")
     nothing
 end
 
 """
     setvar(name::String, arg)
-Set a variable in global scope. Called by VBA function JuliaSetVar.    
+Set a variable in global scope. Called by VBA function JuliaSetVar.
 """
 function setvar(name::String, arg)
 
@@ -206,11 +238,12 @@ function settitle()
         os = "Windows"
     end
 
-    print("\033]0;Julia $VERSION on $os serving Excel PID $(getxlpid())\a")
+    portpart = xlport[] == 0 ? "" : ", port $(xlport[])"
+    print("\033]0;Julia $VERSION on $os serving Excel PID $(getxlpid())$portpart\a")
 end
 
 """
-    truncate(x::String)
+    truncate(x::String, maxlength::Int)
 Abbreviate a string to show only `maxlength` characters.
 """
 function truncate(x::String, maxlength::Int)

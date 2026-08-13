@@ -1,5 +1,7 @@
-AuditSheetComments.txt
-clsStacker.cls
-JuliaExcel-Documenter.xlsm
-modDependencies.bas
-modDocumenter.bas
+﻿AuditSheetComments.txt
+Formulas\Help.tsv
+Values\Audit.csv
+Values\Help.csv
+VBA\clsStacker.cls
+VBA\modDependencies.bas
+VBA\modDocumenter.bas

@@ -1,5 +1,5 @@
 Attribute VB_Name = "modMain"
-' Copyright (c) 2021-2025 Philip Swannell
+' Copyright (c) 2021-2026 Philip Swannell
 ' License MIT (https://opensource.org/licenses/MIT)
 ' Document: https://github.com/PGS62/JuliaExcel.jl#readme
 
@@ -46,27 +46,45 @@ End Function
 ' MinimiseWindow: If TRUE, then the Julia session window is minimised; if FALSE (the default) then the
 '             window is sized normally.
 ' CommandLineOptions: Command line options set when launching Julia.
-'             Example : `--threads=auto --banner=no`.
+'             Example : `--banner=no`.
+'             If CommandLineOptions does not include a --threads option, `--threads=auto,1` is
+'             appended automatically, giving the Julia session a dedicated interactive thread
+'             alongside its default thread pool. Without a dedicated interactive thread, HTTP.jl's
+'             server tasks share Julia's single thread with whatever expression is currently being
+'             evaluated, which can leave the server unable to respond to Excel - or even to shut
+'             down cleanly - while a long-running or blocking evaluation is in progress. Supplying
+'             your own --threads option (e.g. `--threads=8,2`) disables this automatic behaviour, so
+'             include a dedicated interactive thread of your own if you need that reliability.
 '             https://docs.julialang.org/en/v1/manual/command-line-options/
 ' Packages  : Packages to load, which must be available in the default Julia environment (or environment set
 '             via the `--project` command line option). Delimit multiple packages with commas.
 ' BashStatements: Relevant only when UseLinux is TRUE. Bash statements executed prior to launching Julia,
 '             which can be used to set environment variables. Example `export
 '             JULIA_PKG_DEVDIR=/mnt/c/Projects`. Delimit multiple statements with the line feed character.
-' TimeOut   : The number of seconds to wait for Julia to launch before the function assumes that launch has
-'             failed (perhaps because of mal-formed CommandLineOptions). Optional and defaults to 30.
+' TimeOut   : The number of seconds to wait for Julia to fully start (including any package
+'             precompilation) before JuliaLaunch gives up waiting and returns an informational
+'             message rather than an error - Julia is not killed, and calling JuliaLaunch or
+'             JuliaEval again once it has finished starting will work normally. A separate, much
+'             shorter internal check (the lesser of TimeOut and 5 seconds) detects a genuine launch
+'             failure, e.g. from mal-formed CommandLineOptions, and reports that as an error
+'             immediately. TimeOut is optional and defaults to 30.
 ' -----------------------------------------------------------------------------------------------------------------------
 Public Function JuliaLaunch(Optional UseLinux As Boolean, Optional MinimiseWindow As Boolean, _
           Optional ByVal CommandLineOptions As String, Optional ByVal Packages As String, _
           Optional ByVal BashStatements As String, Optional TimeOut As Long = 30)
+Attribute JuliaLaunch.VB_Description = "Launches a local Julia session which listens to the current Excel session and responds to calls to JuliaEval etc.."
+Attribute JuliaLaunch.VB_ProcData.VB_Invoke_Func = " \n14"
 
           Const WSLExecutable = "C:\Windows\System32\wsl.exe"
           Dim Command As String
           Dim CommsFolderX As String
+          Dim ErrDescription As String
           Dim ErrorFile As String
           Dim ErrorFileX As String
+          Dim ExistingPort As Long
           Dim FlagFileX As String
           Dim HwndJulia As LongPtr
+          Dim IsListening As Boolean
           Dim JuliaExe As String
           Dim LaunchFile As String
           Dim LaunchFileContents As String
@@ -76,6 +94,7 @@ Public Function JuliaLaunch(Optional UseLinux As Boolean, Optional MinimiseWindo
           Dim LoadFileContents As String
           Dim LoadFileX As String
           Dim PID As Long
+          Dim UserSuppliedCommandLineOptions As String
           Dim usingStatements As String
           Dim WindowPartialTitle As String
           Dim WindowTitle As String
@@ -90,98 +109,121 @@ Public Function JuliaLaunch(Optional UseLinux As Boolean, Optional MinimiseWindo
 
 6         JuliaExe = JuliaExeLocation(UseLinux)
 
-7         If InStr(CommandLineOptions, "-L") > 0 Or InStr(CommandLineOptions, "--load ") > 0 Then
-8             Throw "CommandLineOptions cannot include the -L or --load options. Instead use JuliaLaunch without that option and then use JuliaCall(""include"",""path_to_file"")"
-9         ElseIf InStr(CommandLineOptions, "-i") = 0 Then
+7         UserSuppliedCommandLineOptions = CommandLineOptions
+8         If InStr(CommandLineOptions, "-L") > 0 Or InStr(CommandLineOptions, "--load ") > 0 Then
+9             Throw "CommandLineOptions cannot include the -L or --load options. Instead use JuliaLaunch without that option and then use JuliaCall(""include"",""path_to_file"")"
+10        ElseIf InStr(CommandLineOptions, "-i") = 0 Then
               'It's convenient if Julia package OhMyREPL works correctly in the REPL, but that requires the -i (interactive) command line option.
               'https://github.com/KristofferC/OhMyREPL.jl/issues/271
-10            CommandLineOptions = Trim$(CommandLineOptions) & " -i"
-11        End If
+11            CommandLineOptions = Trim$(CommandLineOptions) & " -i"
+12        End If
 
-12        PID = GetCurrentProcessId
-13        WindowPartialTitle = "serving Excel PID " & CStr(PID) 'Must be in synch with Julia function JuliaExcel.settitle
-14        GetHandleFromPartialCaption HwndJulia, WindowPartialTitle
+13        If InStr(CommandLineOptions, "--threads") = 0 Then
+              'Without a dedicated interactive thread, HTTP.jl's server tasks share Julia's single
+              'default thread with whatever expression is currently being evaluated - a long-running
+              'or blocking evaluation (even exit()) can then leave the server unable to respond, or
+              'even to shut down cleanly. See the "Server" docstring in HTTP.jl's http_server.jl.
+14            CommandLineOptions = Trim$(CommandLineOptions) & " --threads=auto,1"
+15        End If
 
-15        If HwndJulia <> 0 Then
-16            WindowTitle = WindowTitleFromHandle(HwndJulia)
-17            JuliaLaunch = "Julia is already running in window """ & WindowTitle & """"
-18            Exit Function
-19        End If
+16        PID = GetCurrentProcessId
+17        WindowPartialTitle = "serving Excel PID " & CStr(PID) 'Must be in synch with Julia function JuliaExcel.settitle
+18        GetHandleFromPartialCaption HwndJulia, WindowPartialTitle
 
-20        ErrorFile = LocalTemp() & "\LoadError_" & CStr(GetCurrentProcessId()) & ".txt"
-21        If FileExists(ErrorFile) Then Kill ErrorFile
-          
-22        SaveTextFile JuliaFlagFile, "", TristateFalse
-23        LoadFile = LocalTemp() & "\StartUp_" & CStr(GetCurrentProcessId()) & ".jl"
+19        If HwndJulia <> 0 Then
+20            WindowTitle = WindowTitleFromHandle(HwndJulia)
+21            On Error Resume Next
+22            ExistingPort = GetJuliaPort()
+23            On Error GoTo ErrHandler
+24            If ExistingPort > 0 Then
+25                IsListening = JuliaIsListening(ExistingPort)
+26            End If
+27            If IsListening Then
+28                JuliaLaunch = "Julia is already running in window """ & WindowTitle & """"
+29                Exit Function
+30            Else
+31                Throw "A Julia session titled """ & WindowTitle & """ is already running for this Excel session, but it is not responding to HTTP requests. Switch to that window: if it's sitting at a ""julia>"" prompt, its HTTP server has likely crashed - close the window and call JuliaLaunch again. If it's busy running code, either wait for it to finish, or press Ctrl+C to interrupt it, then call JuliaLaunch again."
+32            End If
+33        End If
 
-24        If UseLinux Then
-25            If Not FileExists(WSLExecutable) Then
-26                Throw "Cannot find the WSL executable at '" + WSLExecutable + "'. Check if the file exists and whether read and execute permissions are set user '" & Environ$("USERNAME") & "'"
-27            End If
+          'Now we are not exiting early set JuliaPort to zero so that we can test for the connection having been correctly established.
+34        SetJuliaPort 0
 
-28            ErrorFileX = WSLAddress(ErrorFile)
-29            FlagFileX = WSLAddress(JuliaFlagFile())
-30            CommsFolderX = WSLAddress(LocalTemp())
-31            LoadFileX = WSLAddress(LoadFile)
-32            If BashStatements <> "" Then
-33                LaunchFileNecessary = True
-34                BashStatements = BashStatements & vbLf
-35                LaunchFile = LocalTemp & "\launchjulia.sh"
-36                LaunchFileX = WSLAddress(LaunchFile)
-37                LaunchFileContents = _
+35        ErrorFile = LocalTemp() & "\LoadError_" & CStr(GetCurrentProcessId()) & ".txt"
+36        If FileExists(ErrorFile) Then Kill ErrorFile
+
+37        SaveTextFile JuliaFlagFile, "", TristateFalse
+38        LoadFile = LocalTemp() & "\StartUp_" & CStr(GetCurrentProcessId()) & ".jl"
+
+39        If UseLinux Then
+40            If Not FileExists(WSLExecutable) Then
+41                Throw "Cannot find the WSL executable at '" + WSLExecutable + "'. Check if the file exists and whether read and execute permissions are set user '" & Environ$("USERNAME") & "'"
+42            End If
+
+43            ErrorFileX = WSLAddress(ErrorFile)
+44            FlagFileX = WSLAddress(JuliaFlagFile())
+45            CommsFolderX = WSLAddress(LocalTemp())
+46            LoadFileX = WSLAddress(LoadFile)
+47            If BashStatements <> "" Then
+48                LaunchFileNecessary = True
+49                BashStatements = BashStatements & vbLf
+50                LaunchFile = LocalTemp & "\launchjulia.sh"
+51                LaunchFileX = WSLAddress(LaunchFile)
+52                LaunchFileContents = _
                       "#!/bin/bash" & vbLf & _
                       BashStatements & _
                       JuliaExe & " " & Trim(CommandLineOptions) & " --load """ & LoadFileX & """"
-38                SaveTextFile LaunchFile, LaunchFileContents, TristateFalse
-39            End If
-40        Else
-41            FlagFileX = Replace(JuliaFlagFile(), "\", "/")
-42            CommsFolderX = Replace(LocalTemp(), "\", "/")
-43            ErrorFileX = Replace(ErrorFile, "\", "/")
-44            LoadFileX = Replace(LoadFile, "\", "/")
-45        End If
+53                SaveTextFile LaunchFile, LaunchFileContents, TristateFalse
+54            End If
+55        Else
+56            FlagFileX = Replace(JuliaFlagFile(), "\", "/")
+57            CommsFolderX = Replace(LocalTemp(), "\", "/")
+58            ErrorFileX = Replace(ErrorFile, "\", "/")
+59            LoadFileX = Replace(LoadFile, "\", "/")
+60        End If
 
-46        If UseLinux Then
-47            If LaunchFileNecessary Then
-48                Command = "wsl """ & LaunchFileX & """ && exit"
-49            Else
-50                Command = "wsl " & JuliaExe & " " & Trim(CommandLineOptions) & " --load """ & LoadFileX & """"
-51            End If
-52        Else
-53            Command = """" & JuliaExe & """" & " " & Trim(CommandLineOptions) & " --load """ & LoadFileX & """"
-54        End If
-          
+61        If UseLinux Then
+62            If LaunchFileNecessary Then
+63                Command = "wsl """ & LaunchFileX & """ && exit"
+64            Else
+65                Command = "wsl " & JuliaExe & " " & Trim(CommandLineOptions) & " --load """ & LoadFileX & """"
+66            End If
+67        Else
+68            Command = """" & JuliaExe & """" & " " & Trim(CommandLineOptions) & " --load """ & LoadFileX & """"
+69        End If
+
           Dim LiteralCommand As String
-55        LiteralCommand = MakeJuliaLiteral(Command)
-56        LiteralCommand = Mid(LiteralCommand, 2, Len(LiteralCommand) - 2)
+70        LiteralCommand = MakeJuliaLiteral(Command)
+71        LiteralCommand = Mid(LiteralCommand, 2, Len(LiteralCommand) - 2)
 
           Dim i As Long
           Dim PackagesArray() As String
 
           'PGS 8 Dec 2021. It's important to make using JuliaExcel be the last "using" statement as I believe that helps avoid "world-age" problems.
-57        If Packages = "" Then
-58            Packages = "Dates," & gPackageName
-59        Else
-60            Packages = "Dates," & Packages & "," & gPackageName
-61        End If
-62        PackagesArray = VBA.Split(Packages, ",")
+72        If Packages = "" Then
+73            Packages = "Dates," & gPackageName
+74        Else
+75            Packages = "Dates," & Packages & "," & gPackageName
+76        End If
+77        PackagesArray = VBA.Split(Packages, ",")
 
-63        For i = LBound(PackagesArray) To UBound(PackagesArray)
-64            Select Case PackagesArray(i)
+78        For i = LBound(PackagesArray) To UBound(PackagesArray)
+79            Select Case PackagesArray(i)
                   Case Else
-65                    usingStatements = usingStatements & _
+80                    usingStatements = usingStatements & _
                           "    println(""using " & Trim(PackagesArray(i)) & """)" & vbLf & _
                           "    using " & Trim(PackagesArray(i)) & vbLf
-66            End Select
-67        Next
+81            End Select
+82        Next
 
-68        LoadFileContents = _
+83        LoadFileContents = _
               "try" & vbLf & _
               usingStatements & _
               "    setxlpid(" & CStr(GetCurrentProcessId) & ")" & vbLf & _
               "    JuliaExcel.setcommsfolder(""" & CommsFolderX & """)" & vbLf & _
               "    println(""Julia $VERSION, using " & gPackageName & " to serve Excel running as process ID " & GetCurrentProcessId() & "."")" & vbLf & _
               "    println(""Julia launched with command: " & LiteralCommand & " "")" & vbLf & _
+              "    JuliaExcel.start_server()" & vbLf & _
               "    rm(""" & FlagFileX & """)" & vbLf & _
               "catch e" & vbLf & _
               "    theerror = ""$e""" & vbLf & _
@@ -193,42 +235,88 @@ Public Function JuliaLaunch(Optional UseLinux As Boolean, Optional MinimiseWindo
               "    rm(""" & FlagFileX & """)" & vbLf & _
               "end"
 
-69        SaveTextFile LoadFile, LoadFileContents, TristateFalse
-        
-70        Set wsh = New WshShell
+84        SaveTextFile LoadFile, LoadFileContents, TristateFalse
+
+85        Set wsh = New WshShell
 
           Dim NumBefore As Long
           Dim StartTime As Double
-71        StartTime = ElapsedTime()
-          Dim PartialCaption As String
-72        PartialCaption = "serving Excel PID " & CStr(PID)
-73        NumBefore = NumWindowsWithCaption(PartialCaption)
+86        StartTime = ElapsedTime()
+          'The title Julia gives its console window before settitle() customises it - which only
+          'happens once the "using" statements (and any package precompilation they trigger) have
+          'finished. Matching on this generic caption lets us detect "the process launched" without
+          'waiting for precompilation to complete.
+          Const GenericJuliaCaption As String = "Julia"
+          Dim LaunchDetected As Boolean
+          Dim LaunchDetectionSecs As Double
+87        LaunchDetectionSecs = IIf(TimeOut < 5, TimeOut, 5)
+88        NumBefore = NumWindowsWithCaption(GenericJuliaCaption)
 
-74        wsh.Run Command, IIf(MinimiseWindow, vbMinimizedFocus, vbNormalNoFocus), False
-          'Unfortunately, if the CommandLineOptions are invalid then Julia does not launch, but the
-          'call to wsh.Run does not throw an error. Work-around is to count the number of windows whose
-          'caption contains "Julia 1." before and TIMEOUT seconds after the call to wsh.Run.
-75        While FileExists(JuliaFlagFile)
-76            Sleep 50
-77            If ElapsedTime() - StartTime > TimeOut Then
-78                If NumWindowsWithCaption(PartialCaption) <> NumBefore + 1 Then
-79                    Throw "Julia failed to launch after " + CStr(TimeOut) + " seconds. Check the CommandLineOptions are valid (https://docs.julialang.org/en/v1/manual/command-line-options/)"
-80                End If
-81            End If
-82        Wend
-83        CleanLocalTemp
-84        If FileExists(ErrorFile) Then
-85            Throw "Julia launched but encountered an error when executing '" & LoadFile & "' the error was: " & ReadTextFile(ErrorFile, TristateFalse)
-86        End If
-          
-87        GetHandleFromPartialCaption HwndJulia, WindowPartialTitle
-88        WindowTitle = WindowTitleFromHandle(HwndJulia)
-          
-89        JuliaLaunch = "Julia launched in window """ & WindowTitle & """"
+89        wsh.Run Command, IIf(MinimiseWindow, vbMinimizedFocus, vbNormalNoFocus), False
+          'Unfortunately, if the CommandLineOptions are invalid, Julia's window can appear briefly and
+          'then close again as the process dies - and either way, the call to wsh.Run does not throw an
+          'error. Work-around is to track whether a window whose caption contains "Julia" has appeared
+          '(without depending on settitle() having run yet, so this also covers a launch that's just
+          'slow, e.g. because of package precompilation) and, if it later disappears again while
+          'JuliaFlagFile still exists, treat that as a launch failure rather than continuing to wait.
+90        Do While FileExists(JuliaFlagFile)
+91            Sleep 50
+92            If NumWindowsWithCaption(GenericJuliaCaption) > NumBefore Then
+93                LaunchDetected = True
+94                If ElapsedTime() - StartTime > TimeOut Then
+                      'Julia's window is present (so the process did launch) but it has not yet reported
+                      'success - most likely it's still precompiling packages. That's not a failure: once
+                      'it finishes, GetJuliaPort will recover the real port on the next call, so just let
+                      'the user know to try again rather than reporting an error.
+95                    JuliaLaunch = "Julia has not signalled it's ready after " & CStr(TimeOut) & " seconds - it may still be precompiling packages. Once you see ""JuliaExcel HTTP server listening"" printed in its window, call JuliaLaunch (or JuliaEval) again."
+96                    Exit Function
+97                End If
+98            ElseIf LaunchDetected Then
+                  'The window we detected has since disappeared, but Julia's startup script never
+                  'signalled completion (JuliaFlagFile still exists) - the process must have died before
+                  'finishing startup, typically because CommandLineOptions was invalid.
+99                ErrDescription = "Julia's console window closed before start-up finished."
+100                If UserSuppliedCommandLineOptions <> "" Then
+101                    ErrDescription = ErrDescription & " Check the CommandLineOptions are valid (https://docs.julialang.org/en/v1/manual/command-line-options/)"
+102                End If
+103               Throw ErrDescription
+104           ElseIf ElapsedTime() - StartTime > LaunchDetectionSecs Then
+105               ErrDescription = "Julia failed to launch after " & CStr(LaunchDetectionSecs) & " seconds."
+106               If UserSuppliedCommandLineOptions <> "" Then
+107                   ErrDescription = ErrDescription & " Check the CommandLineOptions are valid (https://docs.julialang.org/en/v1/manual/command-line-options/)"
+108               End If
+109               Throw ErrDescription
+110           End If
+111       Loop
+          Dim PortFile As String
+          Dim PortStr As String
+112       PortFile = LocalTemp() & "\Port_" & CStr(PID) & ".txt"
+113       PortStr = ""
+114       On Error Resume Next
+115       PortStr = ReadTextFile(PortFile, TristateFalse)
+116       On Error GoTo ErrHandler
+117       If IsNumeric(PortStr) Then
+118           If CLng(PortStr) > 0 Then
+119               SetJuliaPort CLng(PortStr)
+120           End If
+121       End If
+122       CleanLocalTemp
 
-90        Exit Function
+123       If FileExists(ErrorFile) Then
+124           Throw "Julia launched but encountered an error when executing '" & LoadFile & "' the error was: " & ReadTextFile(ErrorFile, TristateFalse)
+125       End If
+126       If GetJuliaPort() = 0 Then
+127           Throw "Failed to establish connection between Julia and Excel. Is JuliaExcel installed correctly. See https://github.com/PGS62/JuliaExcel.jl#installation"
+128       End If
+
+129       GetHandleFromPartialCaption HwndJulia, WindowPartialTitle
+130       WindowTitle = WindowTitleFromHandle(HwndJulia)
+
+131       JuliaLaunch = "Julia launched in window """ & WindowTitle & """"
+
+132       Exit Function
 ErrHandler:
-91        JuliaLaunch = ReThrow("JuliaLaunch", Err, True)
+133       JuliaLaunch = ReThrow("JuliaLaunch", Err, True)
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
@@ -250,47 +338,19 @@ End Function
 Private Function JuliaEval_LowLevel(ByVal JuliaExpression As Variant, _
           Optional AllowNested As Boolean, Optional StringLengthLimit As Long, _
           Optional JuliaVectorToXLColumn As Boolean = True)
-          
+
           Dim strJuliaExpression As String
-          Dim WindowTitle As String
-          Static HwndJulia As LongPtr
-          Static JuliaExe As String
-          Static PID As Long
 
 1         On Error GoTo ErrHandler
-
-2         strJuliaExpression = ConcatenateExpressions(JuliaExpression)
-3         If JuliaExe = "" Then
-4             JuliaExe = JuliaExeLocation()
+2         If GetJuliaPort() = 0 Then
+3             JuliaEval_LowLevel = "#Please call JuliaLaunch before calling JuliaEval or JuliaCall!"
+4             Exit Function
 5         End If
-6         If PID = 0 Then
-7             PID = GetCurrentProcessId()
-8         End If
-9         If HwndJulia = 0 Or IsWindow(HwndJulia) = 0 Then
-10            WindowTitle = "serving Excel PID " & CStr(PID)
-11            GetHandleFromPartialCaption HwndJulia, WindowTitle
-12        End If
-13        If HwndJulia = 0 Or IsWindow(HwndJulia) = 0 Then
-14            JuliaEval_LowLevel = "#Please call JuliaLaunch before calling JuliaEval or JuliaCall!"
-15            Exit Function
-16        End If
-
-17        SaveTextFile JuliaFlagFile, "", TristateTrue
-18        SaveTextFile JuliaExpressionFile, strJuliaExpression, TristateTrue
-
-          'Line below tells Julia to "do the work" by pasting "srv_xl()" to the REPL
-19        PostMessageToJulia HwndJulia
-20        Do While FileExists(JuliaFlagFile)
-21            If IsWindow(HwndJulia) = 0 Then
-22                JuliaEval_LowLevel = "#Julia shut down while evaluating the expression!"
-23                Exit Function
-24            End If
-25        Loop
-
-26        Assign JuliaEval_LowLevel, UnserialiseFromFile(JuliaResultFile, AllowNested, StringLengthLimit, JuliaVectorToXLColumn)
-27        Exit Function
+6         strJuliaExpression = ConcatenateExpressions(JuliaExpression)
+7         Assign JuliaEval_LowLevel, UnserialiseFromString(JuliaHttpPost(strJuliaExpression), AllowNested, StringLengthLimit, JuliaVectorToXLColumn)
+8         Exit Function
 ErrHandler:
-28        ReThrow "JuliaEval_LowLevel", Err
+9         ReThrow "JuliaEval_LowLevel", Err
 End Function
 
 Sub PreciseSleep(Milliseconds As Double)
@@ -308,6 +368,8 @@ End Sub
 '             Julia statements.
 ' -----------------------------------------------------------------------------------------------------------------------
 Public Function JuliaEval(ByVal JuliaExpression As Variant)
+Attribute JuliaEval.VB_Description = "Evaluate a Julia expression and return the result to an Excel worksheet."
+Attribute JuliaEval.VB_ProcData.VB_Invoke_Func = " \n14"
 1         On Error GoTo ErrHandler
           
 2         If IsFunctionWizardActive() Then
@@ -332,6 +394,8 @@ End Function
 '             Julia statements.
 ' -----------------------------------------------------------------------------------------------------------------------
 Public Function JuliaEvalVBA(ByVal JuliaExpression As Variant)
+Attribute JuliaEvalVBA.VB_Description = "Evaluate a Julia expression from VBA . Differs from JuliaCall in handling of 1-d arrays and strings longer than 32,767 characters. May return data of types that cannot be displayed on a worksheet, such as a dictionary or an array of arrays."
+Attribute JuliaEvalVBA.VB_ProcData.VB_Invoke_Func = " \n14"
 1         On Error GoTo ErrHandler
 2         Assign JuliaEvalVBA, JuliaEval_LowLevel(JuliaExpression, AllowNested:=True, StringLengthLimit:=0, JuliaVectorToXLColumn:=False)
 3         Exit Function
@@ -348,87 +412,14 @@ End Function
 '             Boolean, Empty or array of such types. When called from VBA, nested arrays are supported.
 ' -----------------------------------------------------------------------------------------------------------------------
 Public Function JuliaSetVar(VariableName As String, RefersTo As Variant)
+Attribute JuliaSetVar.VB_Description = "Set a global variable in the Julia process."
+Attribute JuliaSetVar.VB_ProcData.VB_Invoke_Func = " \n14"
 1         On Error GoTo ErrHandler
 2         JuliaSetVar = JuliaCall(gPackageName & ".setvar", VariableName, RefersTo)
 
 3         Exit Function
 ErrHandler:
 4         JuliaSetVar = ReThrow("JuliaSetVar", Err, True)
-End Function
-
-' -----------------------------------------------------------------------------------------------------------------------
-' Procedure : JuliaCallOld
-' Purpose   : Call a named Julia function, passing in data from the worksheet.
-' Arguments
-' JuliaFunction: The name of a Julia function that's defined in the Julia session, perhaps as a result of
-'             prior calls to JuliaInclude.
-' Args...   : Zero or more arguments. Each argument may be a number, string, Boolean value, empty cell, an
-'             array of such values or an Excel range.
-' -----------------------------------------------------------------------------------------------------------------------
-Private Function JuliaCallOld(JuliaFunction As String, ParamArray Args())
-          Dim Expression As String
-          Dim i As Long
-          Dim Tmp() As String
-
-1         On Error GoTo ErrHandler
-
-2         If IsFunctionWizardActive() Then
-3             JuliaCallOld = "#Disabled in Function Wizard!"
-4             Exit Function
-5         End If
-
-6         If UBound(Args) >= LBound(Args) Then
-7             ReDim Tmp(LBound(Args) To UBound(Args))
-
-8             For i = LBound(Args) To UBound(Args)
-9                 If TypeName(Args(i)) = "Range" Then Args(i) = Args(i).Value2
-10                Tmp(i) = MakeJuliaLiteral(Args(i))
-11            Next i
-12            Expression = JuliaFunction & "(" & VBA.Join$(Tmp, ",") & ")"
-13        Else
-14            Expression = JuliaFunction & "()"
-15        End If
-
-16        JuliaCallOld = JuliaEval(Expression)
-
-17        Exit Function
-ErrHandler:
-18        JuliaCallOld = ReThrow("JuliaCallOld", Err, True)
-End Function
-
-' -----------------------------------------------------------------------------------------------------------------------
-' Procedure : JuliaCallVBAOld
-' Purpose   : Call a named Julia function from VBA. Differs from JuliaCallOld in handling of 1-dimensional
-'             arrays, and strings longer than 32,767 characters. May return data of types that cannot be
-'             displayed on a worksheet, such as a dictionary or an array of arrays.
-' Arguments
-' JuliaFunction: The name of a Julia function that's defined in the Julia session, perhaps as a result of
-'             prior calls to JuliaInclude.
-' Args...   : Zero or more arguments. Each argument may be a number, string, Boolean value, empty cell, an
-'             array of such values or an Excel range.
-' -----------------------------------------------------------------------------------------------------------------------
-Private Function JuliaCallVBAOld(JuliaFunction As String, ParamArray Args())
-          Dim Expression As String
-          Dim i As Long
-          Dim Tmp() As String
-
-1         On Error GoTo ErrHandler
-2         If UBound(Args) >= LBound(Args) Then
-3             ReDim Tmp(LBound(Args) To UBound(Args))
-4             For i = LBound(Args) To UBound(Args)
-5                 If TypeName(Args(i)) = "Range" Then Args(i) = Args(i).Value2
-6                 Tmp(i) = MakeJuliaLiteral(Args(i))
-7             Next i
-8             Expression = JuliaFunction & "(" & VBA.Join$(Tmp, ",") & ")"
-9         Else
-10            Expression = JuliaFunction & "()"
-11        End If
-
-12        Assign JuliaCallVBAOld, JuliaEval_LowLevel(Expression, AllowNested:=True, StringLengthLimit:=0, JuliaVectorToXLColumn:=False)
-
-13        Exit Function
-ErrHandler:
-14        ReThrow "JuliaCallVBAOld", Err
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
@@ -439,42 +430,13 @@ End Function
 ' FileName  : The full name of the file to be included.
 ' -----------------------------------------------------------------------------------------------------------------------
 Public Function JuliaInclude(FileName As String)
+Attribute JuliaInclude.VB_Description = "Load a Julia source file into the Julia process, to make additional functions available via JuliaEval and JuliaCall."
+Attribute JuliaInclude.VB_ProcData.VB_Invoke_Func = " \n14"
 1         If IsFunctionWizardActive() Then
 2             JuliaInclude = "#Disabled in Function Wizard!"
 3             Exit Function
 4         End If
 5         JuliaInclude = JuliaCall(gPackageName & ".include", Replace(FileName, "\", "/"))
-End Function
-
-' -----------------------------------------------------------------------------------------------------------------------
-' Procedure : JuliaUnserialiseFile
-' Purpose   : Unserialises the contents of the JuliaResultsFile.
-' Arguments
-' FileName  : The name (including path) of the file to be unserialised. Optional and defaults to the file
-'             name returned by JuliaResultsFile.
-' ForWorksheet: Pass TRUE (the default) when calling from a worksheet, FALSE when calling from VBA. If
-'             FALSE, the function may return data structures that can exist in VBA but cannot be
-'             represented on a worksheet, such as a dictionary or an array of arrays.
-' -----------------------------------------------------------------------------------------------------------------------
-Public Function JuliaUnserialiseFile(Optional ByVal FileName As String, Optional ForWorksheet As Boolean = True)
-          Dim JuliaVectorToXLColumn As Boolean
-          Dim StringLengthLimit As Long
-
-1         On Error GoTo ErrHandler
-2         If FileName = "" Then
-3             FileName = JuliaResultFile()
-4         End If
-
-5         If ForWorksheet Then
-6             StringLengthLimit = GetStringLengthLimit()
-7             JuliaVectorToXLColumn = True
-8         End If
-
-9         Assign JuliaUnserialiseFile, UnserialiseFromFile(FileName, Not ForWorksheet, StringLengthLimit, JuliaVectorToXLColumn)
-
-10        Exit Function
-ErrHandler:
-11        JuliaUnserialiseFile = ReThrow("JuliaUnserialiseFile", Err, True)
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
@@ -488,32 +450,6 @@ Private Function JuliaFlagFile() As String
 2             FlagFile = LocalTemp() & "\Flag_" & CStr(GetCurrentProcessId()) & ".txt"
 3         End If
 4         JuliaFlagFile = FlagFile
-End Function
-
-' -----------------------------------------------------------------------------------------------------------------------
-' Procedure : JuliaExpressionFile
-' Purpose   : Returns the name of the file containing the JuliaExpression that's passed to JuliaEval,
-'             JuliaCall etc.
-' -----------------------------------------------------------------------------------------------------------------------
-Private Function JuliaExpressionFile() As String
-          Static ExpressionFile As String
-1         If ExpressionFile = "" Then
-2             ExpressionFile = LocalTemp() & "\Expression_" & CStr(GetCurrentProcessId()) & ".txt"
-3         End If
-4         JuliaExpressionFile = ExpressionFile
-End Function
-
-' -----------------------------------------------------------------------------------------------------------------------
-' Procedure : JuliaResultFile
-' Purpose   : Returns the name of the file to which the results of calls to JuliaCall, JuliaEval etc.
-'             are written. The file may be unserialised with function JuliaUnserialiseFile.
-' -----------------------------------------------------------------------------------------------------------------------
-Public Function JuliaResultFile() As String
-          Static ResultFile As String
-1         If ResultFile = "" Then
-2             ResultFile = LocalTemp() & "\Result_" & CStr(GetCurrentProcessId()) & ".txt"
-3         End If
-4         JuliaResultFile = ResultFile
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
@@ -720,38 +656,30 @@ End Sub
 'Average time in JuliaEval   0.015039338300001          Averaged over 1000 calls
 '--------------------------------------------------
 ' -----------------------------------------------------------------------------------------------------------------------
-' Procedure : JuliaArgsFile
-' Purpose   : Returns the name of the file to which serialised arguments are written by JuliaCall.
-' -----------------------------------------------------------------------------------------------------------------------
-Private Function JuliaArgsFile() As String
-          Static ArgsFile As String
-1         If ArgsFile = "" Then
-2             ArgsFile = LocalTemp() & "\Args_" & CStr(GetCurrentProcessId()) & ".txt"
-3         End If
-4         JuliaArgsFile = ArgsFile
-End Function
-
-' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : JuliaCall_LowLevel
-' Purpose    : Shared dispatch for JuliaCall and JuliaCallVBA. The args file must already
-'              have been written by the caller before this is called.
+' Purpose    : Shared dispatch for JuliaCall and JuliaCallVBA. POSTs EncodedArgs (a 1D array in the
+'              JuliaExcel wire format whose first element is a function name and remaining elements
+'              are its arguments) to the /call HTTP endpoint, handled by Julia's srv_call_inner.
 '              IsFromWorksheet controls result handling in the same way as for JuliaEval_LowLevel:
 '                False -> AllowNested=True, no string-length limit, vectors stay 1D  (VBA caller)
 '                True  -> AllowNested=False, GetStringLengthLimit(), vectors become columns (worksheet)
 '              Note: cannot accept ParamArray here - VBA forbids using a ParamArray parameter as
-'              an argument in any call, so the encoding loop is duplicated in each public wrapper,
-'              exactly as JuliaCallOld and JuliaCallVBAOld both duplicate the MakeJuliaLiteral loop.
+'              an argument in any call, so the encoding loop is duplicated in each public wrapper.
 ' -----------------------------------------------------------------------------------------------------------------------
-Private Function JuliaCall_LowLevel(IsFromWorksheet As Boolean)
+Private Function JuliaCall_LowLevel(EncodedArgs As String, IsFromWorksheet As Boolean)
 1         On Error GoTo ErrHandler
-2         If IsFromWorksheet Then
-3             Assign JuliaCall_LowLevel, JuliaEval_LowLevel("JuliaExcel.call_from_xl()", False, GetStringLengthLimit(), True)
-4         Else
-5             Assign JuliaCall_LowLevel, JuliaEval_LowLevel("JuliaExcel.call_from_xl()", True, 0, False)
-6         End If
-7         Exit Function
+2         If GetJuliaPort() = 0 Then
+3             JuliaCall_LowLevel = "#Please call JuliaLaunch before calling JuliaEval or JuliaCall!"
+4             Exit Function
+5         End If
+6         If IsFromWorksheet Then
+7             Assign JuliaCall_LowLevel, UnserialiseFromString(JuliaHttpPost(EncodedArgs, "/call"), False, GetStringLengthLimit(), True)
+8         Else
+9             Assign JuliaCall_LowLevel, UnserialiseFromString(JuliaHttpPost(EncodedArgs, "/call"), True, 0, False)
+10        End If
+11        Exit Function
 ErrHandler:
-8         ReThrow "JuliaCall_LowLevel", Err
+12        ReThrow "JuliaCall_LowLevel", Err
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
@@ -767,6 +695,8 @@ End Function
 '             or Range. Ranges are expanded to their .Value2 before encoding.
 ' -----------------------------------------------------------------------------------------------------------------------
 Public Function JuliaCall(JuliaFunction As String, ParamArray Args())
+Attribute JuliaCall.VB_Description = "Call a named Julia function, passing in data from the worksheet. Returns an error string for results that cannot be displayed on a worksheet (nested arrays, dictionaries etc). JuliaCallVBA lifts those restrictions."
+Attribute JuliaCall.VB_ProcData.VB_Invoke_Func = " \n14"
           Dim Arg As Variant
           Dim ContentsSection As String
           Dim i As Long
@@ -794,12 +724,11 @@ Public Function JuliaCall(JuliaFunction As String, ParamArray Args())
 15            LengthsSection = LengthsSection & CStr(Len(ThisEncoded)) & ","
 16            ContentsSection = ContentsSection & ThisEncoded
 17        Next i
-18        SaveTextFile JuliaArgsFile, "*1," & CStr(NumElements) & ";" & LengthsSection & ";" & ContentsSection, TristateTrue
-19        Assign JuliaCall, JuliaCall_LowLevel(IsFromWorksheet:=True)
+18        Assign JuliaCall, JuliaCall_LowLevel("*1," & CStr(NumElements) & ";" & LengthsSection & ";" & ContentsSection, IsFromWorksheet:=True)
 
-20        Exit Function
+19        Exit Function
 ErrHandler:
-21        JuliaCall = ReThrow("JuliaCall", Err, True)
+20        JuliaCall = ReThrow("JuliaCall", Err, True)
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
@@ -836,12 +765,11 @@ Public Function JuliaCallVBA(JuliaFunction As String, ParamArray Args())
 11            LengthsSection = LengthsSection & CStr(Len(ThisEncoded)) & ","
 12            ContentsSection = ContentsSection & ThisEncoded
 13        Next i
-14        SaveTextFile JuliaArgsFile, "*1," & CStr(NumElements) & ";" & LengthsSection & ";" & ContentsSection, TristateTrue
-15        Assign JuliaCallVBA, JuliaCall_LowLevel(IsFromWorksheet:=False)
+14        Assign JuliaCallVBA, JuliaCall_LowLevel("*1," & CStr(NumElements) & ";" & LengthsSection & ";" & ContentsSection, IsFromWorksheet:=False)
 
-16        Exit Function
+15        Exit Function
 ErrHandler:
-17        ReThrow "JuliaCallVBA", Err
+16        ReThrow "JuliaCallVBA", Err
 End Function
 
 Private Sub SpeedTest2()
@@ -867,5 +795,6 @@ Private Sub SpeedTest2()
 10        Debug.Print "'Average time in JuliaEval", (t2 - t1) / NumCalls, "Averaged over " & CStr(NumCalls) & " calls"
 11        Debug.Print "'--------------------------------------------------"
 End Sub
+
 
 

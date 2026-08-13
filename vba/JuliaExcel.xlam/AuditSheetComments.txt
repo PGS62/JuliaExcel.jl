@@ -1,4 +1,20 @@
 ﻿Version	Date	Time	Author	Comment
+137	13-Aug-2026	15:10	Philip Swannell	Refreshed line numbers in all modules.
+136	13-Aug-2026	15:09	Philip Swannell	Locked project for viewing.
+135	13-Aug-2026	15:05	Philip Swannell	Changes relating to --threads commandline option.
+134	13-Aug-2026	11:09	Philip Swannell	Documentation improvements. Changes in modTest to println to the REPL.
+133	13-Aug-2026	10:05	Philip Swannell	Removed redundant functions Serialise and SerialiseArgs.
+132	13-Aug-2026	09:50	Philip Swannell	Removed redundant methods PostMessageToJulia, SaveTextFileUTF8.
+131	13-Aug-2026	07:32	Philip Swannell	Whitespace changes, line renumbering etc.
+130	10-Aug-2026	18:55	Philip Swannell	Updates on worksheet _Intellisense_.
+129	10-Aug-2026	18:07	Philip Swannell	Removed JuliaResultFile and JuliaUnserialiseFile from _Intellisense_worksheet - their VBA code has already been removed in an earlier git commit.
+128	10-Aug-2026	13:16	Philip Swannell	Route JuliaCall/JuliaCallVBA through HTTP, dropping the args file.
+127	10-Aug-2026	12:19	Philip Swannell	Fix JuliaLaunch timeout handling and GetJuliaPort's stale-recovery bug.
+126	10-Aug-2026	10:50	Philip Swannell	Remove obsolete functions and simplify MakeJuliaLiteral
+125	09-Aug-2026	20:01	Philip Swannell	Deleted DoubleToHexOld, SingleToHexOld, JuliaCallOld and JuliaCallVBAOld.
+124	09-Aug-2026	19:52	Philip Swannell	More changes in JuliaLaunch.
+123	08-Aug-2026	08:46	Philip Swannell	Improvements to error handling in JuliaLaunch.
+122	07-Aug-2026	12:46	Philip Swannell	Imported Claude's rewrite to use Sockets rather than file-based mechanism.
 121	07-Aug-2026	10:06	Philip Swannell	Rename modules: ModSerialise -> modUnserialise, ModSerialiseNew -> modSerialise
 120	07-Aug-2026	09:58	Philip Swannell	Made JuliaCallOld and JuliaCallVBAOld Private.
 119	06-Aug-2026	10:07	Philip Swannell	Fixed bug with respect to handling 1-d arrays. Improved tests.

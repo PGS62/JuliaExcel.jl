@@ -1,5 +1,5 @@
 Attribute VB_Name = "modUnserialise"
-' Copyright (c) 2021-2025 Philip Swannell
+' Copyright (c) 2021-2026 Philip Swannell
 ' License MIT (https://opensource.org/licenses/MIT)
 ' Document: https://github.com/PGS62/JuliaExcel.jl#readme
 
@@ -52,12 +52,12 @@ End Type
 'Format designed to be as fast as possible to unserialise.
 '- Singleton types are prefixed with a type indicator character.
 '- Dates are shown in their Excel representation as a number - faster to unserialise in VBA.
-'- Floating point numbers (Double, Single) are represented in hexadecimal. See functions _
- DoubleToHex, HexToDouble, SingleToHex, HexToSingle. This ensures exact round-tripping _
- and avoids having to cope with the decimal separator being a comma.
+'- Floating point numbers (Double, Single) are represented in hexadecimal. See functions
+'  DoubleToHex, HexToDouble, SingleToHex, HexToSingle. This ensures exact round-tripping
+'  and avoids having to cope with the decimal separator being a comma.
 '- Arrays are written with type indicator *, then three sections separated by semi-colons:
-'  First section gives the number of dimensions and the dimensions themselves, comma
-'  delimited e.g. a 3 x 4 array would have a dimensions section "2,3,4".
+'  First section gives the number of dimensions (rank, up to 9) and the dimensions themselves,
+'  comma delimited e.g. a 3 x 4 array would have a dimensions section "2,3,4".
 '  Second section gives the lengths of the encodings of each element, comma delimited with a
 '  terminating comma.
 '  Third section gives the encodings, concatenated with no delimiter.
@@ -73,8 +73,8 @@ End Type
 '  first key, first item, second key second item etc.
 
 'Type indicator characters are as follows:
-' # Double, payload is hex e.g. 1.5 encoded as D3FF8000000000000
-' � (pound sterling) String
+' # Double, payload is hex e.g. 1.5 encoded as #3FF8000000000000
+' Chr(163) (pound sterling sign) String
 ' T Boolean True
 ' F Boolean False
 ' D Date, payload is decimal of Excel's date representation. e.g. 22-Dec-2025 is D64013
@@ -84,46 +84,32 @@ End Type
 ' % Integer
 ' & Long
 ' S Single, payload is hex
-' C Currency
+' C Currency - reserved, not currently implemented in Julia function encode_for_xl
 ' ! Error
-' @ Decimal
+' @ Decimal - reserved, not currently implemented in Julia function encode_for_xl
 ' * Array
-' ^ LongLong
+' ^ LongLong (64-bit VBA only)
 ' H Dictionary
 
-'Examples:
+'Examples (<pound> below stands for the single character Chr(163)):
 '#3FF0000000000000 unserialises to Double 1
 '&1 unserailises to Long 1
-'�Hello unserialises to String Hello
+'<pound>Hello unserialises to String Hello
 'T unserialises to Boolean True
 'F unserialises to Boolean False
-'*1,7;2,2,17,1,1,6,6,;%1%2#4008000000000000TF�Hello�World  unserialises to Array(1,2,3.0,True,False,"Hello","World")
-'^2;2,3,4,5,;�a%10�abc%1000 unserialises to a Dictionary with two elements, element "a" contains 10 and element "abc" contains 1000
+'*1,7;2,2,17,1,1,6,6,;%1%2#4008000000000000TF<pound>Hello<pound>World  unserialises to Array(1,2,3.0,True,False,"Hello","World")
+'H2;2,3,4,5,;<pound>a%10<pound>abc%1000 unserialises to a Dictionary with two elements, element "a" contains 10 and element "abc" contains 1000
 
 ' -----------------------------------------------------------------------------------------------------------------------
-' Procedure  : UnserialiseFromFile
-' Purpose    : Read the file saved by the Julia code and unserialise its contents.
+' Procedure  : UnserialiseFromString
+' Purpose    : Unserialise a result string returned directly from the Julia HTTP server.
 ' -----------------------------------------------------------------------------------------------------------------------
-Function UnserialiseFromFile(FileName As String, AllowNested As Boolean, StringLengthLimit As Long, JuliaVectorToXLColumn As Boolean)
-          Dim Contents As String
-          Dim ErrMsg As String
-          Static fso As Scripting.FileSystemObject
-          Dim TS As Scripting.TextStream
-
+Function UnserialiseFromString(Contents As String, AllowNested As Boolean, StringLengthLimit As Long, JuliaVectorToXLColumn As Boolean)
 1         On Error GoTo ErrHandler
-2         If fso Is Nothing Then Set fso = New Scripting.FileSystemObject
-
-3         Set TS = fso.OpenTextFile(FileName, ForReading, , TristateTrue)
-4         Contents = TS.ReadAll
-5         TS.Close
-6         Set TS = Nothing
-7         Assign UnserialiseFromFile, Unserialise(Contents, AllowNested, 0, StringLengthLimit, JuliaVectorToXLColumn)
-
-8         Exit Function
+2         Assign UnserialiseFromString, Unserialise(Contents, AllowNested, 0, StringLengthLimit, JuliaVectorToXLColumn)
+3         Exit Function
 ErrHandler:
-9         ErrMsg = ReThrow("UnserialiseFromFile", Err, True)
-10        If Not TS Is Nothing Then TS.Close
-11        Throw ErrMsg
+4         ReThrow "UnserialiseFromString", Err
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
@@ -161,9 +147,9 @@ Function Unserialise(Chars As String, AllowNesting As Boolean, ByRef Depth As Lo
 3         Select Case Asc(Left$(Chars, 1))
               Case 35    '# vbDouble
 4                 Unserialise = HexToDouble(Mid$(Chars, 2))
-5             Case 163    '� (pound sterling) vbString
+5             Case 163    'Chr(163), pound sterling sign: vbString
 6                 If StringLengthLimit > 0 Then 'Calling from worksheet formula, StringLengthLimit applies to elements of an array
-7                     If Len(Chars) > IIf(Depth = 1, 32768, StringLengthLimit) Then 'Remember Chars includes an initial type indicator character of "�"
+7                     If Len(Chars) > IIf(Depth = 1, 32768, StringLengthLimit) Then 'Remember Chars includes an initial type indicator character of Chr(163)
 8                         If StringLengthLimit = 32768 Then
 9                             Throw "Data contains a string of length " & Format(Len(Chars) - 1, "###,###") & _
                                   ", too long to be returned to an Excel worksheet in Excel version " + _
@@ -383,41 +369,11 @@ End Function
 #End If
 
 ' -----------------------------------------------------------------------------------------------------------------------
-' Procedure  : DoubleToHexOld
-' Purpose    : Return a 16-character uppercase hexadecimal string representing the IEEE-754 bit pattern of x (Double).
-'              Does not special-case NaN, +0.0 or -0.0.
-' -----------------------------------------------------------------------------------------------------------------------
-Function DoubleToHexOld(ByVal x As Double) As String
-
-          Dim H1 As String
-          Dim H2 As String
-          Dim Out As String
-          Dim TD As TDouble
-          Dim Tl As TLongs
-          
-1         On Error GoTo ErrHandler
-2         TD.d = x
-3         LSet Tl = TD  ' reinterpret the 8 bytes of the Double as two Longs
-
-4         Out = "0000000000000000"
-5         H1 = Hex$(Tl.Hi)
-6         H2 = Hex$(Tl.Lo)
-
-7         Mid$(Out, 9 - Len(H1)) = H1
-8         Mid$(Out, 17 - Len(H2)) = H2
-9         DoubleToHexOld = Out
-
-10        Exit Function
-ErrHandler:
-11        ReThrow "DoubleToHexOld", Err
-End Function
-
-' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : DoubleToHex
-' Purpose    : Faster alternative to DoubleToHex. Uses LSet to reinterpret the 8 bytes of x as a
-'              Byte array, then maps each byte through a static 256-entry lookup table (seeded on
-'              first call) to produce the two-character hex pair.  Avoids the variable-length Hex$
-'              call and Mid$ placement that DoubleToHex requires.
+' Purpose    : Encode x as a 16-character hex string of its IEEE-754 bit pattern (big-endian), for
+'              inclusion in the wire format passed between Excel and Julia. Uses LSet to reinterpret
+'              the 8 bytes of x as a Byte array, then maps each byte through a static 256-entry
+'              lookup table (seeded on first call) to produce the two-character hex pair.
 ' -----------------------------------------------------------------------------------------------------------------------
 Function DoubleToHex(ByVal x As Double) As String
           Static HexByte(0 To 255) As String
@@ -437,7 +393,7 @@ Function DoubleToHex(ByVal x As Double) As String
 8         LSet TB = TD   ' reinterpret the 8 bytes of the Double as a Byte array (little-endian)
 
 9         DoubleToHex = HexByte(TB.B(7)) & HexByte(TB.B(6)) & HexByte(TB.B(5)) & HexByte(TB.B(4)) & _
-                           HexByte(TB.B(3)) & HexByte(TB.B(2)) & HexByte(TB.B(1)) & HexByte(TB.B(0))
+              HexByte(TB.B(3)) & HexByte(TB.B(2)) & HexByte(TB.B(1)) & HexByte(TB.B(0))
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
@@ -468,28 +424,10 @@ End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : SingleToHex
-' Purpose    : Return a 8-character uppercase hexadecimal string representing the IEEE-754 bit pattern of x (Single).
-'              Does not special-case NaN, +0.0 or -0.0.
-' -----------------------------------------------------------------------------------------------------------------------
-Function SingleToHexOld(ByVal x As Single) As String
-
-          Dim Tl As TLong
-          Dim TS As TSingle
-
-1         On Error GoTo ErrHandler
-2         TS.s = x
-3         LSet Tl = TS  ' reinterpret the 4 bytes of the Single as a Long
-4         SingleToHexOld = LPad(Hex$(Tl.x), 8, "0")
-5         Exit Function
-ErrHandler:
-6         ReThrow "SingleToHexOld", Err
-End Function
-
-' -----------------------------------------------------------------------------------------------------------------------
-' Procedure  : SingleToHex
-' Purpose    : Faster alternative to SingleToHexOld. Uses LSet to reinterpret the 4 bytes of x as
-'              a Byte array, then maps each byte through a static 256-entry lookup table (seeded on
-'              first call) to produce the two-character hex pair.
+' Purpose    : Encode x as an 8-character hex string of its IEEE-754 bit pattern (big-endian), for
+'              inclusion in the wire format passed between Excel and Julia. Uses LSet to reinterpret
+'              the 4 bytes of x as a Byte array, then maps each byte through a static 256-entry
+'              lookup table (seeded on first call) to produce the two-character hex pair.
 ' -----------------------------------------------------------------------------------------------------------------------
 Function SingleToHex(ByVal x As Single) As String
           Static HexByte(0 To 255) As String

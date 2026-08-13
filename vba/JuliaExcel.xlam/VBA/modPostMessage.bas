@@ -1,5 +1,5 @@
 Attribute VB_Name = "modPostMessage"
-' Copyright (c) 2021-2025 Philip Swannell
+' Copyright (c) 2021-2026 Philip Swannell
 ' License MIT (https://opensource.org/licenses/MIT)
 ' Document: https://github.com/PGS62/JuliaExcel.jl#readme
 
@@ -8,8 +8,6 @@ Option Private Module
 Private Const GW_HWNDNEXT = 2
 
 #If VBA7 And Win64 Then
-Private Declare PtrSafe Function PostMessage Lib "USER32" Alias "PostMessageA" (ByVal hWnd As LongPtr, _
-    ByVal wMsg As Long, ByVal wParam As LongPtr, lParam As Any) As Long
 Private Declare PtrSafe Function FindWindow Lib "USER32" Alias "FindWindowA" (ByVal lpClassName As String, _
     ByVal lpWindowName As String) As LongPtr
 Private Declare PtrSafe Function GetWindowTextLength Lib "USER32" Alias "GetWindowTextLengthA" _
@@ -21,8 +19,6 @@ Private Declare PtrSafe Function GetWindowThreadProcessId Lib "user32.dll" _
     (ByVal hWnd As LongPtr, ByRef lpdwProcessId As Long) As Long
 Private Declare PtrSafe Function GetCurrentProcessId Lib "kernel32" () As Long
 #Else
-Private Declare Function PostMessage Lib "user32" Alias "PostMessageA" (ByVal hwnd As Long, _
-    ByVal wMsg As Long, ByVal wParam As Long, lParam As Any) As Long
 Private Declare Function FindWindow Lib "user32" Alias "FindWindowA" (ByVal lpClassName As String, _
     ByVal lpWindowName As String) As Long
 Private Declare Function GetWindowTextLength Lib "user32" Alias "GetWindowTextLengthA" _
@@ -34,59 +30,6 @@ Private Declare Function GetWindowThreadProcessId Lib "user32.dll" _
     (ByVal hWnd As Long, ByRef lpdwProcessId As Long) As Long
 Private Declare Function GetCurrentProcessId Lib "kernel32" () As Long
 #End If
-
-' -----------------------------------------------------------------------------------------------------------------------
-' Procedure  : PostMessageToJulia
-' Purpose    : Sends a command to a running Julia process. Faster and more robust than using Application.SendKeys
-' Remarks    : Figuring out the correct lParam argument to pass to PostMessage is tricky, Spy++ is helpful, and is
-'              installed on my PC at:
-'              C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\Common7\Tools\spyxx_amd64.exe
-'              More references at:
-'              https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-sendmessagea
-'              https://www.codeproject.com/Tips/1029254/SendMessage-and-PostMessage
-'              Key codes are at:
-'              https://docs.microsoft.com/en-gb/windows/win32/inputdev/virtual-key-codes?redirectedfrom=MSDN
-' Parameters :
-'  HwndJulia : Window handle for the Julia REPL
-' -----------------------------------------------------------------------------------------------------------------------
-Sub PostMessageToJulia(HwndJulia As LongPtr)
-          
-          Dim i As Long
-            
-          'https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-char
-          Const WM_CHAR = &H102
-
-          'In case there's some random text at the Julia REPL, send {ESCAPE}{BACKSPACE} three times, _
-           which will work if there are three or fewer words at the REPL. Sending Ctrl+U _
-           (PostMessage HwndJulia, WM_CHAR, ByVal 21, ByVal &H1) would clear the REPL no matter how _
-           much text is at the REPL, but turns out to be MUCH slower (extra 225 milliseconds!) for an unknown reason.
-             
-1         For i = 1 To 3
-2             PostMessage HwndJulia, WM_CHAR, ByVal 27, ByVal &H1
-3             PostMessage HwndJulia, WM_CHAR, ByVal 8, ByVal &H1
-4         Next i
-
-          'One more {BACKSPACE} should be enough to switch Julia out of Package REPL mode if it's in it.
-5         PostMessage HwndJulia, WM_CHAR, ByVal 8, ByVal &H1
-          
-          'Send "srv_xl". _
-           https://docs.microsoft.com/en-gb/windows/win32/inputdev/wm-char?redirectedfrom=MSDN
-6         PostMessage HwndJulia, WM_CHAR, ByVal Asc("s"), ByVal &H1 '&H1F0001
-7         PostMessage HwndJulia, WM_CHAR, ByVal Asc("r"), ByVal &H1 '&H130001
-8         PostMessage HwndJulia, WM_CHAR, ByVal Asc("v"), ByVal &H1 '&H2F0001
-9         PostMessage HwndJulia, WM_CHAR, ByVal Asc("_"), ByVal &H1 '&HC0001
-10        PostMessage HwndJulia, WM_CHAR, ByVal Asc("x"), ByVal &H1 '&H2D0001
-11        PostMessage HwndJulia, WM_CHAR, ByVal Asc("l"), ByVal &H1 '&H260001
-
-          'Send "(){Enter}"
-12        PostMessage HwndJulia, WM_CHAR, ByVal Asc("("), ByVal &HA0001
-13        PostMessage HwndJulia, WM_CHAR, ByVal Asc(")"), ByVal &HB0001
-14        PostMessage HwndJulia, WM_CHAR, ByVal Asc(vbLf), ByVal &H1C0001
-
-15        Exit Sub
-ErrHandler:
-16        ReThrow "PostMessageToJulia", Err
-End Sub
 
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : NumWindowsWithCaption

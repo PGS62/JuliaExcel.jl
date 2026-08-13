@@ -4,6 +4,7 @@ Intellisense.txt
 JuliaExcel.xlam
 Values\_IntelliSense_.csv
 Values\Audit.csv
+VBA\modHttp.bas
 VBA\modJuliaLiteral.bas
 VBA\modMain.bas
 VBA\modPerformance.bas
