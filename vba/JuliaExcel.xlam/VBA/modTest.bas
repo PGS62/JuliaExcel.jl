@@ -5,9 +5,18 @@ Attribute VB_Name = "modTest"
 
 Option Explicit
 
-Sub RunTestsFromVBA()
-1         RunTests
-End Sub
+Function TestExitAndRelaunch()
+
+1         On Error GoTo ErrHandler
+2         JuliaEval "exit()"
+3         ThrowIfError JuliaLaunch()
+
+4         Exit Function
+ErrHandler:
+5         TestExitAndRelaunch = ReThrow("TestExitAndRelaunch", Err, True)
+6     Debug.Print TestExitAndRelaunch
+End Function
+
 
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : RunTests
@@ -95,7 +104,7 @@ End Sub
 
 Sub AccResult(TestName As String, Result As Boolean, ByRef NumPassed, ByRef NumFailed)
 1         On Error GoTo ErrHandler
-2         PrintTwice "Test " & TestName & " has run"
+2         PrintTwice "Test " & TestName & " completed"
 3         If Result Then
 4             NumPassed = NumPassed + 1
 5         Else
@@ -109,12 +118,11 @@ End Sub
 
 Function TestEmpty()
 1         On Error GoTo ErrHandler
-Throw "ohoh"
-2         TestEmpty = IsEmpty(JuliaCall("identity", Empty))
-3         Exit Function
+3         TestEmpty = IsEmpty(JuliaCall("identity", Empty))
+4         Exit Function
 ErrHandler:
-4         PrintTwice ReThrow("TestEmpty", Err, True)
-5         TestEmpty = False
+5         PrintTwice ReThrow("TestEmpty", Err, True)
+6         TestEmpty = False
 End Function
 
 Function TestBoolean()

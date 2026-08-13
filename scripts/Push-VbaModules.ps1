@@ -95,4 +95,19 @@ foreach ($file in $files) {
 }
 
 Write-Host ""
-Write-Host "Done - $($files.Count) module(s) pushed from disk to Excel."
+
+# Save the workbook so the pushed modules persist to disk.
+# Workbook.Save throws (or silently no-ops, depending on Excel version) unless IsAddin is True,
+# so toggle it on if necessary and restore the original value afterward - leaving IsAddin as we
+# found it, e.g. False while the workbook window is shown for development.
+$wasAddin = $book.IsAddin
+try {
+    if (-not $wasAddin) { $book.IsAddin = $true }
+    $book.Save()
+    Write-Host "Workbook saved: $($book.FullName)"
+} finally {
+    if ($book.IsAddin -ne $wasAddin) { $book.IsAddin = $wasAddin }
+}
+
+Write-Host ""
+Write-Host "Done - $($files.Count) module(s) pushed from disk to Excel and saved."

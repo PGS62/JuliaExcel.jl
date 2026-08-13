@@ -102,7 +102,7 @@ Public Function JuliaLaunch(Optional UseLinux As Boolean, Optional MinimiseWindo
 |:-------|:----------|
 |`UseLinux`|TRUE to run Julia as a Linux process under Windows Subsystem for Linux; FALSE (the default) to run as a Windows process.|
 |`MinimiseWindow`|If TRUE, then the Julia session window is minimised; if FALSE (the default) then the window is sized normally.|
-|`CommandLineOptions`|Command line options set when launching Julia.<br/>Example : `--threads=auto --banner=no`.<br/>https://docs.julialang.org/en/v1/manual/command-line-interface/#command-line-interface|
+|`CommandLineOptions`|Command line options set when launching Julia.<br/>Example : `--banner=no`.<br/>If `CommandLineOptions` does not include a --threads option, `--threads=auto,1` is appended automatically, giving the Julia session a dedicated interactive thread alongside its default thread pool. Without a dedicated interactive thread, HTTP.jls server tasks share Julia's single thread with whatever expression is currently being evaluated, which can leave the server unable to respond to Excel - or even to shut down cleanly - while a long-running or blocking evaluation is in progress. Supplying your own `--threads` option (e.g. `--threads=8,2`) disables this automatic behaviour, so include a dedicated interactive thread of your own if you need that reliability. https://docs.julialang.org/en/v1/manual/command-line-options/|
 |`Packages`|`Packages` to load, which must be available in the default Julia environment (or environment set via the `--project` command line option). Delimit multiple packages with commas.|
 |`BashStatements`|Relevant only when `UseLinux` is TRUE. Bash statements executed prior to launching Julia, which can be used to set environment variables. Example `export JULIA_PKG_DEVDIR=/mnt/c/Projects`. Delimit multiple statements with the line feed character.|
 |`TimeOut`|The number of seconds to wait for Julia to fully start (including any package precompilation) before `JuliaLaunch` gives up waiting and returns an informational message rather than an error - Julia is not killed, and calling `JuliaLaunch` or `JuliaEval` again once it has finished starting will work normally. A separate, much shorter internal check (the lesser of `TimeOut` and 5 seconds) detects a genuine launch failure, e.g. from mal-formed `CommandLineOptions`, and reports that as an error immediately. `TimeOut` is optional and defaults to 30.|
@@ -176,12 +176,6 @@ Returns TRUE if an instance of Julia is running and "listening" to the current E
 Public Function JuliaIsRunning() As Boolean
 ```
 
-
-### `JuliaIsRunning`
-Returns TRUE if an instance of Julia is running and "listening" to the current Excel session, or FALSE otherwise.
-```vba
-Public Function JuliaIsRunning() As Boolean
-```
 
 ## Marshalling
 Two question arose during implementation:
