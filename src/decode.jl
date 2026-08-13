@@ -1,8 +1,8 @@
 #=
 decode_from_xl is the inverse of encode_for_xl (in encode.jl). It decodes a string in the
-JuliaExcel wire format back to a Julia value. The same format is used by VBA's SerialiseElement
-function (in modSerialise.bas) to encode arguments before POSTing them to the /call HTTP
-endpoint, handled by srv_call_inner (in comms.jl).
+JuliaExcel wire format back to a Julia value. The same format is used by VBA's
+SerialiseElement function (in modSerialise.bas) to encode arguments before POSTing them to
+the /call HTTP endpoint, handled by srv_call_inner (in comms.jl).
 
 Type indicators:
  #   Float64  (followed by 16 hex chars, IEEE-754 bit pattern)

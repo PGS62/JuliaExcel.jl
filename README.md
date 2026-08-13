@@ -240,7 +240,7 @@ JuliaExcel has been tested on Excel under Microsoft 365, both 32-bit and 64-bit.
 ## How JuliaExcel works
 JuliaExcel communicates between Excel and Julia over a local HTTP connection:
 1) `JuliaLaunch` starts a Julia process (as a normal Windows process, or under WSL) running a small HTTP server (`JuliaExcel.start_server()`) on a free local port, and writes that port number to a file so VBA can discover it. If a session for the current Excel process already appears to be running, `JuliaLaunch` checks that it's actually responding before reusing it, rather than starting a duplicate.
-2) `JuliaEval` POSTs the Julia expression as plain text to the server's `/eval` endpoint. The Julia function `srv_xl_inner` (in `comms.jl`) evaluates it with `Meta.parse`/`eval` and returns the result - encoded in JuliaExcel's own compact text-based wire format - in the HTTP response body.
+2) `JuliaEval` POSTs the Julia expression as plain text to the server's `/eval` endpoint. The Julia function `srv_eval_inner` (in `comms.jl`) evaluates it with `Meta.parse`/`eval` and returns the result - encoded in JuliaExcel's own compact text-based wire format - in the HTTP response body.
 3) `JuliaCall` and `JuliaCallVBA` instead encode the function name and its arguments (marshalled per the rules described in [Marshalling](#marshalling)) into that same wire format and POST it to the `/call` endpoint. `srv_call_inner` decodes it and invokes the named function directly, returning the result the same way. This avoids `Meta.parse`ing a literal expression, which is slow for calls passing large arrays.
 4) VBA unserialises the response body back into worksheet values or VBA variables.
 

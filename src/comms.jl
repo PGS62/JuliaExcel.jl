@@ -72,14 +72,16 @@ portfile() = joinpath(getcommsfolder(), "Port_$(getxlpid()).txt")
 
 """
     _encode_result_for_xl(result)::String
-Encode `result` for return to Excel, shared by `srv_xl_inner` and `srv_call_inner`. If `result`
-itself can't be encoded (e.g. it's a type with no `encode_for_xl` method), reports that to the
-Julia console and returns an encoded error string describing the problem instead.
+Encode `result` for return to Excel, shared by `srv_eval_inner` and `srv_call_inner`. If
+`result` itself can't be encoded (e.g. it's a type with no `encode_for_xl` method), reports
+that to the Julia console and returns an encoded error string describing the problem
+instead.
 
-Callers should invoke this via `Base.invokelatest`: if `result` is a value just defined by an
-`eval` earlier in the same request (e.g. `JuliaEval("f(x)=x^2")` returns the function `f`
-itself), showing its type here can require looking up a global binding that didn't exist in the
-world the caller's own method was compiled in, which Julia 1.12+ reports as a "world age" warning.
+Callers should invoke this via `Base.invokelatest`: if `result` is a value just defined by
+an `eval` earlier in the same request (e.g. `JuliaEval("f(x)=x^2")` returns the function
+`f` itself), showing its type here can require looking up a global binding that didn't
+exist in the world the caller's own method was compiled in, which Julia 1.12+ reports as a
+"world age" warning.
 """
 function _encode_result_for_xl(result)::String
     try
@@ -93,11 +95,12 @@ function _encode_result_for_xl(result)::String
 end
 
 """
-    srv_xl_inner(expression::String)::String
+    srv_eval_inner(expression::String)::String
 Evaluate a Julia expression and return the encoded result as a string.
-Called by the HTTP request handler in `start_server` for requests to `/eval`.
+Called by the HTTP request handler in `start_server` for requests to `/eval`, originating
+from VBA calls to JuliaEval and JuliaEvalVBA.
 """
-function srv_xl_inner(expression::String)::String
+function srv_eval_inner(expression::String)::String
     global result = try
         Main.eval(Meta.parse(expression))
     catch e
@@ -118,17 +121,20 @@ end
 
 """
     srv_call_inner(payload::String)::String
-Decode `payload` (in the JuliaExcel wire format - a 1D array whose first element is a function
-name and remaining elements are its arguments), call the named function, and return the encoded
-result as a string. Called by the HTTP request handler in `start_server` for requests to `/call`.
-Avoids the `Meta.parse` of a literal expression that `srv_xl_inner` requires, which is slow for
-large arrays of arguments.
 
-A trailing "." on the function name (e.g. "f.") requests broadcasting, matching Julia's `f.(...)`
-call syntax. That syntax is a transform on the call site itself (it lowers to `broadcast(f, ...)`)
-rather than a property of a standalone function reference, so "f." can't just be handed to
-`Meta.parse` as-is - the dot is stripped before resolving the function, and `broadcast` is called
-explicitly instead of a plain call.
+Decode `payload` (in the JuliaExcel wire format - a 1D array whose first element is a
+function name and remaining elements are its arguments), call the named function, and
+return the encoded result as a string. Called by the HTTP request handler in `start_server`
+for requests to `/call`, originating from VBA calls to functions JuliaCall and JuliaCallVBA.
+
+Avoids the `Meta.parse` of a literal expression that `srv_eval_inner` requires, which is
+slow for large arrays of arguments.
+
+A trailing "." on the function name (e.g. "f.") requests broadcasting, matching Julia's
+`f.(...)` call syntax. That syntax is a transform on the call site itself (it lowers to
+`broadcast(f, ...)`) rather than a property of a standalone function reference, so "f."
+can't just be handed to `Meta.parse` as-is - the dot is stripped before resolving the
+function, and `broadcast` is called explicitly instead of a plain call.
 """
 function srv_call_inner(payload::String)::String
     fn_name = "<unknown>"
@@ -156,14 +162,15 @@ end
 
 """
     start_server(start::Int=2700)
-Start an HTTP server on a free local port that handles evaluation requests from Excel, trying
-up to 100 candidate ports starting from `start`. Tries the real bind directly rather than
-probing with a separate test-listener first: a probe-then-release check has a gap between
-"verified free" and the real bind moments later, during which another process (e.g. an
-orphaned Julia session from a previously-closed Excel session) could still be holding the
-port - or, since HTTP.jl's server binds with `reuseaddr=true`, could appear to succeed even
-though something else is already listening there. Retrying on the real bind failure avoids
-relying on that separate check being reliable.
+Start an HTTP server on a free local port that handles evaluation requests from Excel,
+trying up to 100 candidate ports starting from `start`. Tries the real bind directly rather
+than probing with a separate test-listener first: a probe-then-release check has a gap
+between "verified free" and the real bind moments later, during which another process (e.g.
+an orphaned Julia session from a previously-closed Excel session) could still be holding
+the port - or, since HTTP.jl's server binds with `reuseaddr=true`, could appear to succeed
+even though something else is already listening there. Retrying on the real bind failure
+avoids relying on that separate check being reliable.
+
 Writes the chosen port to the port file so VBA can discover it during JuliaLaunch.
 """
 function start_server(start::Int=2700)
@@ -171,7 +178,7 @@ function start_server(start::Int=2700)
     while true
         try
             HTTP.serve!("127.0.0.1", port) do req
-                handler = req.target == "/call" ? srv_call_inner : srv_xl_inner
+                handler = req.target == "/call" ? srv_call_inner : srv_eval_inner
                 HTTP.Response(200, ["Content-Type" => "text/plain; charset=utf-8"],
                     handler(String(req.body)))
             end
