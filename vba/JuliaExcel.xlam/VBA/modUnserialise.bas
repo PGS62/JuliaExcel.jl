@@ -52,12 +52,12 @@ End Type
 'Format designed to be as fast as possible to unserialise.
 '- Singleton types are prefixed with a type indicator character.
 '- Dates are shown in their Excel representation as a number - faster to unserialise in VBA.
-'- Floating point numbers (Double, Single) are represented in hexadecimal. See functions _
- DoubleToHex, HexToDouble, SingleToHex, HexToSingle. This ensures exact round-tripping _
- and avoids having to cope with the decimal separator being a comma.
+'- Floating point numbers (Double, Single) are represented in hexadecimal. See functions
+'  DoubleToHex, HexToDouble, SingleToHex, HexToSingle. This ensures exact round-tripping
+'  and avoids having to cope with the decimal separator being a comma.
 '- Arrays are written with type indicator *, then three sections separated by semi-colons:
-'  First section gives the number of dimensions and the dimensions themselves, comma
-'  delimited e.g. a 3 x 4 array would have a dimensions section "2,3,4".
+'  First section gives the number of dimensions (rank, up to 9) and the dimensions themselves,
+'  comma delimited e.g. a 3 x 4 array would have a dimensions section "2,3,4".
 '  Second section gives the lengths of the encodings of each element, comma delimited with a
 '  terminating comma.
 '  Third section gives the encodings, concatenated with no delimiter.
@@ -73,8 +73,8 @@ End Type
 '  first key, first item, second key second item etc.
 
 'Type indicator characters are as follows:
-' # Double, payload is hex e.g. 1.5 encoded as D3FF8000000000000
-' � (pound sterling) String
+' # Double, payload is hex e.g. 1.5 encoded as #3FF8000000000000
+' Chr(163) (pound sterling sign) String
 ' T Boolean True
 ' F Boolean False
 ' D Date, payload is decimal of Excel's date representation. e.g. 22-Dec-2025 is D64013
@@ -84,21 +84,21 @@ End Type
 ' % Integer
 ' & Long
 ' S Single, payload is hex
-' C Currency
+' C Currency - reserved, not currently implemented in Julia function encode_for_xl
 ' ! Error
-' @ Decimal
+' @ Decimal - reserved, not currently implemented in Julia function encode_for_xl
 ' * Array
-' ^ LongLong
+' ^ LongLong (64-bit VBA only)
 ' H Dictionary
 
-'Examples:
+'Examples (<pound> below stands for the single character Chr(163)):
 '#3FF0000000000000 unserialises to Double 1
 '&1 unserailises to Long 1
-'�Hello unserialises to String Hello
+'<pound>Hello unserialises to String Hello
 'T unserialises to Boolean True
 'F unserialises to Boolean False
-'*1,7;2,2,17,1,1,6,6,;%1%2#4008000000000000TF�Hello�World  unserialises to Array(1,2,3.0,True,False,"Hello","World")
-'^2;2,3,4,5,;�a%10�abc%1000 unserialises to a Dictionary with two elements, element "a" contains 10 and element "abc" contains 1000
+'*1,7;2,2,17,1,1,6,6,;%1%2#4008000000000000TF<pound>Hello<pound>World  unserialises to Array(1,2,3.0,True,False,"Hello","World")
+'H2;2,3,4,5,;<pound>a%10<pound>abc%1000 unserialises to a Dictionary with two elements, element "a" contains 10 and element "abc" contains 1000
 
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : UnserialiseFromString
@@ -147,9 +147,9 @@ Function Unserialise(Chars As String, AllowNesting As Boolean, ByRef Depth As Lo
 3         Select Case Asc(Left$(Chars, 1))
               Case 35    '# vbDouble
 4                 Unserialise = HexToDouble(Mid$(Chars, 2))
-5             Case 163    '� (pound sterling) vbString
+5             Case 163    'Chr(163), pound sterling sign: vbString
 6                 If StringLengthLimit > 0 Then 'Calling from worksheet formula, StringLengthLimit applies to elements of an array
-7                     If Len(Chars) > IIf(Depth = 1, 32768, StringLengthLimit) Then 'Remember Chars includes an initial type indicator character of "�"
+7                     If Len(Chars) > IIf(Depth = 1, 32768, StringLengthLimit) Then 'Remember Chars includes an initial type indicator character of Chr(163)
 8                         If StringLengthLimit = 32768 Then
 9                             Throw "Data contains a string of length " & Format(Len(Chars) - 1, "###,###") & _
                                   ", too long to be returned to an Excel worksheet in Excel version " + _
