@@ -1,5 +1,5 @@
 Attribute VB_Name = "modUtils"
-' Copyright (c) 2021-2025 Philip Swannell
+' Copyright (c) 2021-2026 Philip Swannell
 ' License MIT (https://opensource.org/licenses/MIT)
 ' Document: https://github.com/PGS62/JuliaExcel.jl#readme
 
@@ -79,48 +79,6 @@ Function FolderExists(ByVal FolderPath As String) As Boolean
 5         Exit Function
 ErrHandler:
 6         FolderExists = False
-End Function
-
-' -----------------------------------------------------------------------------------------------------------------------
-' Procedure  : SaveTextFileUTF8
-' Purpose    : Save a text file to disk encoded as UTF-8 (without BOM - achieved by switching ADODB.Stream to binary
-'              mode and skipping the 3-byte BOM that ADODB.Stream would otherwise prepend).
-'              Julia reads expression files with read(filename, String) which expects no BOM.
-' -----------------------------------------------------------------------------------------------------------------------
-Function SaveTextFileUTF8(FileName As String, Contents As String) As String
-
-          Dim BinaryStream As Object
-          Dim TextStream As Object
-
-1         On Error GoTo ErrHandler
-
-          ' Write via a text stream to obtain UTF-8 bytes, then copy to a binary stream,
-          ' skipping the 3-byte BOM that ADODB.Stream prepends when Charset = "utf-8".
-2         Set TextStream = CreateObject("ADODB.Stream")
-3         TextStream.Type = 2           ' adTypeText
-4         TextStream.Charset = "utf-8"
-5         TextStream.Open
-6         TextStream.WriteText Contents
-7         TextStream.Position = 0
-8         TextStream.Type = 1           ' adTypeBinary - reinterpret as raw bytes
-9         TextStream.Position = 3       ' skip the 3-byte UTF-8 BOM (EF BB BF)
-
-10        Set BinaryStream = CreateObject("ADODB.Stream")
-11        BinaryStream.Type = 1         ' adTypeBinary
-12        BinaryStream.Open
-13        BinaryStream.Write TextStream.Read
-14        BinaryStream.SaveToFile FileName, 2  ' adSaveCreateOverWrite
-15        BinaryStream.Close
-16        TextStream.Close
-17        Set BinaryStream = Nothing
-18        Set TextStream = Nothing
-
-19        SaveTextFileUTF8 = FileName
-20        Exit Function
-ErrHandler:
-21        If Not BinaryStream Is Nothing Then BinaryStream.Close
-22        If Not TextStream Is Nothing Then TextStream.Close
-23        ReThrow "SaveTextFileUTF8", Err
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------

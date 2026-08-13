@@ -1,4 +1,8 @@
 Attribute VB_Name = "modPerformance"
+' Copyright (c) 2021-2026 Philip Swannell
+' License MIT (https://opensource.org/licenses/MIT)
+' Document: https://github.com/PGS62/JuliaExcel.jl#readme
+
 Option Explicit
 
 '========================================================================================================================
