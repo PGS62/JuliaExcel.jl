@@ -61,14 +61,14 @@ Private Sub RegisterJuliaExcelFunctionsWithFunctionWizard()
 18                NumArgs = rngArgsAndArgDescs.Columns.Count / 2
 19                ReDim ArgDescs(1 To NumArgs)
 20                For i = 1 To NumArgs
-21                    ArgDescs(i) = rngArgsAndArgDescs.Cells(1, i * 2).Value
+21                    ArgDescs(i) = Trim255(rngArgsAndArgDescs.Cells(1, i * 2).Value)
 22                Next i
 23            End If
 
 24            If NumArgs = 0 Then
-25                Application.MacroOptions FunctionName, Description
+25                Application.MacroOptions FunctionName, Trim255(Description)
 26            Else
-27                Application.MacroOptions FunctionName, Description, , , , , , "JuliaExcel", , , ArgDescs
+27                Application.MacroOptions FunctionName, Trim255(Description), , , , , , "JuliaExcel", , , ArgDescs
 28            End If
 29        Next c
 30        If OldIsAddinStatus Then
@@ -81,3 +81,13 @@ ErrHandler:
 35        Debug.Print "#RegisterJuliaExcelFunctionsWithFunctionWizard (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Sub
 
+
+Private Function Trim255(Text As String)
+
+1         If Len(Text) < 255 Then
+2             Trim255 = Text
+3         Else
+4             Trim255 = Left(Text, 254) & ChrW(8230) 'Elipsis
+5         End If
+
+End Function

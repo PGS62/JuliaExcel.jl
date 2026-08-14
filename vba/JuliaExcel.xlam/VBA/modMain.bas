@@ -22,6 +22,8 @@ Public Const gPackageName As String = "JuliaExcel"
 '             session, or FALSE otherwise.
 ' -----------------------------------------------------------------------------------------------------------------------
 Public Function JuliaIsRunning() As Boolean
+Attribute JuliaIsRunning.VB_Description = "Returns TRUE if an instance of Julia is running and ""listening"" to the current Excel session, or FALSE otherwise."
+Attribute JuliaIsRunning.VB_ProcData.VB_Invoke_Func = " \n14"
 
           Dim HwndJulia As LongPtr
           Dim WindowPartialTitle As String
@@ -743,6 +745,8 @@ End Function
 '             or Range. Ranges are expanded to their .Value2 before encoding.
 ' -----------------------------------------------------------------------------------------------------------------------
 Public Function JuliaCallVBA(JuliaFunction As String, ParamArray Args())
+Attribute JuliaCallVBA.VB_Description = "Call a named Julia function from VBA. Differs from JuliaCall in handling of 1-d arrays and strings longer than 32,767 characters. May return data of types that cannot be displayed on a worksheet, such as a dictionary, an array of arrays, or arrays of dim…"
+Attribute JuliaCallVBA.VB_ProcData.VB_Invoke_Func = " \n14"
           Dim Arg As Variant
           Dim ContentsSection As String
           Dim i As Long
