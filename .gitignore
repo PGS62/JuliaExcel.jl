@@ -2,5 +2,6 @@
 *.jl.cov
 *.jl.mem
 /Manifest.toml
+/deps/build.log
 .vba-backups/
 ~$*.x*

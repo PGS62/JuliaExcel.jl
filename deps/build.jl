@@ -12,16 +12,29 @@
 #   - running under CI - the installer is interactive (message-box dialogs), which would hang a
 #     non-interactive build waiting for clicks that will never come
 if Sys.iswindows() && get(ENV, "CI", "false") != "true"
+    installscript = normpath(joinpath(@__DIR__, "..", "installer", "Install.vbs"))
+    exefile = "C:/Windows/System32/wscript.exe"
+    if !isfile(exefile) || !isfile(installscript)
+        @error "JuliaExcel: could not find wscript.exe or the install script; run `using JuliaExcel; JuliaExcel.installme()` manually instead."
+        exit(1)
+    end
+
+    println("JuliaExcel: launching the Excel add-in installer - please respond to its dialogs.")
     try
-        installscript = normpath(joinpath(@__DIR__, "..", "installer", "Install.vbs"))
-        exefile = "C:/Windows/System32/wscript.exe"
-        if isfile(exefile) && isfile(installscript)
-            run(`$exefile $installscript`, wait=false)
-            println("JuliaExcel: launched the JuliaExcel add-in installer - please respond to its dialogs.")
-        else
-            @warn "JuliaExcel: could not find wscript.exe or the install script; run `using JuliaExcel; JuliaExcel.installme()` manually instead."
-        end
+        # Blocking (not wait=false): Pkg.build runs this script in its own short-lived Julia
+        # process, and on Windows a spawned child is killed when that process's job object
+        # closes (i.e. as soon as this process exits) - a non-blocking run here would launch
+        # wscript.exe only to have it killed moments later, before showing any dialog.
+        run(`$exefile $installscript`)
     catch e
-        @warn "JuliaExcel: automatic installer failed to launch ($e); run `using JuliaExcel; JuliaExcel.installme()` manually instead."
+        # exit(1) rather than error(...): a non-zero exit here is enough for Pkg to mark the
+        # build as failed. Note this doesn't avoid a stacktrace being shown - Pkg detects the
+        # failed exit code and throws its own PkgError from deep inside its own internals
+        # (Operations.build_versions), which is what actually produces the stacktrace visible
+        # to the user; that happens regardless of whether we exit(1) or throw here ourselves.
+        # It's an accepted tradeoff: a scary-looking but immediate, hard-to-miss failure beats
+        # a clean warning that only reaches a log file nobody will look at.
+        @error "JuliaExcel: the add-in installer did not complete ($e). If you cancelled it, or closed Excel too late, run `using JuliaExcel; JuliaExcel.installme()` to try again."
+        exit(1)
     end
 end
