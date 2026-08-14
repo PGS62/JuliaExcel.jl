@@ -1,4 +1,5 @@
 ﻿Version	Date	Time	Author	Comment
+138	14-Aug-2026	12:31	Philip Swannell	Fix to RegisterJuliaExcelFunctionsWithFunctionWizard which was failing silently.
 137	13-Aug-2026	15:10	Philip Swannell	Refreshed line numbers in all modules.
 136	13-Aug-2026	15:09	Philip Swannell	Locked project for viewing.
 135	13-Aug-2026	15:05	Philip Swannell	Changes relating to --threads commandline option.

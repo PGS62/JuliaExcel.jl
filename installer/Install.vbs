@@ -10,6 +10,7 @@ Option Explicit
 
 Const AddinName = "JuliaExcel.xlam"
 Const Website = "https://github.com/PGS62/JuliaExcel.jl"
+Const WebsiteIntellisense = "https://github.com/Excel-DNA/IntelliSense"
 Const GIFRecordingFlagFile = "C:\Temp\RecordingGIF.tmp"
 Const MsgBoxTitle = "Install JuliaExcel"
 Const MsgBoxTitleBad = "Install JuliaExcel - Error Encountered"
@@ -68,7 +69,7 @@ Function CheckExcel()
                  "Can't see " & FriendlyName & "?" & vbLf & "Use Windows Task Manager to check if " & FriendlyName & _
                  " is running as a ""background process"", and if so use the right-click menu to ""End task"" the process.", vbOKCancel + vbExclamation, MsgBoxTitle)
                 If result <> vbOK Then
-                    WScript.Quit
+                    WScript.Quit 1
                 End If
             Else
                 Exit Function
@@ -472,8 +473,8 @@ Else
                "install Microsoft Office before installing JuliaExcel."
 
         MsgBox Prompt,vbCritical,MsgBoxTitleBad
-        WScript.Quit
-    End If    
+        WScript.Quit 1
+    End If
 
     AddinsSource = WScript.ScriptFullName
     AddinsSource = Left(AddinsSource, InStrRev(AddinsSource, "\") - 1)
@@ -495,18 +496,18 @@ Else
             InstallIntellisense = False
         End Select
 
-    Prompt = "This will install JuliaExcel by copying two files from: " & vbLf & vblf & _
+    Prompt = "This will install JuliaExcel by copying two files: " & vbLf & vblf & _
         AddinsSource & AddinName  & vbLf & _
         IntellisenseSource & IntellisenseName & vbLf & vbLf & _
         "to:" & vblf & vblf & _
         AddinsDest & AddinName & vblf & _ 
         AddinsDest & IntellisenseName & vbLf & vbLf & _
-        "and making them both be Excel add-ins," & vblf & _
+        "and make them both Excel add-ins," & vblf & _
         "via Excel > File > Options > Add-ins > Excel Add-ins." & vblf & vblf & _
-        "Do you wish to continue?" & vblf  & vblf & _
-        "More information at:" & vblf & Website
+        "Do you wish to continue?" & vblf  & vblf & vblf & _
+        Website & vblf & WebsiteIntellisense
 
-    If MsgBox(Prompt, vbYesNo + vbQuestion, MsgBoxTitle) <> vbYes Then WScript.Quit
+    If MsgBox(Prompt, vbYesNo + vbQuestion, MsgBoxTitle) <> vbYes Then WScript.Quit 1
 
     ForceFolderToExist AddinsDest
 
@@ -543,5 +544,9 @@ Else
                 MsgBoxTitleBad
     End If
 
-    WScript.Quit
+    If gErrorsEncountered Then
+        WScript.Quit 1
+    Else
+        WScript.Quit 0
+    End If
 End If

@@ -27,12 +27,10 @@ Installation does not require admin rights on the PC.
 <!-- CHANGING THE VERSION NUMBER BELOW? DON'T FORGET TO ALSO CHANGE THE VERSION NUMBER IN THE "Installation (Linux)" SECTION -->
    ```
    using Pkg
-   Pkg.add(url="https://github.com/PGS62/JuliaExcel.jl",rev="v1.0.0")
-   using JuliaExcel;JuliaExcel.installme()
-   
+   Pkg.add(url="https://github.com/PGS62/JuliaExcel.jl")
    ```
    (paste into the REPL is via mouse right-click).
- * Click through a couple of dialogs.
+ * Partway through, a Windows dialog will pop up to install the Excel add-in - `Pkg.add` will pause until you've clicked through it. If you ever need to reinstall or repair the add-in later, run `using JuliaExcel;JuliaExcel.installme()`.
  * Launch Excel. Check that the JuliaExcel functions are available by typing `=Julia` into a worksheet cell and checking that the auto-complete offers `JuliaCall`, `JuliaEval`, `JuliaInclude` etc.
 
 The process is illustrated in the GIF below. F5 to replay.
@@ -44,7 +42,7 @@ As an alternative to calling Julia running in a Windows process, JuliaExcel can 
  * If necessary, install [WSL](https://docs.microsoft.com/en-us/windows/wsl/install) with the default Linux distribution, Ubuntu.
  * Install Julia under WSL by running `curl -fsSL https://install.julialang.org | sh` at the Ubuntu prompt, per the [official instructions](https://julialang.org/downloads/). This installs `juliaup`, which puts `julia` on the PATH automatically.
  * At the Julia prompt (under WSL) install JuliaExcel by copy-pasting   
-  `using Pkg; Pkg.add(url="https://github.com/PGS62/JuliaExcel.jl",rev="1.0.0")` into the REPL. 
+  `using Pkg; Pkg.add(url="https://github.com/PGS62/JuliaExcel.jl")` into the REPL. 
 
 ## Functions
 JuliaExcel makes the following functions available from Excel worksheets and from VBA:
