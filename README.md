@@ -257,4 +257,4 @@ Given how JuliaExcel works, with serialisation done in VBA - an interpreted lang
 
 Philip Swannell  
 8 December 2021  
-Last updated 12 August 2026
+Last updated 15 August 2026
