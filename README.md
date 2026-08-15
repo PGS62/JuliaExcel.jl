@@ -13,6 +13,7 @@ Support Excel for Windows (not Mac). Julia can be run under Windows or Linux (vi
 [Demo](#demo)  
 [Example VBA](#example-vba)  
 [Function Documentation](#function-documentation)  
+[Debugging](#debugging)  
 [Marshalling](#marshalling)  
 [Alternatives](#alternatives)  
 [Compatibility](#compatibility)  
@@ -174,6 +175,9 @@ Returns TRUE if an instance of Julia is running and "listening" to the current E
 Public Function JuliaIsRunning() As Boolean
 ```
 
+
+## Debugging
+If a call to `JuliaCall` or `JuliaCallVBA` raises an error in the Julia function being called, the arguments passed from Excel are saved to `JuliaExcel.args_from_xl` before the call is attempted, and the Julia console prints the error together with a ready-made expression to reproduce it, something like `myfunction(JuliaExcel.args_from_xl...)`. Paste that into the Julia REPL to reproduce and debug the failure directly, without needing to repeat the call from Excel. Note that `JuliaExcel.args_from_xl` only holds the arguments from the most recent such call, so debug before making another one.
 
 ## Marshalling
 Two question arose during implementation:
