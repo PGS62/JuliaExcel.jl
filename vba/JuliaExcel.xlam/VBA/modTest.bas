@@ -35,7 +35,7 @@ Function RunTests(Optional SilentMode = False)
 
 2         JuliaEval "exit()"
 3         PreciseSleep 1000 'Give time to shut down properly, otherwise launch can fail thinking Julia still running but unresponsive
-4         ThrowIfError JuliaLaunch(, , "--project=c:/temp/juliaexcel")
+4         ThrowIfError JuliaLaunch(, , gTestCommandOptions)
 
 5         PrintTwice vbLf & String(80, "=")
 6         PrintTwice "JuliaExcel RunTests"

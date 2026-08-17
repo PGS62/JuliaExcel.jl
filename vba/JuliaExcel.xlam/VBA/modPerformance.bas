@@ -197,7 +197,7 @@ Function PerformanceTest() As String
           'Warm up
 5         JuliaEval "exit()" 'shuts down Julia if it's running
 6         PreciseSleep 1000
-7         JuliaLaunch , , "--project=c:/temp/juliaexcel"
+7         JuliaLaunch , , gTestCommandOptions
 8         ThrowIfError JuliaEval("1+1")
 9         InputData = Application.Evaluate("=RANDARRAY(100)")
 10        ThrowIfError JuliaCall("identity", InputData)
@@ -380,7 +380,7 @@ Function VFormatDecodeSpeedTest() As String
 6         Debug.Print "'Computer = " & Environ$("ComputerName")
 
 7         JuliaEval "exit()"
-8         JuliaLaunch , , "--project=c:/temp/juliaexcel"
+8         JuliaLaunch , , gTestCommandOptions
 
           'Fetch both wire-format encodings of the same data directly from Julia, so the timed loop
           'below measures VBA-side decode cost only.

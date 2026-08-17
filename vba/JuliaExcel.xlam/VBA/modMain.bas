@@ -15,6 +15,7 @@ Private Declare Function IsWindow Lib "user32" (ByVal hwnd As Long) As Long
 #End If
 
 Public Const gPackageName As String = "JuliaExcel"
+Public Const gTestCommandOptions = "--project=c:/temp/juliaexcel"
 
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure : JuliaIsRunning
