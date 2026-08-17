@@ -147,16 +147,18 @@ end
     decode_xl_array_v(s::String)
 
 Decode a "V"-format array-of-Float64 string (starting with `V`) - the compact encoding VBA's
-`TrySerialiseArrayAsV` (modSerialise.bas) produces for a 1-D or 2-D array whose elements are all
-finite Doubles: no per-element type indicator or length, since every element is always exactly 16
-hex characters. Unlike `decode_xl_array`, this never needs `_maybe_typed` - `reinterpret`/`reshape`
-already produce a genuinely typed `Vector{Float64}`/`Matrix{Float64}` directly.
+`TrySerialiseArrayAsV` (modSerialise.bas) produces for a 1- to 9-dimensional array whose elements
+are all finite Doubles: no per-element type indicator or length, since every element is always
+exactly 16 hex characters. This function itself places no limit on rank - `reshape` works for any
+N - the 1-9 cap is on the VBA-encode side, matching VBA's own GetAt/ReDimVariantArray cap
+elsewhere in the codebase. Unlike `decode_xl_array`, this never needs `_maybe_typed` -
+`reinterpret`/`reshape` already produce a genuinely typed `Array{Float64,N}` directly.
 
 The hex is big-endian (matching `hex_to_float64`'s scalar convention), produced on the VBA side by
 plain `DoubleToHex` (no byte reordering needed there, since VBA already reads/writes hex MSB-first)
 - decoded here by `hex2bytes` (giving the bytes in wire/big-endian order) followed by `bswap` to
 get the native (little-endian) `UInt64` bit pattern before reinterpreting as `Float64`. This is the
-same convention `encode_for_xl(::Vector{Float64})` (encode.jl) uses for the Julia -> Excel
+same convention `encode_for_xl(x::Array{Float64,N})` (encode.jl) uses for the Julia -> Excel
 direction, just decoded instead of encoded.
 """
 function decode_xl_array_v(s::String)

@@ -113,91 +113,98 @@ Public Function SerialiseElement(ByVal x As Variant) As String
 67                        SerialiseElement = "*" & CStr(Rank) & "," & VBA.Join$(DimStr, ",") & ";;"
 68                        Exit Function
 69                    End If
-70                    ReDim Encoded(1 To n)
-71                    ReDim Lens(1 To n)
-72                    For i = 1 To Rank: Idx(i) = Lb(i): Next i
-73                    k = 1
-74                    Do
-75                        Encoded(k) = SerialiseElement(GetAt(x, Idx))
-76                        Lens(k) = CStr(Len(Encoded(k)))
-77                        k = k + 1
-78                        d = 1
-79                        Do While d <= Rank
-80                            Idx(d) = Idx(d) + 1
-81                            If Idx(d) <= UBound(x, d) Then Exit Do
-82                            Idx(d) = Lb(d)
-83                            d = d + 1
-84                        Loop
-85                        If d > Rank Then Exit Do
-86                    Loop
-87                    SerialiseElement = "*" & CStr(Rank) & "," & VBA.Join$(DimStr, ",") & ";" & VBA.Join$(Lens, ",") & ",;" & VBA.Join$(Encoded, "")
-88            End Select
+                      ' As above: try the compact "V" format before the general encoding below.
+70                    If TrySerialiseArrayAsV(x, EncodedV) Then
+71                        SerialiseElement = EncodedV
+72                        Exit Function
+73                    End If
+74                    ReDim Encoded(1 To n)
+75                    ReDim Lens(1 To n)
+76                    For i = 1 To Rank: Idx(i) = Lb(i): Next i
+77                    k = 1
+78                    Do
+79                        Encoded(k) = SerialiseElement(GetAt(x, Idx))
+80                        Lens(k) = CStr(Len(Encoded(k)))
+81                        k = k + 1
+82                        d = 1
+83                        Do While d <= Rank
+84                            Idx(d) = Idx(d) + 1
+85                            If Idx(d) <= UBound(x, d) Then Exit Do
+86                            Idx(d) = Lb(d)
+87                            d = d + 1
+88                        Loop
+89                        If d > Rank Then Exit Do
+90                    Loop
+91                    SerialiseElement = "*" & CStr(Rank) & "," & VBA.Join$(DimStr, ",") & ";" & VBA.Join$(Lens, ",") & ",;" & VBA.Join$(Encoded, "")
+92            End Select
 
-89        Else
-90            Select Case VarType(x)
+93        Else
+94            Select Case VarType(x)
                   Case vbDouble:   SerialiseElement = "#" & DoubleToHex(CDbl(x))
-91                Case vbString:   SerialiseElement = Chr(163) & CStr(x)      ' Chr(163) = pound sterling sign
-92                Case vbBoolean:  SerialiseElement = IIf(CBool(x), "T", "F")
-93                Case vbEmpty:    SerialiseElement = "E"
-94                Case vbNull:     SerialiseElement = "N"
-95                Case vbInteger:  SerialiseElement = "%" & CStr(CInt(x))
-96                Case vbLong:     SerialiseElement = "&" & CStr(CLng(x))
-97                Case vbSingle:   SerialiseElement = "S" & SingleToHex(CSng(x))
-98                Case vbDate
+95                Case vbString:   SerialiseElement = Chr(163) & CStr(x)      ' Chr(163) = pound sterling sign
+96                Case vbBoolean:  SerialiseElement = IIf(CBool(x), "T", "F")
+97                Case vbEmpty:    SerialiseElement = "E"
+98                Case vbNull:     SerialiseElement = "N"
+99                Case vbInteger:  SerialiseElement = "%" & CStr(CInt(x))
+100               Case vbLong:     SerialiseElement = "&" & CStr(CLng(x))
+101               Case vbSingle:   SerialiseElement = "S" & SingleToHex(CSng(x))
+102               Case vbDate
                       ' CDbl of a VBA date gives the Excel serial number directly:
                       ' integer part = days since 1899-12-30, fractional part = time of day.
-99                    If CDbl(x) = Int(CDbl(x)) Then
-100                       SerialiseElement = "D" & CStr(CLng(CDbl(x)))         ' date only
-101                   Else
-102                       SerialiseElement = "G" & DoubleToHex(CDbl(x))        ' date + time
-103                   End If
-104               Case vbError
+103                   If CDbl(x) = Int(CDbl(x)) Then
+104                       SerialiseElement = "D" & CStr(CLng(CDbl(x)))         ' date only
+105                   Else
+106                       SerialiseElement = "G" & DoubleToHex(CDbl(x))        ' date + time
+107                   End If
+108               Case vbError
                       ' CStr(CVErr(n)) = "Error n"; extract the number after the space.
-105                   SerialiseElement = "!" & Mid(CStr(x), InStr(CStr(x), " ") + 1)
-106               Case vbObject
-107                   If TypeName(x) = "Dictionary" Then
-108                       n = x.Count
-109                       If n = 0 Then
-110                           SerialiseElement = "H0;;"
-111                           Exit Function
-112                       End If
-113                       ReDim Encoded(1 To 2 * n)
-114                       ReDim Lens(1 To 2 * n)
-115                       k = 1
-116                       For Each DictKey In x.Keys
-117                           Encoded(k) = SerialiseElement(DictKey)
-118                           Lens(k) = CStr(Len(Encoded(k)))
-119                           k = k + 1
-120                           Encoded(k) = SerialiseElement(x(DictKey))
-121                           Lens(k) = CStr(Len(Encoded(k)))
-122                           k = k + 1
-123                       Next DictKey
-124                       SerialiseElement = "H" & CStr(n) & ";" & VBA.Join$(Lens, ",") & ",;" & VBA.Join$(Encoded, "")
-125                   Else
-126                       Throw "Cannot serialise object of type " & TypeName(x)
-127                   End If
+109                   SerialiseElement = "!" & Mid(CStr(x), InStr(CStr(x), " ") + 1)
+110               Case vbObject
+111                   If TypeName(x) = "Dictionary" Then
+112                       n = x.Count
+113                       If n = 0 Then
+114                           SerialiseElement = "H0;;"
+115                           Exit Function
+116                       End If
+117                       ReDim Encoded(1 To 2 * n)
+118                       ReDim Lens(1 To 2 * n)
+119                       k = 1
+120                       For Each DictKey In x.Keys
+121                           Encoded(k) = SerialiseElement(DictKey)
+122                           Lens(k) = CStr(Len(Encoded(k)))
+123                           k = k + 1
+124                           Encoded(k) = SerialiseElement(x(DictKey))
+125                           Lens(k) = CStr(Len(Encoded(k)))
+126                           k = k + 1
+127                       Next DictKey
+128                       SerialiseElement = "H" & CStr(n) & ";" & VBA.Join$(Lens, ",") & ",;" & VBA.Join$(Encoded, "")
+129                   Else
+130                       Throw "Cannot serialise object of type " & TypeName(x)
+131                   End If
 #If Win64 Then
-128               Case vbLongLong: SerialiseElement = "^" & CStr(x)
+132               Case vbLongLong: SerialiseElement = "^" & CStr(x)
 #End If
-129               Case Else
-130                   Throw "Cannot serialise VarType=" & CStr(VarType(x))
-131           End Select
-132       End If
+133               Case Else
+134                   Throw "Cannot serialise VarType=" & CStr(VarType(x))
+135           End Select
+136       End If
 
-133       Exit Function
+137       Exit Function
 ErrHandler:
-134       ReThrow "SerialiseElement", Err
+138       ReThrow "SerialiseElement", Err
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : TrySerialiseArrayAsV
 ' Purpose    : Attempts the compact "V" wire-format encoding (see modUnserialise.bas's wire-format
-'              spec comment and Case 86 'V' branch, and encode_for_xl(::Vector{Float64})/
-'              (::Matrix{Float64}) in src/encode.jl, plus decode_xl_array_v in src/decode.jl which
-'              understands "V" strings sent this direction) for a 1-D or 2-D array, before
-'              SerialiseElement falls back to its own general "*" per-element encoding. Callers are
-'              expected to have already handled the empty-array case (n/NR/NC = 0) - this function
-'              assumes at least one element.
+'              spec comment and Case 86 'V' branch, and encode_for_xl(x::Array{Float64,N}) in
+'              src/encode.jl, plus decode_xl_array_v in src/decode.jl which understands "V" strings
+'              sent this direction) for a 1- to 9-dimensional array, before SerialiseElement falls
+'              back to its own general "*" per-element encoding. Callers are expected to have
+'              already handled the empty-array case (n/NR/NC = 0) - this function assumes at least
+'              one element. Rank > 9 is not attempted here since it's already excluded by
+'              SerialiseElement's own callers (its Case Else throws before reaching this call for
+'              Rank > 9), matching VBA's own GetAt/ReDimVariantArray cap elsewhere in the codebase.
 '              Single-pass and optimistic: checks VarType and finiteness per element AS it appends
 '              hex to a buffer array (joined once at the end via VBA.Join$, avoiding the O(n^2)
 '              reallocation risk of repeated string concatenation) - returns False (with EncodedV
@@ -205,6 +212,9 @@ End Function
 '              to the general per-element encoding unchanged. Mirrors the same optimistic
 '              single-pass design TryFastDecodeDoubleVector (formerly in the now-deleted
 '              modUnserialiseExperimental.bas) used on the decode side.
+'              Rank 3-9 walks the array via GetAt/Idx() exactly as SerialiseElement's own Case Else
+'              does for the general format, just without any per-element length lookup, since every
+'              element is always exactly 16 hex characters.
 '              Measured (VEncodeSpeedTest, modPerformance.bas) at roughly 40% faster than the
 '              general format even for the realistic worst case - a Variant() array (as
 '              Range.Value2 always is, even when every cell holds a number) rather than a
@@ -213,12 +223,19 @@ End Function
 ' -----------------------------------------------------------------------------------------------------------------------
 Function TrySerialiseArrayAsV(ByVal x As Variant, ByRef EncodedV As String) As Boolean
           Dim Chunks() As String
+          Dim Dims() As Long
+          Dim DimStr() As String
+          Dim El As Variant
           Dim i As Long
+          Dim Idx() As Long
           Dim j As Long
           Dim k As Long
           Dim n As Long
           Dim NC As Long
           Dim NR As Long
+          Dim q As Long
+          Dim Rank As Long
+          Dim Total As Long
 
 1         On Error GoTo ErrHandler
 2         TrySerialiseArrayAsV = False
@@ -257,11 +274,43 @@ Function TrySerialiseArrayAsV(ByVal x As Variant, ByRef EncodedV As String) As B
 31                    EncodedV = "V2," & CStr(NR) & "," & CStr(NC) & ";" & VBA.Join$(Chunks, "")
 32                End If
 33                TrySerialiseArrayAsV = True
-34        End Select
 
-35        Exit Function
+              Case Else
+34                Rank = NumDimensions(x)
+35                ReDim Dims(1 To Rank)
+36                ReDim DimStr(1 To Rank)
+37                ReDim Idx(1 To Rank)
+38                Total = 1
+39                For q = 1 To Rank
+40                    Dims(q) = UBound(x, q) - LBound(x, q) + 1
+41                    DimStr(q) = CStr(Dims(q))
+42                    Idx(q) = LBound(x, q)
+43                    Total = Total * Dims(q)
+44                Next q
+45                ReDim Chunks(1 To Total)
+46                k = 1
+47                Do
+48                    El = GetAt(x, Idx)
+49                    If VarType(El) <> vbDouble Then Exit Function
+50                    Chunks(k) = DoubleToHex(CDbl(El))
+51                    If Not IsFiniteHex(Chunks(k)) Then Exit Function
+52                    k = k + 1
+53                    q = 1
+54                    Do While q <= Rank
+55                        Idx(q) = Idx(q) + 1
+56                        If Idx(q) <= UBound(x, q) Then Exit Do
+57                        Idx(q) = LBound(x, q)
+58                        q = q + 1
+59                    Loop
+60                    If q > Rank Then Exit Do
+61                Loop
+62                EncodedV = "V" & CStr(Rank) & "," & VBA.Join$(DimStr, ",") & ";" & VBA.Join$(Chunks, "")
+63                TrySerialiseArrayAsV = True
+64        End Select
+
+65        Exit Function
 ErrHandler:
-36        ReThrow "TrySerialiseArrayAsV", Err
+66        ReThrow "TrySerialiseArrayAsV", Err
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------

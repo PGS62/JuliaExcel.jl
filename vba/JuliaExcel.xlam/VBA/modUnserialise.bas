@@ -90,12 +90,13 @@ End Type
 ' * Array
 ' ^ LongLong (64-bit VBA only)
 ' H Dictionary
-' V Array of Float64 only, no per-element type indicator or length (every element is always
-'   exactly 16 hex characters). Julia -> Excel only - there is no VBA-side encoder, since
-'   nothing currently sends a "V"-format string as an argument to Julia. Payload is big-endian
-'   hex, decoded with the same HexToDouble used for scalar "#" - Julia produces this by
-'   bulk-bswap-ing every element before hex-encoding the whole array in one operation (see
-'   encode_for_xl(::Vector{Float64})/(::Matrix{Float64}) in src/encode.jl), rather than
+' V Array of Float64 only, rank 1-9, no per-element type indicator or length (every element is
+'   always exactly 16 hex characters). Used in both directions: Julia -> Excel via
+'   encode_for_xl(x::Array{Float64,N}) in src/encode.jl (decoded here by Case 86); Excel -> Julia
+'   via TrySerialiseArrayAsV in modSerialise.bas (decoded on the Julia side by decode_xl_array_v
+'   in src/decode.jl). Payload is big-endian hex, decoded/encoded with the same HexToDouble/
+'   DoubleToHex used for scalar "#". On the Julia -> Excel direction, Julia produces this by
+'   bulk-bswap-ing every element before hex-encoding the whole array in one operation, rather than
 '   reversing bytes per-element in VBA. (An earlier version of this format used little-endian
 '   hex, decoded via a dedicated HexToDoubleLE, to avoid the bswap on the Julia side entirely -
 '   but a direct measurement (VFormatDecodeSpeedTest, modPerformance.bas) showed
@@ -407,17 +408,45 @@ Function Unserialise(Chars As String, AllowNesting As Boolean, ByRef Depth As Lo
 180                       Next j
 
                       Case Else
-181                       Throw "Cannot unserialise 'V'-format arrays with rank " & Rank & " (only rank 1 and 2 supported so far)"
-182               End Select
-183               Unserialise = Ret
+                          ' Rank 3-9, reusing the same ParseDims/ReDimVariantArray/AssignByRank
+                          ' helpers, and the same column-major index-walking scheme, as the general
+                          ' "*" array format's own >=2-dimensional handling above - just without any
+                          ' per-element length lookup, since every element is always exactly
+                          ' VBytesPerElement hex characters.
+181                       Dims = ParseDims(Mid$(Chars, 4, p1 - 4), Rank)
+182                       If Not AllowNesting Then Throw "Excel cannot display arrays with more than 2 dimensions"
+183                       Total = 1
+184                       For q = 1 To Rank
+185                           If Dims(q) <= 0 Then Throw "Cannot create array of size zero"
+186                           Total = Total * Dims(q)
+187                       Next q
+188                       If Len(Chars) - k + 1 <> Total * VBytesPerElement Then Throw _
+                              "'V'-format string has the wrong number of hex characters for a " & Rank & "-D array"
+189                       ReDimVariantArray Ret, Dims
+190                       ReDim Idx(1 To Rank)
+191                       For q = 1 To Rank: Idx(q) = 1: Next q
+192                       For Count = 1 To Total
+193                           Pos = k + (Count - 1) * VBytesPerElement
+194                           AssignByRank Ret, Idx, HexToDouble(Mid$(Chars, Pos, VBytesPerElement))
+195                           q = 1
+196                           Do While q <= Rank
+197                               Idx(q) = Idx(q) + 1
+198                               If Idx(q) <= Dims(q) Then Exit Do
+199                               Idx(q) = 1
+200                               q = q + 1
+201                           Loop
+202                           If q > Rank Then Exit For
+203                       Next Count
+204               End Select
+205               Unserialise = Ret
 
-184           Case Else
-185               Throw "Character '" & Left$(Chars, 1) & "' is not recognised as a type identifier"
-186       End Select
+206           Case Else
+207               Throw "Character '" & Left$(Chars, 1) & "' is not recognised as a type identifier"
+208       End Select
 
-187       Exit Function
+209       Exit Function
 ErrHandler:
-188       ReThrow "Unserialise", Err
+210       ReThrow "Unserialise", Err
 End Function
 
 'Values of type Int64 in Julia must be handled differently on Excel 32-bit and Excel 64bit

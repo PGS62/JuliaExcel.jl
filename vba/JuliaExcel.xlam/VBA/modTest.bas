@@ -72,31 +72,32 @@ Function RunTests(Optional SilentMode = False)
 36        AccResult "TestVFormatEmptyArrayFallback", TestVFormatEmptyArrayFallback, NumPassed, NumFailed
 37        AccResult "TestSerialiseArrayAsV", TestSerialiseArrayAsV, NumPassed, NumFailed
 38        AccResult "TestVEncodeFromVariantArray", TestVEncodeFromVariantArray, NumPassed, NumFailed
+39        AccResult "TestVFormat3DArray", TestVFormat3DArray, NumPassed, NumFailed
 
-39        Prompt = NumPassed & " test(s) passed" & vbLf & _
+40        Prompt = NumPassed & " test(s) passed" & vbLf & _
               NumFailed & " test(s) failed"
 
-40        If NumFailed > 0 Then
-41            Prompt = Prompt & vbLf & vbLf & _
+41        If NumFailed > 0 Then
+42            Prompt = Prompt & vbLf & vbLf & _
                   "See VBA Immediate window for details"
-42        End If
+43        End If
 
-43        PrintTwice NumPassed & " test(s) passed"
-44        PrintTwice NumFailed & " test(s) failed"
-45        PrintTwice String(80, "=")
+44        PrintTwice NumPassed & " test(s) passed"
+45        PrintTwice NumFailed & " test(s) failed"
+46        PrintTwice String(80, "=")
 
-46        If Not SilentMode Then
-47            MsgBox Prompt, IIf(NumFailed = 0, vbInformation, vbCritical), Title
-48        End If
+47        If Not SilentMode Then
+48            MsgBox Prompt, IIf(NumFailed = 0, vbInformation, vbCritical), Title
+49        End If
 
-49        RunTests = NumFailed = 0
+50        RunTests = NumFailed = 0
 
-50        Exit Function
+51        Exit Function
 ErrHandler:
-51        If Not SilentMode Then
-52            MsgBox ReThrow("RunTests", Err, True), vbCritical, Title
-53        End If
-54        RunTests = False
+52        If Not SilentMode Then
+53            MsgBox ReThrow("RunTests", Err, True), vbCritical, Title
+54        End If
+55        RunTests = False
 End Function
 
 Sub PrintTwice(Text As String)
@@ -725,5 +726,38 @@ Function TestVEncodeFromVariantArray()
 ErrHandler:
 7         PrintTwice ReThrow("TestVEncodeFromVariantArray", Err, True)
 8         TestVEncodeFromVariantArray = False
+End Function
+
+' Exercises the Case 86 'V' branch's rank 3-9 handling (Unserialise, modUnserialise.bas), added
+' alongside the Julia-side encode_for_xl(x::Array{Float64,N}) generalisation - reuses
+' ParseDims/ReDimVariantArray/AssignByRank, the same helpers the general "*" format's own
+' >=3-dimensional handling already used. A genuinely-typed Double() array, so both directions of
+' this round trip go via "V": VBA -> Julia through TrySerialiseArrayAsV, Julia -> Excel through the
+' new Array{Float64,N} method. Distinct values at every position (i + 10*j + 100*k) so a bug in the
+' column-major index walk (either side) would show up as a value in the wrong place, not just a
+' wrong-shaped result.
+Function TestVFormat3DArray()
+          Dim i As Long
+          Dim j As Long
+          Dim k As Long
+          Dim x(1 To 2, 1 To 3, 1 To 4) As Double
+          Dim y As Variant
+
+1         On Error GoTo ErrHandler
+2         For k = 1 To 4
+3             For j = 1 To 3
+4                 For i = 1 To 2
+5                     x(i, j, k) = i + 10 * j + 100 * k
+6                 Next i
+7             Next j
+8         Next k
+
+9         y = JuliaCallVBA("identity", x)
+10        TestVFormat3DArray = ArraysIdentical(x, y)
+
+11        Exit Function
+ErrHandler:
+12        PrintTwice ReThrow("TestVFormat3DArray", Err, True)
+13        TestVFormat3DArray = False
 End Function
 

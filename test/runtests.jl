@@ -82,16 +82,38 @@ round_trip(x) = isequal(JuliaExcel.decode_from_xl(JuliaExcel.encode_for_xl(x)), 
     @test startswith(JuliaExcel.encode_for_xl(Any[1.0, 2.0, 3.0]), "V")
 
     # ...but the dynamic check must still correctly decline "V" (falling back to the general
-    # format) for a Vector{Any} containing a NaN, a non-Float64 element, or with rank > 2 (Case 86
-    # in the VBA decoder, modUnserialise.bas, only supports rank 1 and 2).
+    # format) for a Vector{Any} containing a NaN, a non-Float64 element, or with rank > 9 (matching
+    # VBA's own ReDimVariantArray MAX_RANK, modUnserialise.bas).
     @test JuliaExcel.encode_for_xl(Any[1.0, 2.0, NaN]) == JuliaExcel.encode_for_xl([1.0, 2.0, NaN])
     @test !startswith(JuliaExcel.encode_for_xl(Any[1.0, 2.0, NaN]), "V")
     @test JuliaExcel.encode_for_xl(Any[1.0, 2, 3.0]) == JuliaExcel.encode_array_general(Any[1.0, 2, 3.0])
     @test !startswith(JuliaExcel.encode_for_xl(Any[1.0, 2, 3.0]), "V")
     @test JuliaExcel.encode_for_xl(Any[]) == JuliaExcel.encode_array_general(Any[])
+
+    # Rank 3-9: one method (encode_for_xl(x::Array{Float64,N})) handles every rank, since
+    # Vector{Float64}/Matrix{Float64} are just Array{Float64,1}/Array{Float64,2} and the bulk
+    # byte-reinterpret doesn't care how many dimensions the buffer is viewed as. Decoded by the
+    # Case 86 'V' branch's Case Else (rank 3-9) in Unserialise (modUnserialise.bas), which reuses
+    # ParseDims/ReDimVariantArray/AssignByRank - the same helpers the general "*" format's own
+    # >=3-D handling already used.
+    let a3d = reshape(collect(1.0:24.0), 2, 3, 4)
+        @test startswith(JuliaExcel.encode_for_xl(a3d), "V3,2,3,4;")
+        @test round_trip(a3d)
+        @test JuliaExcel.decode_from_xl(JuliaExcel.encode_for_xl(a3d)) isa Array{Float64,3}
+        # dynamic AbstractArray fallback also generalises to rank 3-9, not just 1-2
+        @test JuliaExcel.encode_for_xl(Array{Any}(a3d)) == JuliaExcel.encode_for_xl(a3d)
+    end
+
+    # Rank > 9 must fall back to the general "*" format - matches VBA's own ReDimVariantArray
+    # MAX_RANK, which Case 86's Case Else would otherwise be asked to exceed.
+    let a10d = reshape(collect(1.0:2.0^10), fill(2, 10)...)
+        @test !startswith(JuliaExcel.encode_for_xl(a10d), "V")
+        @test round_trip(a10d)
+    end
+
     let x3d = fill(1.0, 2, 2, 2) |> a -> Array{Any}(a)
-        @test !startswith(JuliaExcel.encode_for_xl(x3d), "V")
-        @test JuliaExcel.encode_for_xl(x3d) == JuliaExcel.encode_array_general(x3d)
+        @test startswith(JuliaExcel.encode_for_xl(x3d), "V3,")  # now gets "V", not the general format
+        @test JuliaExcel.encode_for_xl(x3d) == JuliaExcel.encode_for_xl(fill(1.0, 2, 2, 2))
     end
 
     # decode_xl_array_v (src/decode.jl) - the VBA -> Julia direction, added alongside
@@ -108,6 +130,13 @@ round_trip(x) = isequal(JuliaExcel.decode_from_xl(JuliaExcel.encode_for_xl(x)), 
     let be_hex(v) = uppercase(string(reinterpret(UInt64, v), base=16, pad=16))
         manual = "V1,3;" * be_hex(1.0) * be_hex(-2.5) * be_hex(3.14159265358979)
         @test JuliaExcel.decode_from_xl(manual) == [1.0, -2.5, 3.14159265358979]
+
+        # Rank 3, exercising decode_xl_array_v's general reshape path against hand-built VBA-style
+        # hex - this is what TrySerialiseArrayAsV's new Case Else (modSerialise.bas) now produces
+        # for the Excel -> Julia direction of a 3D+ array.
+        vals3d = collect(1.0:24.0)
+        manual3d = "V3,2,3,4;" * join(be_hex.(vals3d))
+        @test JuliaExcel.decode_from_xl(manual3d) == reshape(vals3d, 2, 3, 4)
     end
 
 end
