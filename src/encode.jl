@@ -36,6 +36,9 @@ interpreted as follows:
               2042 for the Excel error value #N/A )
  *   Array
  H   Dictionary
+ V   Array of Float64 only, no per-element type indicator or length - see
+     encode_for_xl(::Vector{Float64})/(::Matrix{Float64}) below. Decoded by the Case 86 'V'
+     branch of the production VBA decoder (modUnserialise.bas).
 
   Examples:
   julia> JuliaExcel.encode_for_xl(1.0)
@@ -107,8 +110,7 @@ function encode_for_xl(x::Float32)
     end
 end
 
-function encode_for_xl(x::T) where {T<:AbstractArray}
-
+function encode_array_general(x::AbstractArray)
     sx = size(x)
     dimssection = string(xl_length(sx)) * "," * join(sx, ",")
     lengths_buf = IOBuffer()
@@ -121,6 +123,80 @@ function encode_for_xl(x::T) where {T<:AbstractArray}
     end
 
     "*" * dimssection * ";" * String(take!(lengths_buf)) * ";" * String(take!(contents_buf))
+end
+
+"""
+    encode_for_xl(x::AbstractArray)
+
+Fallback for any array whose *static* element type isn't already known to be Float64 (unlike the
+Vector{Float64}/Matrix{Float64} methods below, which get the fast "V" encoding for free via
+dispatch, with no runtime check needed). Julia allows a Vector{Any} (or similar) to hold nothing
+but Float64 values at runtime - e.g. from `Any[1.0, 2.0]`, `push!` onto an untyped `[]`, or values
+collected from mixed sources - so this checks at runtime whether that's actually the case, and if
+so still takes the fast "V" path rather than leaving that data on the slow general path just
+because of how it happened to be typed. The check (a single pass testing `isa(Float64)`, `isnan`,
+`isinf`) is cheap relative to the general-format encoding it would otherwise fall through to
+(per-element encode_for_xl calls plus string-building for every element), so this only adds cost
+to paths that were already slow - never to the already-fast concrete Vector{Float64}/
+Matrix{Float64} case, which dispatches straight past this method.
+
+Deliberately uses the `Vector{Float64}(x)`/`Matrix{Float64}(x)` *constructors*, not `Float64.(x)`
+broadcasting: for a plain Vector{Any}/Matrix{Any} they'd likely agree, but for some other
+AbstractArray subtype, broadcasting can return that same container type with eltype now Float64
+rather than a genuine Vector{Float64}/Matrix{Float64} - which would dispatch straight back into
+this same fallback method (now trivially passing the check) and recurse without ever reaching a
+concrete-type base case. The explicit constructors always produce a genuine dense Array, so the
+recursive call below is guaranteed to land on the fast methods and never re-enter this one.
+
+Rank is restricted to 1 or 2, matching what the VBA decoder's Case 86 'V' branch
+(modUnserialise.bas) and Excel itself can handle; anything else falls through to
+encode_array_general unchanged.
+"""
+function encode_for_xl(x::T) where {T<:AbstractArray}
+    if ndims(x) in (1, 2) && !isempty(x) && all(v -> v isa Float64 && !isnan(v) && !isinf(v), x)
+        return ndims(x) == 1 ? encode_for_xl(Vector{Float64}(x)) : encode_for_xl(Matrix{Float64}(x))
+    end
+    encode_array_general(x)
+end
+
+"""
+    encode_for_xl(x::Union{Vector{Float64},Matrix{Float64}})
+
+Compact encoding for arrays whose element type is statically known to be Float64 - dispatch on
+the concrete type means Julia has already done the work of confirming every element is a plain
+Float64, so (unlike encode_array_general) neither a per-element type indicator nor a
+per-element length is needed: every element is always exactly 16 hex characters. Format:
+"V<rank>,<dims>;<raw hex, no delimiters>", e.g. "V1,5;..." for a 5-element vector or
+"V2,3,4;..." for a 3x4 matrix - decoded by the Case 86 'V' branch of the VBA function
+Unserialise (modUnserialise.bas), which relies on HexToDouble there (the same function used
+for scalar "#" values).
+
+The hex uses the same big-endian-style convention as `float64_to_hex` (scalars), achieved by
+`bswap`-ing every element (a cheap, fully vectorized bulk operation) before reinterpreting as
+bytes and calling `bytes2hex`. An earlier version of this format hex-encoded the raw
+little-endian memory bytes directly (skipping the bswap here, in favour of a dedicated
+little-endian decode function in VBA) - but a direct measurement (VFormatDecodeSpeedTest,
+modPerformance.bas) showed that VBA-side little-endian decode was enough slower, per element,
+than the existing big-endian HexToDouble that the whole "V" format decoded slower than the
+general "*" format it was meant to replace. Doing the bswap here instead keeps the decode side
+simple and fast.
+
+Falls back to encode_array_general for an empty array, or one containing any NaN/Inf - the
+fast path assumes every element decodes as an ordinary hex-encoded Double, which isn't true for
+those (see the NaN/Inf special-casing in the scalar encode_for_xl(::Float64) above).
+"""
+function encode_for_xl(x::Vector{Float64})
+    n = length(x)
+    (n == 0 || any(v -> isnan(v) || isinf(v), x)) && return encode_array_general(x)
+    "V1," * string(n) * ";" * bytes2hex(reinterpret(UInt8, bswap.(reinterpret(UInt64, x))))
+end
+
+function encode_for_xl(x::Matrix{Float64})
+    nr, nc = size(x)
+    (nr == 0 || nc == 0 || any(v -> isnan(v) || isinf(v), x)) && return encode_array_general(x)
+    # reinterpret over the raw linear buffer, which Julia already stores column-major -
+    # matching the wire format's column-major convention with no reshaping needed.
+    "V2," * string(nr) * "," * string(nc) * ";" * bytes2hex(reinterpret(UInt8, bswap.(reinterpret(UInt64, x))))
 end
 
 function encode_for_xl(x::DataFrame)

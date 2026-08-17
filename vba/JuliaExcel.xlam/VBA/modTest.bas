@@ -35,7 +35,7 @@ Function RunTests(Optional SilentMode = False)
 
 2         JuliaEval "exit()"
 3         PreciseSleep 1000 'Give time to shut down properly, otherwise launch can fail thinking Julia still running but unresponsive
-4         ThrowIfError JuliaLaunch()
+4         ThrowIfError JuliaLaunch(, , "--project=c:/temp/juliaexcel")
 
 5         PrintTwice vbLf & String(80, "=")
 6         PrintTwice "JuliaExcel RunTests"
@@ -64,31 +64,37 @@ Function RunTests(Optional SilentMode = False)
 28        AccResult "TestOneDArraysDisplayAsOneColumnOnSheet", TestOneDArraysDisplayAsOneColumnOnSheet, NumPassed, NumFailed
 29        AccResult "TestElType", TestElType, NumPassed, NumFailed
 30        AccResult "TestBroadcasting", TestBroadcasting, NumPassed, NumFailed
+31        AccResult "TestNaNFallback", TestNaNFallback, NumPassed, NumFailed
+32        AccResult "TestInfFallback", TestInfFallback, NumPassed, NumFailed
+33        AccResult "TestVFormatVectorColumn", TestVFormatVectorColumn, NumPassed, NumFailed
+34        AccResult "TestVFormatMatrixNonSquare", TestVFormatMatrixNonSquare, NumPassed, NumFailed
+35        AccResult "TestMatrixNaNFallback", TestMatrixNaNFallback, NumPassed, NumFailed
+36        AccResult "TestVFormatEmptyArrayFallback", TestVFormatEmptyArrayFallback, NumPassed, NumFailed
 
-31        Prompt = NumPassed & " test(s) passed" & vbLf & _
+37        Prompt = NumPassed & " test(s) passed" & vbLf & _
               NumFailed & " test(s) failed"
 
-32        If NumFailed > 0 Then
-33            Prompt = Prompt & vbLf & vbLf & _
+38        If NumFailed > 0 Then
+39            Prompt = Prompt & vbLf & vbLf & _
                   "See VBA Immediate window for details"
-34        End If
-
-35        PrintTwice NumPassed & " test(s) passed"
-36        PrintTwice NumFailed & " test(s) failed"
-37        PrintTwice String(80, "=")
-
-38        If Not SilentMode Then
-39            MsgBox Prompt, IIf(NumFailed = 0, vbInformation, vbCritical), Title
 40        End If
 
-41        RunTests = NumFailed = 0
+41        PrintTwice NumPassed & " test(s) passed"
+42        PrintTwice NumFailed & " test(s) failed"
+43        PrintTwice String(80, "=")
 
-42        Exit Function
+44        If Not SilentMode Then
+45            MsgBox Prompt, IIf(NumFailed = 0, vbInformation, vbCritical), Title
+46        End If
+
+47        RunTests = NumFailed = 0
+
+48        Exit Function
 ErrHandler:
-43        If Not SilentMode Then
-44            MsgBox ReThrow("RunTests", Err, True), vbCritical, Title
-45        End If
-46        RunTests = False
+49        If Not SilentMode Then
+50            MsgBox ReThrow("RunTests", Err, True), vbCritical, Title
+51        End If
+52        RunTests = False
 End Function
 
 Sub PrintTwice(Text As String)
@@ -517,5 +523,125 @@ Function TestBroadcasting()
 ErrHandler:
 10        PrintTwice ReThrow("TestBroadcasting", Err, True)
 11        TestBroadcasting = False
+End Function
+
+' Checks that a Vector{Float64} containing a NaN falls back from the compact "V" wire format to
+' the general "*" format (see encode_for_xl(::Vector{Float64}) in src/encode.jl), so that the NaN
+' element arrives as the Excel error #N/A rather than corrupting the fast binary decode.
+Function TestNaNFallback()
+          Dim Expected(1 To 3, 1 To 1) As Variant
+          Dim y As Variant
+
+1         On Error GoTo ErrHandler
+2         Expected(1, 1) = 1#
+3         Expected(2, 1) = 2#
+4         Expected(3, 1) = CVErr(2042) '#N/A
+5         y = ThrowIfError(JuliaEval("[1.0,2.0,NaN]"))
+6         TestNaNFallback = ArraysIdentical(Expected, y)
+
+7         Exit Function
+ErrHandler:
+8         PrintTwice ReThrow("TestNaNFallback", Err, True)
+9         TestNaNFallback = False
+End Function
+
+' As TestNaNFallback, but for Inf, which falls back to the general format because it also can't be
+' round-tripped through the compact "V" format's plain hex-encoded Double representation.
+Function TestInfFallback()
+          Dim Expected(1 To 3, 1 To 1) As Variant
+          Dim y As Variant
+
+1         On Error GoTo ErrHandler
+2         Expected(1, 1) = 1#
+3         Expected(2, 1) = 2#
+4         Expected(3, 1) = CVErr(2036) '#NUM!
+5         y = ThrowIfError(JuliaEval("[1.0,2.0,Inf]"))
+6         TestInfFallback = ArraysIdentical(Expected, y)
+
+7         Exit Function
+ErrHandler:
+8         PrintTwice ReThrow("TestInfFallback", Err, True)
+9         TestInfFallback = False
+End Function
+
+' Exercises the Case 86 'V' branch's "JuliaVectorToXLColumn = True" path (modUnserialise.bas), used
+' by JuliaCall/JuliaEval but not by JuliaCallVBA - Test1DArrayOfDoubles/TestExactRoundTripping only
+' cover the False (native VBA 1-D array) path, via JuliaCallVBA.
+Function TestVFormatVectorColumn()
+          Dim Expected(1 To 4, 1 To 1) As Variant
+          Dim x() As Double
+          Dim y As Variant
+
+1         On Error GoTo ErrHandler
+2         ReDim x(1 To 4)
+3         x(1) = 1.5: x(2) = -2.25: x(3) = 0#: x(4) = 100000.125
+4         Expected(1, 1) = x(1): Expected(2, 1) = x(2)
+5         Expected(3, 1) = x(3): Expected(4, 1) = x(4)
+6         y = ThrowIfError(JuliaCall("identity", x))
+7         TestVFormatVectorColumn = ArraysIdentical(Expected, y)
+
+8         Exit Function
+ErrHandler:
+9         PrintTwice ReThrow("TestVFormatVectorColumn", Err, True)
+10        TestVFormatVectorColumn = False
+End Function
+
+' Exercises the Case 86 'V' branch's rank-2 (matrix) path with a non-square shape and distinct
+' values in every cell, to catch a row/column transposition bug that a square test could mask.
+Function TestVFormatMatrixNonSquare()
+          Dim Expected(1 To 2, 1 To 3) As Variant
+          Dim x(1 To 2, 1 To 3) As Double
+          Dim y As Variant
+
+1         On Error GoTo ErrHandler
+2         x(1, 1) = 1.1: x(1, 2) = 2.2: x(1, 3) = 3.3
+3         x(2, 1) = 4.4: x(2, 2) = 5.5: x(2, 3) = 6.6
+4         Expected(1, 1) = x(1, 1): Expected(1, 2) = x(1, 2): Expected(1, 3) = x(1, 3)
+5         Expected(2, 1) = x(2, 1): Expected(2, 2) = x(2, 2): Expected(2, 3) = x(2, 3)
+6         y = JuliaCallVBA("identity", x)
+7         TestVFormatMatrixNonSquare = ArraysIdentical(Expected, y)
+
+8         Exit Function
+ErrHandler:
+9         PrintTwice ReThrow("TestVFormatMatrixNonSquare", Err, True)
+10        TestVFormatMatrixNonSquare = False
+End Function
+
+' As TestNaNFallback, but for encode_for_xl(::Matrix{Float64}) - a separate method in src/encode.jl
+' with its own NaN/Inf fallback guard, not covered by the vector-only NaN/Inf tests above.
+Function TestMatrixNaNFallback()
+          Dim Expected(1 To 2, 1 To 3) As Variant
+          Dim y As Variant
+
+1         On Error GoTo ErrHandler
+2         Expected(1, 1) = 1#: Expected(1, 2) = 2#: Expected(1, 3) = 3#
+3         Expected(2, 1) = 4#
+4         Expected(2, 2) = CVErr(2042) '#N/A
+5         Expected(2, 3) = 6#
+6         y = ThrowIfError(JuliaEval("[1.0 2.0 3.0; 4.0 NaN 6.0]"))
+7         TestMatrixNaNFallback = ArraysIdentical(Expected, y)
+
+8         Exit Function
+ErrHandler:
+9         PrintTwice ReThrow("TestMatrixNaNFallback", Err, True)
+10        TestMatrixNaNFallback = False
+End Function
+
+' Checks the n = 0 guard in encode_for_xl(::Vector{Float64}) (src/encode.jl) correctly routes an
+' empty Float64 vector to the general "*" array format rather than attempting a zero-length "V"
+' payload. The general format represents a zero-element 1-D array (when AllowNesting is True, as it
+' is for JuliaEvalVBA) as a zero-length array, via VBA.Split(vbNullString) in Unserialise
+' (modUnserialise.bas) - not something introduced by "V".
+Function TestVFormatEmptyArrayFallback()
+          Dim y As Variant
+
+1         On Error GoTo ErrHandler
+2         y = ThrowIfError(JuliaEvalVBA("Float64[]"))
+3         TestVFormatEmptyArrayFallback = IsArray(y) And (UBound(y) < LBound(y))
+
+4         Exit Function
+ErrHandler:
+5         PrintTwice ReThrow("TestVFormatEmptyArrayFallback", Err, True)
+6         TestVFormatEmptyArrayFallback = False
 End Function
 

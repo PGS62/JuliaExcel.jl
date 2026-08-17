@@ -129,6 +129,34 @@ Option Explicit
 'Average time for JuliaCall("sum", vector of length 100,000) = 0.102828399999999 seconds (averaged over 10 calls)
 'One-way data transport test, Julia to Excel
 'Average time for JuliaEval("collect((1:100000).*pi)") = 0.148632560000988 seconds (averaged over 10 calls)
+'========================================================================================================================
+'Running method PerformanceTest
+'Time now = 2026-08-16 15:04:10
+'JuliaExcel Version = 138
+'Computer = MSI
+'Latency test
+'Average time for JuliaEval("1+1") = 1.20061220001662 miliseconds (averaged over 500 calls)
+'Two-way data transport test
+'Average time for JuliaCall("identity", vector of length 100,000) = 0.255838729999959 seconds (averaged over 10 calls)
+'One-way data transport test, Excel to Julia
+'Average time for JuliaCall("sum", vector of length 100,000) = 0.100987849998637 seconds (averaged over 10 calls)
+'One-way data transport test, Julia to Excel
+'Average time for JuliaEval("collect((1:100000).*pi)") = 0.146759319998091 seconds (averaged over 10 calls)
+'========================================================================================================================
+'Running method PerformanceTest
+'Time now = 2026-08-17 11:56:58
+'JuliaExcel Version = 139
+'Computer = MSI
+'Latency test
+'Average time for JuliaEval("1+1") = 1.64528539997991 miliseconds (averaged over 500 calls)
+'Two-way data transport test
+'Average time for JuliaCall("identity", vector of 100,000 doubles) = 0.199695459997747 seconds (averaged over 10 calls)
+'One-way data transport test, Excel to Julia
+'Average time for JuliaCall("sum", vector of 100,000 doubles) = 0.112783389998367 seconds (averaged over 10 calls)
+'One-way data transport test, Julia to Excel
+'Average time for JuliaEval("collect((1:100000).*pi)") = 9.42291199986357E-02 seconds (averaged over 10 calls)
+
+
 
 Sub PerformanceTest()
           Const NumCallsOnePlusOne As Long = 500
@@ -150,7 +178,7 @@ Sub PerformanceTest()
           
           'Warm up
 5         JuliaEval "exit()" 'shuts down Julia if it's running
-6         JuliaLaunch
+6         JuliaLaunch , , "--project=c:/temp/juliaexcel"
 7         ThrowIfError JuliaEval("1+1")
 8         InputData = Application.Evaluate("=RANDARRAY(100)")
 9         ThrowIfError JuliaCall("identity", InputData)
@@ -196,10 +224,10 @@ Sub PerformanceTest()
 41            End If
         
 42            If JuliaFunction = "identity" Then
-43                WhatWasExecuted = "JuliaCall(""identity"", vector of length " & Format(VectorLength, "###,###") & ")"
+43                WhatWasExecuted = "JuliaCall(""identity"", vector of " & Format(VectorLength, "###,###") & " doubles)"
 44                Debug.Print "'Two-way data transport test"
 45            ElseIf JuliaFunction = "sum" Then
-46                WhatWasExecuted = "JuliaCall(""sum"", vector of length " & Format(VectorLength, "###,###") & ")"
+46                WhatWasExecuted = "JuliaCall(""sum"", vector of " & Format(VectorLength, "###,###") & " doubles)"
 47                Debug.Print "'One-way data transport test, Excel to Julia"
 48            ElseIf JuliaFunction = "collect" Then
 49                WhatWasExecuted = "JuliaEval(""collect((1:" & CStr(VectorLength) & ").*pi)"")"
@@ -214,4 +242,164 @@ Sub PerformanceTest()
 ErrHandler:
 55        MsgBox ReThrow("PerformanceTest", Err, True)
 End Sub
+
+'--------------------------------------------------
+'Running method SerialisationPerformanceTest
+'========================================================================================================================
+'Running method SerialisationPerformanceTest
+'Time now = 2026-08-16 15:00:28
+'JuliaExcel Version = 138
+'Computer = MSI
+'Average time for SerialiseElement(vector of 100,000 Doubles) = 0.072152280001319 seconds (averaged over 10 calls)
+'Average time for UnserialiseFromString(vector of 100,000 Doubles) = 0.102856119998614 seconds (averaged over 10 calls)
+'========================================================================================================================
+'Running method SerialisationPerformanceTest
+'Time now = 2026-08-16 15:00:55
+'JuliaExcel Version = 138
+'Computer = MSI
+'Average time for SerialiseElement(vector of 100,000 Doubles) = 7.19601280003553E-02 seconds (averaged over 50 calls)
+'Average time for UnserialiseFromString(vector of 100,000 Doubles) = 0.222831700000097 seconds (averaged over 50 calls)
+'========================================================================================================================
+'Running method SerialisationPerformanceTest
+'Time now = 2026-08-16 15:01:22
+'JuliaExcel Version = 138
+'Computer = MSI
+'Average time for SerialiseElement(vector of 100,000 Doubles) = 7.22701920004329E-02 seconds (averaged over 50 calls)
+'Average time for UnserialiseFromString(vector of 100,000 Doubles) = 0.22391951800033 seconds (averaged over 50 calls)
+'========================================================================================================================
+
+
+Sub SerialisationPerformanceTest()
+
+          Const VectorLength As Long = 100000
+          Const NumCalls As Long = 50
+          Dim EncodedString As String
+          Dim i As Long
+          Dim InputData As Variant
+          Dim Res As Variant
+          Dim t1 As Double
+          Dim t2 As Double
+
+1         On Error GoTo ErrHandler
+2         Debug.Print "'" & String(120, "=")
+3         Debug.Print "'Running method SerialisationPerformanceTest"
+4         Debug.Print "'Time now = " & Format$(Now(), "yyyy-mm-dd hh:mm:ss")
+5         Debug.Print "'JuliaExcel Version = " & CStr(shAudit.Range("Headers").Cells(2, 1).Value)
+6         Debug.Print "'Computer = " & Environ$("ComputerName")
+
+7         InputData = Application.Evaluate("=RANDARRAY(" & VectorLength & ")")
+
+          'Time SerialiseElement (VBA value -> wire format), in isolation - no HTTP call involved.
+8         t1 = ElapsedTime
+9         For i = 1 To NumCalls
+10            EncodedString = SerialiseElement(InputData)
+11        Next i
+12        t2 = ElapsedTime
+13        Debug.Print "'Average time for SerialiseElement(vector of " & Format(VectorLength, "###,###") & " Doubles) = " & _
+              CStr((t2 - t1) / NumCalls) & " seconds (averaged over " & CStr(NumCalls) & " calls)"
+
+          'Time UnserialiseFromString (wire format -> VBA value), using the string just produced as a
+          'stand-in for what JuliaCall("identity", ...) would return - same shape and size.
+14        t1 = ElapsedTime
+15        For i = 1 To NumCalls
+16            Res = UnserialiseFromString(EncodedString, False, GetStringLengthLimit(), True)
+17        Next i
+18        t2 = ElapsedTime
+19        Debug.Print "'Average time for UnserialiseFromString(vector of " & Format(VectorLength, "###,###") & " Doubles) = " & _
+              CStr((t2 - t1) / NumCalls) & " seconds (averaged over " & CStr(NumCalls) & " calls)"
+
+20        If Not ArraysIdentical(Res, InputData) Then
+21            Throw "Round trip through SerialiseElement/UnserialiseFromString did not return an identical array"
+22        End If
+
+23        Exit Sub
+ErrHandler:
+24        MsgBox ReThrow("SerialisationPerformanceTest", Err, True)
+End Sub
+
+Function VFormatDecodeSpeedTest() As String
+          ' Isolates VBA-side decode cost only, comparing the general "*" array format against the
+          ' new "V" format for the SAME underlying data - both wire strings are fetched once from
+          ' Julia up front, so there's no HTTP/Julia-side noise inside the timed loop, and decoding
+          ' is interleaved (one "*" decode, then one "V" decode, repeat) per the reasoning discussed
+          ' elsewhere in this module: interleaving keeps the comparison fair even if something (heap
+          ' pressure, thermal throttling) drifts over the course of the test.
+          ' Returns the report as a String (as well as Debug.Print-ing it) so it can be captured
+          ' programmatically, e.g. via Application.Run from outside VBA.
+          Const NumCalls As Long = 50
+          Const VectorLength As Long = 100000
+          Dim GeneralString As String
+          Dim i As Long
+          Dim Report As String
+          Dim ResGeneral As Variant
+          Dim ResV As Variant
+          Dim t1 As Double
+          Dim t2 As Double
+          Dim TotalGeneral As Double
+          Dim TotalV As Double
+          Dim VString As String
+
+1         On Error GoTo ErrHandler
+2         Debug.Print "'" & String(120, "=")
+3         Debug.Print "'Running method VFormatDecodeSpeedTest"
+4         Debug.Print "'Time now = " & Format$(Now(), "yyyy-mm-dd hh:mm:ss")
+5         Debug.Print "'JuliaExcel Version = " & CStr(shAudit.Range("Headers").Cells(2, 1).Value)
+6         Debug.Print "'Computer = " & Environ$("ComputerName")
+
+7         JuliaEval "exit()"
+8         JuliaLaunch , , "--project=c:/temp/juliaexcel"
+
+          'Fetch both wire-format encodings of the same data directly from Julia, so the timed loop
+          'below measures VBA-side decode cost only.
+9         GeneralString = ThrowIfError(JuliaEvalVBA("JuliaExcel.encode_array_general(collect((1:" & VectorLength & ").*pi))"))
+10        VString = ThrowIfError(JuliaEvalVBA("JuliaExcel.encode_for_xl(collect((1:" & VectorLength & ").*pi))"))
+
+11        If Left$(VString, 1) <> "V" Then Throw "Expected a 'V'-format string but got a string starting '" & Left$(VString, 1) & "' - is the Julia session really running the local dev copy of JuliaExcel (pathof(JuliaExcel))?"
+
+12        For i = 1 To NumCalls
+13            t1 = ElapsedTime
+14            ResGeneral = UnserialiseFromString(GeneralString, False, GetStringLengthLimit(), True)
+15            t2 = ElapsedTime
+16            TotalGeneral = TotalGeneral + (t2 - t1)
+
+17            t1 = ElapsedTime
+18            ResV = UnserialiseFromString(VString, False, GetStringLengthLimit(), True)
+19            t2 = ElapsedTime
+20            TotalV = TotalV + (t2 - t1)
+21        Next i
+
+22        If Not ArraysIdentical(ResGeneral, ResV) Then Throw "'*' and 'V' format decodes gave different results!"
+
+23        Report = "Average decode time, '*' format (vector of " & Format(VectorLength, "###,###") & " Doubles) = " & _
+              CStr(TotalGeneral / NumCalls) & " seconds (averaged over " & NumCalls & " calls, interleaved)" & vbLf & _
+              "Average decode time, 'V' format (vector of " & Format(VectorLength, "###,###") & " Doubles) = " & _
+              CStr(TotalV / NumCalls) & " seconds (averaged over " & NumCalls & " calls, interleaved)"
+24        Debug.Print "'" & Replace(Report, vbLf, vbLf & "'")
+25        VFormatDecodeSpeedTest = Report
+
+26        Exit Function
+ErrHandler:
+27        VFormatDecodeSpeedTest = ReThrow("VFormatDecodeSpeedTest", Err, True)
+End Function
+
+
+Function GetADict() As Scripting.Dictionary
+Dim out As New Scripting.Dictionary
+
+out.Add "a", 1
+out.Add "b", 2
+out.Add "c", 3
+
+Set GetADict = out
+
+End Function
+
+
+Function GetANumber()
+GetANumber = 1
+
+End Function
+
+
+
 

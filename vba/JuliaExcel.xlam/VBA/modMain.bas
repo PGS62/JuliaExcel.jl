@@ -669,19 +669,22 @@ End Sub
 '              an argument in any call, so the encoding loop is duplicated in each public wrapper.
 ' -----------------------------------------------------------------------------------------------------------------------
 Private Function JuliaCall_LowLevel(EncodedArgs As String, IsFromWorksheet As Boolean)
+          Dim HttpResult As String
+
 1         On Error GoTo ErrHandler
 2         If GetJuliaPort() = 0 Then
 3             JuliaCall_LowLevel = "#Please call JuliaLaunch before calling JuliaEval or JuliaCall!"
 4             Exit Function
 5         End If
 6         If IsFromWorksheet Then
-7             Assign JuliaCall_LowLevel, UnserialiseFromString(JuliaHttpPost(EncodedArgs, "/call"), False, GetStringLengthLimit(), True)
-8         Else
-9             Assign JuliaCall_LowLevel, UnserialiseFromString(JuliaHttpPost(EncodedArgs, "/call"), True, 0, False)
-10        End If
-11        Exit Function
+7             HttpResult = JuliaHttpPost(EncodedArgs, "/call")
+8             Assign JuliaCall_LowLevel, UnserialiseFromString(HttpResult, False, GetStringLengthLimit(), True)
+9         Else
+10            Assign JuliaCall_LowLevel, UnserialiseFromString(JuliaHttpPost(EncodedArgs, "/call"), True, 0, False)
+11        End If
+12        Exit Function
 ErrHandler:
-12        ReThrow "JuliaCall_LowLevel", Err
+13        ReThrow "JuliaCall_LowLevel", Err
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
@@ -745,7 +748,7 @@ End Function
 '             or Range. Ranges are expanded to their .Value2 before encoding.
 ' -----------------------------------------------------------------------------------------------------------------------
 Public Function JuliaCallVBA(JuliaFunction As String, ParamArray Args())
-Attribute JuliaCallVBA.VB_Description = "Call a named Julia function from VBA. Differs from JuliaCall in handling of 1-d arrays and strings longer than 32,767 characters. May return data of types that cannot be displayed on a worksheet, such as a dictionary, an array of arrays, or arrays of dim…"
+Attribute JuliaCallVBA.VB_Description = "Call a named Julia function from VBA. Differs from JuliaCall in handling of 1-d arrays and strings longer than 32,767 characters. May return data of types that cannot be displayed on a worksheet, such as a dictionary, an array of arrays, or arrays of dimï¿½"
 Attribute JuliaCallVBA.VB_ProcData.VB_Invoke_Func = " \n14"
           Dim Arg As Variant
           Dim ContentsSection As String

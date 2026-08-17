@@ -90,6 +90,19 @@ End Type
 ' * Array
 ' ^ LongLong (64-bit VBA only)
 ' H Dictionary
+' V Array of Float64 only, no per-element type indicator or length (every element is always
+'   exactly 16 hex characters). Julia -> Excel only - there is no VBA-side encoder, since
+'   nothing currently sends a "V"-format string as an argument to Julia. Payload is big-endian
+'   hex, decoded with the same HexToDouble used for scalar "#" - Julia produces this by
+'   bulk-bswap-ing every element before hex-encoding the whole array in one operation (see
+'   encode_for_xl(::Vector{Float64})/(::Matrix{Float64}) in src/encode.jl), rather than
+'   reversing bytes per-element in VBA. (An earlier version of this format used little-endian
+'   hex, decoded via a dedicated HexToDoubleLE, to avoid the bswap on the Julia side entirely -
+'   but a direct measurement (VFormatDecodeSpeedTest, modPerformance.bas) showed
+'   HexToDoubleLE's byte-by-byte reconstruction is enough slower than HexToDouble's that the
+'   whole "V" format decoded slower than the general "*" format it was meant to replace. Moving
+'   the bswap to Julia - cheap there, as a single bulk-broadcast intrinsic - let this format go
+'   back to using the fast, already-tested HexToDouble unchanged.)
 
 'Examples (<pound> below stands for the single character Chr(163)):
 '#3FF0000000000000 unserialises to Double 1
@@ -211,7 +224,7 @@ Function Unserialise(Chars As String, AllowNesting As Boolean, ByRef Depth As Lo
                   Dim Rank As Long
                   'but check that the number of dimensions has only 1 digit!
 48                If Mid$(Chars, 3, 1) <> "," Then Throw "Cannot unserialise arrays with " & _
-                      Mid$(Chars, 2, InStr(Chars, ",") - 2) & " dimensions (max supported: 8)"
+                      Mid$(Chars, 2, InStr(Chars, ",") - 2) & " dimensions (max supported: 9)"
 49                Rank = CInt(Mid$(Chars, 2, 1))
 
 50                Select Case Rank
@@ -348,13 +361,63 @@ Function Unserialise(Chars As String, AllowNesting As Boolean, ByRef Depth As Lo
 145                   End If
 146               Next i
 147               Set Unserialise = DictRet
-148           Case Else
-149               Throw "Character '" & Left$(Chars, 1) & "' is not recognised as a type identifier"
-150       End Select
+148           Case 86 'V vbArray of Float64 only, no per-element type indicator or length - the
+                  '"V" indicator itself is Julia's own guarantee, via multiple dispatch, that every
+                  'element really is a Float64, so unlike the general "*" array case above, nothing
+                  'here needs to defend against that not being true.
+                  Const VBytesPerElement As Long = 16 'BE hex (as scalar "#"), no type-indicator character per element
+                  Dim Pos As Long
+149               p1 = InStr(Chars, ";")
+150               If Mid$(Chars, 3, 1) <> "," Then Throw "Cannot unserialise 'V'-format arrays with " & _
+                      Mid$(Chars, 2, InStr(Chars, ",") - 2) & " dimensions (max supported: 9)"
+151               Rank = CInt(Mid$(Chars, 2, 1))
+152               k = p1 + 1
 
-151       Exit Function
+153               Select Case Rank
+                      Case 1
+154                       n = CLng(Mid$(Chars, 4, p1 - 4))
+155                       If Len(Chars) - k + 1 <> n * VBytesPerElement Then Throw _
+                              "'V'-format string has the wrong number of hex characters for a 1-D array of " & n & " element(s)"
+156                       If JuliaVectorToXLColumn Then
+157                           ReDim Ret(1 To n, 1 To 1)
+158                           For i = 1 To n
+159                               Pos = k + (i - 1) * VBytesPerElement
+160                               Ret(i, 1) = HexToDouble(Mid$(Chars, Pos, VBytesPerElement))
+161                           Next i
+162                       Else
+163                           ReDim Ret(1 To n)
+164                           For i = 1 To n
+165                               Pos = k + (i - 1) * VBytesPerElement
+166                               Ret(i) = HexToDouble(Mid$(Chars, Pos, VBytesPerElement))
+167                           Next i
+168                       End If
+
+169                   Case 2
+170                       CommaPos = InStr(4, Chars, ",")
+171                       NR = CLng(Mid$(Chars, 4, CommaPos - 4))
+172                       NC = CLng(Mid$(Chars, CommaPos + 1, p1 - CommaPos - 1))
+173                       If Len(Chars) - k + 1 <> NR * NC * VBytesPerElement Then Throw _
+                              "'V'-format string has the wrong number of hex characters for a " & NR & "x" & NC & " array"
+174                       ReDim Ret(1 To NR, 1 To NC)
+175                       For j = 1 To NC
+176                           For i = 1 To NR
+177                               Pos = k + ((j - 1) * NR + (i - 1)) * VBytesPerElement
+178                               Ret(i, j) = HexToDouble(Mid$(Chars, Pos, VBytesPerElement))
+179                           Next i
+180                       Next j
+
+                      Case Else
+181                       Throw "Cannot unserialise 'V'-format arrays with rank " & Rank & " (only rank 1 and 2 supported so far)"
+182               End Select
+183               Unserialise = Ret
+
+184           Case Else
+185               Throw "Character '" & Left$(Chars, 1) & "' is not recognised as a type identifier"
+186       End Select
+
+187       Exit Function
 ErrHandler:
-152       ReThrow "Unserialise", Err
+188       ReThrow "Unserialise", Err
 End Function
 
 'Values of type Int64 in Julia must be handled differently on Excel 32-bit and Excel 64bit
@@ -374,6 +437,10 @@ End Function
 '              inclusion in the wire format passed between Excel and Julia. Uses LSet to reinterpret
 '              the 8 bytes of x as a Byte array, then maps each byte through a static 256-entry
 '              lookup table (seeded on first call) to produce the two-character hex pair.
+' Note       : Nothing to do with Excel's own worksheet function HEX(), which converts a decimal
+'              INTEGER to its hex-digit representation of that same numeric VALUE (e.g. HEX(255) is
+'              "FF"). DoubleToHex instead reinterprets the IEEE-754 BIT PATTERN of a Double - a
+'              completely different operation that happens to share a name with something familiar.
 ' -----------------------------------------------------------------------------------------------------------------------
 Function DoubleToHex(ByVal x As Double) As String
           Static HexByte(0 To 255) As String
@@ -400,6 +467,7 @@ End Function
 ' Procedure  : HexToDouble
 ' Purpose    : Parse a 16-character hex string (uppercase or lowercase) as the IEEE-754
 '              bit pattern of a Double and return the corresponding Double.
+' Note       : Nothing to do with Excel's own worksheet function HEX() - see DoubleToHex's note above.
 ' -----------------------------------------------------------------------------------------------------------------------
 Function HexToDouble(ByVal Hex As String) As Double
 
@@ -428,6 +496,7 @@ End Function
 '              inclusion in the wire format passed between Excel and Julia. Uses LSet to reinterpret
 '              the 4 bytes of x as a Byte array, then maps each byte through a static 256-entry
 '              lookup table (seeded on first call) to produce the two-character hex pair.
+' Note       : Nothing to do with Excel's own worksheet function HEX() - see DoubleToHex's note above.
 ' -----------------------------------------------------------------------------------------------------------------------
 Function SingleToHex(ByVal x As Single) As String
           Static HexByte(0 To 255) As String
@@ -466,6 +535,7 @@ End Function
 ' Procedure  : HexToSingle
 ' Purpose    : Parse an 8-character hex string (uppercase or lowercase) as the IEEE-754
 '              bit pattern of a Single and return the corresponding Single.
+' Note       : Nothing to do with Excel's own worksheet function HEX() - see DoubleToHex's note above.
 ' -----------------------------------------------------------------------------------------------------------------------
 Function HexToSingle(ByVal Hex As String) As Single
 
