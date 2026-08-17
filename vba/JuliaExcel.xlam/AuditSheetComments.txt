@@ -1,4 +1,5 @@
 ﻿Version	Date	Time	Author	Comment
+142	17-Aug-2026	22:33	Philip Swannell	Deleted redundant methods.
 141	17-Aug-2026	19:20	Philip Swannell	Global const gTestCommandOptions.
 140	17-Aug-2026	17:13	Philip Swannell	Imported PGS idea (Claude implemented) for "R encoding" of UnitRange/StepRange/StepRangeLen/LinRange etc.
 139	17-Aug-2026	10:50	Philip Swannell	Imported Claude/PGS rewrite to do bulk encoding (V option) of arrays of Float64.

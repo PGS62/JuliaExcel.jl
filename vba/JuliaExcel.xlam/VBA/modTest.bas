@@ -712,9 +712,9 @@ End Function
 
 ' Live round trip through a Variant() array (not a genuinely-typed Double() array) - the realistic
 ' "worst case" TrySerialiseArrayAsV has to handle in practice, since Range.Value2 always arrives
-' this way, even when every element holds a number (see VEncodeSpeedTest, modPerformance.bas, which
-' measured this specific case). Test1DArrayOfDoubles/TestExactRoundTripping already cover the
-' genuinely-typed Double() case via JuliaCallVBA.
+' this way, even when every element holds a number (measured historically via the now-removed
+' prototype benchmark VEncodeSpeedTest, modPerformance.bas). Test1DArrayOfDoubles/TestExactRoundTripping
+' already cover the genuinely-typed Double() case via JuliaCallVBA.
 ' Built with ReDim (1-based), not the VBA.Array() function - Array() returns a 0-based array, which
 ' would make ArraysIdentical report a spurious mismatch against the decoder's always-1-based result
 ' (Unserialise's Case 86 and Case 42 both ReDim their result 1 To n) even when every value round-

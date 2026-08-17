@@ -215,8 +215,9 @@ End Function
 '              Rank 3-9 walks the array via GetAt/Idx() exactly as SerialiseElement's own Case Else
 '              does for the general format, just without any per-element length lookup, since every
 '              element is always exactly 16 hex characters.
-'              Measured (VEncodeSpeedTest, modPerformance.bas) at roughly 40% faster than the
-'              general format even for the realistic worst case - a Variant() array (as
+'              Measured (via the now-removed prototype benchmark VEncodeSpeedTest, modPerformance.bas)
+'              at roughly 40% faster than the general format even for the realistic worst case - a
+'              Variant() array (as
 '              Range.Value2 always is, even when every cell holds a number) rather than a
 '              genuinely-typed Double() array, so VarType must be checked per element rather than
 '              being free.

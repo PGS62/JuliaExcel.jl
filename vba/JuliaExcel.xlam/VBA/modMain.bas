@@ -779,30 +779,3 @@ Attribute JuliaCallVBA.VB_ProcData.VB_Invoke_Func = " \n14"
 ErrHandler:
 16        ReThrow "JuliaCallVBA", Err
 End Function
-
-Private Sub SpeedTest2()
-
-          Const Expression As String = "1+1"
-          Const UseLinux As Boolean = False
-          Const NumCalls = 1000
-          Dim i As Long
-          Dim Res As Variant
-          Dim t1 As Double
-          Dim t2 As Double
-
-1         JuliaLaunch UseLinux
-2         t1 = ElapsedTime
-3         For i = 1 To NumCalls
-4             Res = JuliaEval(Expression)
-5             If Res <> 2 Then Stop
-6         Next i
-7         t2 = ElapsedTime
-
-8         Debug.Print "'" & Format(Now(), "dd-mmm-yyyy hh:mm:ss"), Environ("ComputerName")
-9         Debug.Print "'Expression = " & Expression
-10        Debug.Print "'Average time in JuliaEval", (t2 - t1) / NumCalls, "Averaged over " & CStr(NumCalls) & " calls"
-11        Debug.Print "'--------------------------------------------------"
-End Sub
-
-
-
