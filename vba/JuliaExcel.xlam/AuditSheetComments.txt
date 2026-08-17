@@ -1,4 +1,5 @@
 ﻿Version	Date	Time	Author	Comment
+140	17-Aug-2026	17:13	Philip Swannell	Imported Claude/PGS idea for " of R encoding" of UnitRange/StepRange/StepRangeLen/LinRange etc
 139	17-Aug-2026	10:50	Philip Swannell	Imported Claude\PGS rewrite to do bulk encoding (V option) of arrays of Float64.
 138	14-Aug-2026	12:31	Philip Swannell	Fix to RegisterJuliaExcelFunctionsWithFunctionWizard which was failing silently.
 137	13-Aug-2026	15:10	Philip Swannell	Refreshed line numbers in all modules.

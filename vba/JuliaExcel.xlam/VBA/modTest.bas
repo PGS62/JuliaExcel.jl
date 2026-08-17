@@ -73,31 +73,37 @@ Function RunTests(Optional SilentMode = False)
 37        AccResult "TestSerialiseArrayAsV", TestSerialiseArrayAsV, NumPassed, NumFailed
 38        AccResult "TestVEncodeFromVariantArray", TestVEncodeFromVariantArray, NumPassed, NumFailed
 39        AccResult "TestVFormat3DArray", TestVFormat3DArray, NumPassed, NumFailed
+40        AccResult "TestRangeIntegerVsCollect", TestRangeIntegerVsCollect, NumPassed, NumFailed
+41        AccResult "TestRangeStepVsCollect", TestRangeStepVsCollect, NumPassed, NumFailed
+42        AccResult "TestRangeFloatVsCollect", TestRangeFloatVsCollect, NumPassed, NumFailed
+43        AccResult "TestRangeJuliaEvalVBAIsOneD", TestRangeJuliaEvalVBAIsOneD, NumPassed, NumFailed
+44        AccResult "TestRangeJuliaEvalIsColumn", TestRangeJuliaEvalIsColumn, NumPassed, NumFailed
+45        AccResult "TestRangeWireFormat", TestRangeWireFormat, NumPassed, NumFailed
 
-40        Prompt = NumPassed & " test(s) passed" & vbLf & _
+46        Prompt = NumPassed & " test(s) passed" & vbLf & _
               NumFailed & " test(s) failed"
 
-41        If NumFailed > 0 Then
-42            Prompt = Prompt & vbLf & vbLf & _
+47        If NumFailed > 0 Then
+48            Prompt = Prompt & vbLf & vbLf & _
                   "See VBA Immediate window for details"
-43        End If
-
-44        PrintTwice NumPassed & " test(s) passed"
-45        PrintTwice NumFailed & " test(s) failed"
-46        PrintTwice String(80, "=")
-
-47        If Not SilentMode Then
-48            MsgBox Prompt, IIf(NumFailed = 0, vbInformation, vbCritical), Title
 49        End If
 
-50        RunTests = NumFailed = 0
+50        PrintTwice NumPassed & " test(s) passed"
+51        PrintTwice NumFailed & " test(s) failed"
+52        PrintTwice String(80, "=")
 
-51        Exit Function
+53        If Not SilentMode Then
+54            MsgBox Prompt, IIf(NumFailed = 0, vbInformation, vbCritical), Title
+55        End If
+
+56        RunTests = NumFailed = 0
+
+57        Exit Function
 ErrHandler:
-52        If Not SilentMode Then
-53            MsgBox ReThrow("RunTests", Err, True), vbCritical, Title
-54        End If
-55        RunTests = False
+58        If Not SilentMode Then
+59            MsgBox ReThrow("RunTests", Err, True), vbCritical, Title
+60        End If
+61        RunTests = False
 End Function
 
 Sub PrintTwice(Text As String)
@@ -759,5 +765,113 @@ Function TestVFormat3DArray()
 ErrHandler:
 12        PrintTwice ReThrow("TestVFormat3DArray", Err, True)
 13        TestVFormat3DArray = False
+End Function
+
+' Exercises the 'R' branch's integer sub-format (RI, Unserialise, modUnserialise.bas), added
+' alongside encode_for_xl(::AbstractRange{<:Integer}) in src/encode.jl. A UnitRange is encoded as
+' just first/step/length and reconstructed via arithmetic in VBA, rather than transmitting every
+' element - this confirms that fast path gives an identical result to fully materializing the
+' range in Julia first.
+Function TestRangeIntegerVsCollect()
+          Dim y1 As Variant
+          Dim y2 As Variant
+
+1         On Error GoTo ErrHandler
+2         y1 = ThrowIfError(JuliaEval("1:1000"))
+3         y2 = ThrowIfError(JuliaEval("collect(1:1000)"))
+4         TestRangeIntegerVsCollect = ArraysIdentical(y1, y2)
+
+5         Exit Function
+ErrHandler:
+6         PrintTwice ReThrow("TestRangeIntegerVsCollect", Err, True)
+7         TestRangeIntegerVsCollect = False
+End Function
+
+' As TestRangeIntegerVsCollect, but for a StepRange with a non-1 step (5:3:47) - confirms the
+' reconstruction arithmetic handles a real step, not just the step=1 case UnitRange always has.
+Function TestRangeStepVsCollect()
+          Dim y1 As Variant
+          Dim y2 As Variant
+
+1         On Error GoTo ErrHandler
+2         y1 = ThrowIfError(JuliaEval("5:3:47"))
+3         y2 = ThrowIfError(JuliaEval("collect(5:3:47)"))
+4         TestRangeStepVsCollect = ArraysIdentical(y1, y2)
+
+5         Exit Function
+ErrHandler:
+6         PrintTwice ReThrow("TestRangeStepVsCollect", Err, True)
+7         TestRangeStepVsCollect = False
+End Function
+
+' As TestRangeIntegerVsCollect, but for the float sub-format (RF) - a StepRangeLen{Float64,...}
+' from broadcasting a scalar multiply over a range. This is the case that matters most for exact
+' round-tripping: confirms VBA's naive "first + (i-1)*step" arithmetic exactly reproduces Julia's
+' own (twice-precision) range materialization, not just approximately.
+Function TestRangeFloatVsCollect()
+          Dim y1 As Variant
+          Dim y2 As Variant
+
+1         On Error GoTo ErrHandler
+2         y1 = ThrowIfError(JuliaEval("(1:1000).*pi"))
+3         y2 = ThrowIfError(JuliaEval("collect((1:1000).*pi)"))
+4         TestRangeFloatVsCollect = ArraysIdentical(y1, y2)
+
+5         Exit Function
+ErrHandler:
+6         PrintTwice ReThrow("TestRangeFloatVsCollect", Err, True)
+7         TestRangeFloatVsCollect = False
+End Function
+
+' Confirms JuliaEvalVBA (JuliaVectorToXLColumn=False) gives a genuine 1-D array for a range result,
+' matching the same distinction Case 86 ('V') already makes for rank-1 arrays - the 'R' branch
+' needs to honour JuliaVectorToXLColumn just as much as any other array-producing format.
+Function TestRangeJuliaEvalVBAIsOneD()
+          Dim y As Variant
+
+1         On Error GoTo ErrHandler
+2         y = ThrowIfError(JuliaEvalVBA("1:1000"))
+3         TestRangeJuliaEvalVBAIsOneD = (NumDimensions(y) = 1) And (UBound(y) - LBound(y) + 1 = 1000) And _
+              (y(LBound(y)) = 1) And (y(UBound(y)) = 1000)
+
+4         Exit Function
+ErrHandler:
+5         PrintTwice ReThrow("TestRangeJuliaEvalVBAIsOneD", Err, True)
+6         TestRangeJuliaEvalVBAIsOneD = False
+End Function
+
+' As TestRangeJuliaEvalVBAIsOneD, but via JuliaEval (JuliaVectorToXLColumn=True) - must give a 2-D,
+' single-column array, matching how a worksheet formula needs to display a vector result.
+Function TestRangeJuliaEvalIsColumn()
+          Dim y As Variant
+
+1         On Error GoTo ErrHandler
+2         y = ThrowIfError(JuliaEval("1:1000"))
+3         TestRangeJuliaEvalIsColumn = (NumDimensions(y) = 2) And (UBound(y, 1) = 1000) And (UBound(y, 2) = 1) And _
+              (y(1, 1) = 1) And (y(1000, 1) = 1000)
+
+4         Exit Function
+ErrHandler:
+5         PrintTwice ReThrow("TestRangeJuliaEvalIsColumn", Err, True)
+6         TestRangeJuliaEvalIsColumn = False
+End Function
+
+' Directly confirms the compact "R" wire format is actually used (not just that results happen to
+' be correct via some fallback) - checks the literal prefix of the raw string
+' encode_for_xl produces, for both the integer and float sub-formats.
+Function TestRangeWireFormat()
+          Dim s As Variant
+
+1         On Error GoTo ErrHandler
+2         s = ThrowIfError(JuliaEvalVBA("JuliaExcel.encode_for_xl(1:1000)"))
+3         If Left$(s, 3) <> "RI," Then Throw "Expected integer range to use 'RI' wire format, got: " & Left$(s, 10)
+4         s = ThrowIfError(JuliaEvalVBA("JuliaExcel.encode_for_xl((1:1000).*pi)"))
+5         If Left$(s, 3) <> "RF," Then Throw "Expected float range to use 'RF' wire format, got: " & Left$(s, 10)
+6         TestRangeWireFormat = True
+
+7         Exit Function
+ErrHandler:
+8         PrintTwice ReThrow("TestRangeWireFormat", Err, True)
+9         TestRangeWireFormat = False
 End Function
 

@@ -139,6 +139,60 @@ round_trip(x) = isequal(JuliaExcel.decode_from_xl(JuliaExcel.encode_for_xl(x)), 
         @test JuliaExcel.decode_from_xl(manual3d) == reshape(vals3d, 2, 3, 4)
     end
 
+    # "R" format - compact encoding for Ranges (UnitRange/StepRange/StepRangeLen/LinRange etc.):
+    # encodes only first/step/length, not every element, so wire size is O(1) regardless of the
+    # range's length - see encode_for_xl(::AbstractRange{Float64})/(::AbstractRange{<:Integer}) in
+    # src/encode.jl. Julia -> Excel only: VBA arrays are always fully materialized, so there's no
+    # lazy range concept on the VBA side to send this format back - unlike "V", decode_from_xl has
+    # no 'R' case and doesn't need one, so these are encode-only checks (no round_trip).
+    @test JuliaExcel.encode_for_xl(1:5) == "RI,5,1,1;"
+    @test JuliaExcel.encode_for_xl(5:3:47) == "RI,15,5,3;"  # non-1 step
+    @test JuliaExcel.encode_for_xl((1:3) .* pi) == "RF,3;" * JuliaExcel.float64_to_hex(Float64(pi)) * JuliaExcel.float64_to_hex(Float64(pi))
+
+    # Wire size doesn't scale with length at all - the whole point of this format.
+    @test length(JuliaExcel.encode_for_xl(1:1_000_000)) < 20
+    @test length(JuliaExcel.encode_for_xl((1:1_000_000) .* pi)) < 60
+
+    # Empty ranges and non-finite first/step (Float64 only - integer ranges can't hold NaN/Inf)
+    # must fall back to the general "*" format, not "R".
+    @test JuliaExcel.encode_for_xl(1:0) == JuliaExcel.encode_array_general(1:0)
+    @test JuliaExcel.encode_for_xl(1.0:1.0:0.0) == JuliaExcel.encode_array_general(1.0:1.0:0.0)
+    @test !startswith(JuliaExcel.encode_for_xl(1:0), "R")
+    let weird = range(1.0, step=NaN, length=5)
+        @test !startswith(JuliaExcel.encode_for_xl(weird), "R")
+    end
+
+    # Exactness: VBA reconstructs each element via plain "first + (i-1)*step" arithmetic, not by
+    # decoding any per-element wire data - confirms that matches Julia's own range materialization
+    # exactly, including StepRangeLen's twice-precision internal representation, over a large case.
+    let r = (1:1_000_000) .* pi
+        f, s = first(r), step(r)
+        @test all(i -> (f + (i - 1) * s) === r[i], 1:length(r))
+    end
+
+    # Defensive guard: nothing compiler-enforces that a type subtyping AbstractRange actually
+    # behaves as an arithmetic progression (Julia's abstract types carry no semantic guarantees,
+    # only nominal ones - a third-party AbstractRange subtype could implement `step` to mean
+    # anything). This checks that encode_for_xl verifies last(x) == first(x) + (n-1)*step(x) before
+    # trusting the fast path, using a deliberately "lying" range as a regression test - a real
+    # geometric progression whose step() claims (wrongly) that it's arithmetic with step 1.0.
+    # Must fall back to the general format and still round-trip correctly, not go through "R" and
+    # silently produce a linear approximation of non-arithmetic data.
+    struct LyingRange <: AbstractRange{Float64}
+        data::Vector{Float64}
+    end
+    Base.length(r::LyingRange) = length(r.data)
+    Base.first(r::LyingRange) = r.data[1]
+    Base.last(r::LyingRange) = r.data[end]
+    Base.step(r::LyingRange) = 1.0
+    Base.getindex(r::LyingRange, i::Int) = r.data[i]
+    Base.size(r::LyingRange) = (length(r.data),)
+
+    let lr = LyingRange([1.0, 2.0, 100.0])  # not actually evenly spaced by 1.0
+        @test !startswith(JuliaExcel.encode_for_xl(lr), "R")
+        @test JuliaExcel.decode_from_xl(JuliaExcel.encode_for_xl(lr)) == [1.0, 2.0, 100.0]
+    end
+
 end
 
 # The VBA-side test suite (modTest.RunTests) needs a live Excel/VBA session (via COM automation),

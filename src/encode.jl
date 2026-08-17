@@ -40,6 +40,10 @@ interpreted as follows:
      encode_for_xl(x::Array{Float64,N}) below. Decoded by the Case 86 'V' branch of the
      production VBA decoder (modUnserialise.bas). Also used in the opposite direction (VBA's
      TrySerialiseArrayAsV, modSerialise.bas), decoded by decode_xl_array_v (src/decode.jl).
+ R   Range (UnitRange/StepRange/StepRangeLen/LinRange etc.) - encodes only first/step/length,
+     not every element, so wire size doesn't scale with the range's length at all. Julia -> Excel
+     only. See encode_for_xl(x::AbstractRange{Float64})/(x::AbstractRange{<:Integer}) below.
+     Decoded by the 'R' branch of the production VBA decoder (modUnserialise.bas).
 
   Examples:
   julia> JuliaExcel.encode_for_xl(1.0)
@@ -198,6 +202,57 @@ function encode_for_xl(x::Array{Float64,N}) where {N}
     # reinterpret over the raw linear buffer, which Julia already stores column-major -
     # matching the wire format's column-major convention with no reshaping needed, regardless of N.
     "V" * string(N) * "," * join(dims, ",") * ";" * bytes2hex(reinterpret(UInt8, bswap.(reinterpret(UInt64, x))))
+end
+
+"""
+    encode_for_xl(x::AbstractRange{Float64})
+    encode_for_xl(x::AbstractRange{<:Integer})
+
+Compact encoding for a Julia Range (`UnitRange`, `StepRange`, `StepRangeLen`, `LinRange`, etc.) -
+encodes only `first(x)`, `step(x)` and `length(x)`, rather than materializing and encoding every
+element as "V"/"*" would. One method per element kind covers every concrete range type, since
+`first`/`step`/`length` are defined generically for all of them regardless of internal
+representation - dispatch on the *element type* (`Float64` vs `<:Integer`), not the concrete range
+type. This is the only array format in this file whose wire size doesn't scale with the number of
+elements at all: `1:1_000_000` encodes to a few dozen bytes instead of the ~17 MB the general
+format (or ~16 MB even with "V") would need.
+
+VBA reconstructs each element by plain arithmetic (`first + (i-1)*step`) rather than decoding any
+per-element wire data - verified (informally, not proven for every possible start/step/length) to
+exactly reproduce Julia's own range materialization, including for `StepRangeLen`'s
+twice-precision internal representation, over a 1,000,000-element case.
+
+Integer ranges encode `first`/`step` as plain decimal (exact, matching the "^" LongLong
+convention) - format "RI,<n>,<first>,<step>;". Float64 ranges encode them as 16-character
+big-endian hex (matching scalar "#"/`float64_to_hex`) - format "RF,<n>;<hex first><hex step>".
+Both are decoded by the 'R' branch of the VBA function Unserialise (modUnserialise.bas).
+
+Julia -> Excel only: VBA arrays are always fully materialized, so there's no equivalent lazy
+"range" concept on the encode (VBA -> Julia) side to compress this way - unlike "V", this format
+isn't a candidate for the reverse direction.
+
+Falls back to encode_array_general for an empty range, non-finite first/step (Float64 only), or -
+defensively - if `last(x)` doesn't come out to exactly `first(x) + (length(x)-1)*step(x)`. Julia's
+abstract type hierarchy doesn't compiler-enforce that a type subtyping AbstractRange actually
+behaves as an arithmetic progression (nothing stops a third-party AbstractRange subtype from
+implementing `step` to mean something else entirely) - this O(1) check verifies the assumption
+this whole format rests on actually holds for the specific range in hand, rather than trusting
+`AbstractRange` as a semantic promise it doesn't compiler-enforce. Base itself takes the same care
+in the other direction: `Base.LogRange` (representing a geometric, not arithmetic, progression)
+deliberately does *not* subtype `AbstractRange`, and doesn't even implement `step`.
+"""
+function encode_for_xl(x::AbstractRange{Float64})
+    n = length(x)
+    f, s = Float64(first(x)), Float64(step(x))
+    (n == 0 || !isfinite(f) || !isfinite(s) || last(x) !== f + (n - 1) * s) && return encode_array_general(x)
+    "RF," * string(n) * ";" * float64_to_hex(f) * float64_to_hex(s)
+end
+
+function encode_for_xl(x::AbstractRange{<:Integer})
+    n = length(x)
+    f, s = Int64(first(x)), Int64(step(x))
+    (n == 0 || Int64(last(x)) != f + (n - 1) * s) && return encode_array_general(x)
+    "RI," * string(n) * "," * string(f) * "," * string(s) * ";"
 end
 
 function encode_for_xl(x::DataFrame)

@@ -103,6 +103,22 @@ End Type
 '   whole "V" format decoded slower than the general "*" format it was meant to replace. Moving
 '   the bswap to Julia - cheap there, as a single bulk-broadcast intrinsic - let this format go
 '   back to using the fast, already-tested HexToDouble unchanged.)
+' R Range (UnitRange/StepRange/StepRangeLen/LinRange etc.) - encodes only first/step/length, not
+'   every element, so the wire payload is a few dozen bytes regardless of how many elements the
+'   range has (e.g. 1:1,000,000 encodes to ~15 bytes, vs ~16MB for "V"). VBA reconstructs each
+'   element via plain arithmetic (first + (i-1)*step) - no per-element wire data at all. Julia ->
+'   Excel only, like "V" originally was - VBA arrays are always fully materialized, so there's no
+'   lazy "range" concept on the VBA side to compress this way.
+'   Two sub-formats, given by the second character:
+'   RI (Integer range, e.g. UnitRange{Int64}): "RI,<n>,<first>,<step>;" - first/step as plain
+'     decimal (exact, matching the "^" LongLong convention), reconstructed via LongLong/Double
+'     arithmetic (parseInt64, as for "^").
+'   RF (Float64 range, e.g. StepRangeLen{Float64,...}): "RF,<n>;<hex first><hex step>" - first/step
+'     as 16-character big-endian hex (matching scalar "#"), reconstructed via Double arithmetic
+'     (HexToDouble, as for "#"/"V"). Verified (informally) to exactly reproduce Julia's own range
+'     materialization, including StepRangeLen's twice-precision internal representation, for a
+'     1,000,000-element case - see encode_for_xl(::AbstractRange{Float64})/(::AbstractRange{<:Integer})
+'     in src/encode.jl for the encoder and the reasoning behind this.
 
 'Examples (<pound> below stands for the single character Chr(163)):
 '#3FF0000000000000 unserialises to Double 1
@@ -439,13 +455,47 @@ Function Unserialise(Chars As String, AllowNesting As Boolean, ByRef Depth As Lo
 204               End Select
 205               Unserialise = Ret
 
-206           Case Else
-207               Throw "Character '" & Left$(Chars, 1) & "' is not recognised as a type identifier"
-208       End Select
+              Case 82 'R Range (UnitRange/StepRange/StepRangeLen/LinRange etc.) - reconstructed via
+                  'arithmetic (first + (i-1)*step), no per-element wire data at all; see
+                  'encode_for_xl(::AbstractRange{Float64})/(::AbstractRange{<:Integer}) in
+                  'src/encode.jl. Julia -> Excel only - VBA has no lazy "range" concept to send
+                  'back to Julia this way.
+                  Dim HeaderParts() As String
+                  Dim RFirst As Variant
+                  Dim RStep As Variant
+206               p1 = InStr(Chars, ";")
+207               If Mid$(Chars, 2, 1) = "I" Then
+208                   HeaderParts = Split(Mid$(Chars, 4, p1 - 4), ",")
+209                   n = CLng(HeaderParts(0))
+210                   RFirst = parseInt64(HeaderParts(1))
+211                   RStep = parseInt64(HeaderParts(2))
+212               ElseIf Mid$(Chars, 2, 1) = "F" Then
+213                   n = CLng(Mid$(Chars, 4, p1 - 4))
+214                   RFirst = HexToDouble(Mid$(Chars, p1 + 1, 16))
+215                   RStep = HexToDouble(Mid$(Chars, p1 + 17, 16))
+216               Else
+217                   Throw "Character '" & Mid$(Chars, 2, 1) & "' is not a recognised 'R'-format sub-type (expected 'I' or 'F')"
+218               End If
+219               If JuliaVectorToXLColumn Then
+220                   ReDim Ret(1 To n, 1 To 1)
+221                   For i = 1 To n
+222                       Ret(i, 1) = RFirst + (i - 1) * RStep
+223                   Next i
+224               Else
+225                   ReDim Ret(1 To n)
+226                   For i = 1 To n
+227                       Ret(i) = RFirst + (i - 1) * RStep
+228                   Next i
+229               End If
+230               Unserialise = Ret
 
-209       Exit Function
+231           Case Else
+232               Throw "Character '" & Left$(Chars, 1) & "' is not recognised as a type identifier"
+233       End Select
+
+234       Exit Function
 ErrHandler:
-210       ReThrow "Unserialise", Err
+235       ReThrow "Unserialise", Err
 End Function
 
 'Values of type Int64 in Julia must be handled differently on Excel 32-bit and Excel 64bit
