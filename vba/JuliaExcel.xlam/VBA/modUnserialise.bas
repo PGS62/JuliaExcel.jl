@@ -90,13 +90,12 @@ End Type
 ' * Array
 ' ^ LongLong (64-bit VBA only)
 ' H Dictionary
-' V Array of Float64 only, rank 1-9, no per-element type indicator or length (every element is
-'   always exactly 16 hex characters). Used in both directions: Julia -> Excel via
-'   encode_for_xl(x::Array{Float64,N}) in src/encode.jl (decoded here by Case 86); Excel -> Julia
-'   via TrySerialiseArrayAsV in modSerialise.bas (decoded on the Julia side by decode_xl_array_v
-'   in src/decode.jl). Payload is big-endian hex, decoded/encoded with the same HexToDouble/
-'   DoubleToHex used for scalar "#". On the Julia -> Excel direction, Julia produces this by
-'   bulk-bswap-ing every element before hex-encoding the whole array in one operation, rather than
+' V Array of Float64 only, no per-element type indicator or length (every element is always
+'   exactly 16 hex characters). Julia -> Excel only - there is no VBA-side encoder, since
+'   nothing currently sends a "V"-format string as an argument to Julia. Payload is big-endian
+'   hex, decoded with the same HexToDouble used for scalar "#" - Julia produces this by
+'   bulk-bswap-ing every element before hex-encoding the whole array in one operation (see
+'   encode_for_xl(::Vector{Float64})/(::Matrix{Float64}) in src/encode.jl), rather than
 '   reversing bytes per-element in VBA. (An earlier version of this format used little-endian
 '   hex, decoded via a dedicated HexToDoubleLE, to avoid the bswap on the Julia side entirely -
 '   but a direct measurement (VFormatDecodeSpeedTest, modPerformance.bas) showed

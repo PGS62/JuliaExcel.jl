@@ -8,11 +8,11 @@ VBA\modHttp.bas
 VBA\modJuliaLiteral.bas
 VBA\modMain.bas
 VBA\modPerformance.bas
-VBA\modPostMessage.bas
-VBA\modPrivate.bas
 VBA\modRegister.bas
 VBA\modSerialise.bas
+VBA\modSetGet.bas
 VBA\modTest.bas
 VBA\modTestDependents.bas
 VBA\modUnserialise.bas
 VBA\modUtils.bas
+VBA\modWindowUtils.bas
