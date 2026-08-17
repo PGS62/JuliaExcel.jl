@@ -70,31 +70,33 @@ Function RunTests(Optional SilentMode = False)
 34        AccResult "TestVFormatMatrixNonSquare", TestVFormatMatrixNonSquare, NumPassed, NumFailed
 35        AccResult "TestMatrixNaNFallback", TestMatrixNaNFallback, NumPassed, NumFailed
 36        AccResult "TestVFormatEmptyArrayFallback", TestVFormatEmptyArrayFallback, NumPassed, NumFailed
+37        AccResult "TestSerialiseArrayAsV", TestSerialiseArrayAsV, NumPassed, NumFailed
+38        AccResult "TestVEncodeFromVariantArray", TestVEncodeFromVariantArray, NumPassed, NumFailed
 
-37        Prompt = NumPassed & " test(s) passed" & vbLf & _
+39        Prompt = NumPassed & " test(s) passed" & vbLf & _
               NumFailed & " test(s) failed"
 
-38        If NumFailed > 0 Then
-39            Prompt = Prompt & vbLf & vbLf & _
+40        If NumFailed > 0 Then
+41            Prompt = Prompt & vbLf & vbLf & _
                   "See VBA Immediate window for details"
-40        End If
+42        End If
 
-41        PrintTwice NumPassed & " test(s) passed"
-42        PrintTwice NumFailed & " test(s) failed"
-43        PrintTwice String(80, "=")
+43        PrintTwice NumPassed & " test(s) passed"
+44        PrintTwice NumFailed & " test(s) failed"
+45        PrintTwice String(80, "=")
 
-44        If Not SilentMode Then
-45            MsgBox Prompt, IIf(NumFailed = 0, vbInformation, vbCritical), Title
-46        End If
+46        If Not SilentMode Then
+47            MsgBox Prompt, IIf(NumFailed = 0, vbInformation, vbCritical), Title
+48        End If
 
-47        RunTests = NumFailed = 0
+49        RunTests = NumFailed = 0
 
-48        Exit Function
+50        Exit Function
 ErrHandler:
-49        If Not SilentMode Then
-50            MsgBox ReThrow("RunTests", Err, True), vbCritical, Title
-51        End If
-52        RunTests = False
+51        If Not SilentMode Then
+52            MsgBox ReThrow("RunTests", Err, True), vbCritical, Title
+53        End If
+54        RunTests = False
 End Function
 
 Sub PrintTwice(Text As String)
@@ -643,5 +645,85 @@ Function TestVFormatEmptyArrayFallback()
 ErrHandler:
 5         PrintTwice ReThrow("TestVFormatEmptyArrayFallback", Err, True)
 6         TestVFormatEmptyArrayFallback = False
+End Function
+
+' Direct unit test of TrySerialiseArrayAsV (modSerialise.bas) - the Excel -> Julia direction "V"
+' encoder wired into SerialiseElement. Checks the exact wire string for a vector and a (non-square,
+' column-major) matrix, and that it correctly declines (returns False) for a mixed-type array and
+' for NaN/Infinity. NaN/Infinity Doubles can't be produced by ordinary VBA arithmetic (which raises
+' a runtime error on overflow rather than returning a special value), so they're constructed here
+' via HexToDouble on the standard IEEE-754 bit patterns, the same trick DoubleToHex/HexToDouble
+' themselves rely on.
+Function TestSerialiseArrayAsV()
+          Dim EncodedV As String
+          Dim OK As Boolean
+          Dim x() As Double
+          Dim x2D(1 To 2, 1 To 3) As Double
+          Dim xInf(1 To 2) As Double
+          Dim xMixed(1 To 3) As Variant
+          Dim xNaN(1 To 2) As Double
+
+1         On Error GoTo ErrHandler
+
+2         ReDim x(1 To 3)
+3         x(1) = 1#: x(2) = -2.5: x(3) = 3.14159265358979
+4         OK = TrySerialiseArrayAsV(x, EncodedV)
+5         If Not OK Then Throw "Expected TrySerialiseArrayAsV to succeed for an all-Double vector"
+6         If EncodedV <> "V1,3;" & DoubleToHex(x(1)) & DoubleToHex(x(2)) & DoubleToHex(x(3)) Then _
+              Throw "Unexpected 'V' encoding for a Double vector"
+
+7         x2D(1, 1) = 1: x2D(1, 2) = 2: x2D(1, 3) = 3
+8         x2D(2, 1) = 4: x2D(2, 2) = 5: x2D(2, 3) = 6
+9         OK = TrySerialiseArrayAsV(x2D, EncodedV)
+10        If Not OK Then Throw "Expected TrySerialiseArrayAsV to succeed for an all-Double matrix"
+11        If EncodedV <> "V2,2,3;" & DoubleToHex(1#) & DoubleToHex(4#) & DoubleToHex(2#) & _
+              DoubleToHex(5#) & DoubleToHex(3#) & DoubleToHex(6#) Then _
+              Throw "Unexpected 'V' encoding for a Double matrix (expected column-major)"
+
+12        xMixed(1) = 1#: xMixed(2) = "foo": xMixed(3) = 3#
+13        OK = TrySerialiseArrayAsV(xMixed, EncodedV)
+14        If OK Then Throw "Expected TrySerialiseArrayAsV to decline a mixed-type array"
+
+15        xNaN(1) = 1#
+16        xNaN(2) = HexToDouble("7FF8000000000000") 'quiet NaN
+17        OK = TrySerialiseArrayAsV(xNaN, EncodedV)
+18        If OK Then Throw "Expected TrySerialiseArrayAsV to decline an array containing NaN"
+
+19        xInf(1) = 1#
+20        xInf(2) = HexToDouble("7FF0000000000000") 'positive infinity
+21        OK = TrySerialiseArrayAsV(xInf, EncodedV)
+22        If OK Then Throw "Expected TrySerialiseArrayAsV to decline an array containing Infinity"
+
+23        TestSerialiseArrayAsV = True
+
+24        Exit Function
+ErrHandler:
+25        PrintTwice ReThrow("TestSerialiseArrayAsV", Err, True)
+26        TestSerialiseArrayAsV = False
+End Function
+
+' Live round trip through a Variant() array (not a genuinely-typed Double() array) - the realistic
+' "worst case" TrySerialiseArrayAsV has to handle in practice, since Range.Value2 always arrives
+' this way, even when every element holds a number (see VEncodeSpeedTest, modPerformance.bas, which
+' measured this specific case). Test1DArrayOfDoubles/TestExactRoundTripping already cover the
+' genuinely-typed Double() case via JuliaCallVBA.
+' Built with ReDim (1-based), not the VBA.Array() function - Array() returns a 0-based array, which
+' would make ArraysIdentical report a spurious mismatch against the decoder's always-1-based result
+' (Unserialise's Case 86 and Case 42 both ReDim their result 1 To n) even when every value round-
+' tripped correctly - a real trap hit while writing this test, not a decoder bug.
+Function TestVEncodeFromVariantArray()
+          Dim x() As Variant
+          Dim y As Variant
+
+1         On Error GoTo ErrHandler
+2         ReDim x(1 To 5)
+3         x(1) = 1#: x(2) = -2.5: x(3) = 3.14159265358979: x(4) = 0#: x(5) = 1000000#
+4         y = JuliaCallVBA("identity", x)
+5         TestVEncodeFromVariantArray = ArraysIdentical(x, y)
+
+6         Exit Function
+ErrHandler:
+7         PrintTwice ReThrow("TestVEncodeFromVariantArray", Err, True)
+8         TestVEncodeFromVariantArray = False
 End Function
 

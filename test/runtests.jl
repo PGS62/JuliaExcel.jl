@@ -61,10 +61,7 @@ round_trip(x) = isequal(JuliaExcel.decode_from_xl(JuliaExcel.encode_for_xl(x)), 
     @test round_trip(Dict("a"=>1, "b"=>2))
 
     # "V" format - compact encoding for arrays of Float64 (see encode_for_xl(::Vector{Float64})/
-    # (::Matrix{Float64}) and the dynamic AbstractArray fallback in src/encode.jl). No round_trip
-    # tests here: decode_from_xl has no 'V' case (nothing currently sends "V" strings back to
-    # Julia - VBA is the only consumer), so these check encode_for_xl's output directly, the same
-    # way the plain type-indicator tests above do.
+    # (::Matrix{Float64}) and the dynamic AbstractArray fallback in src/encode.jl).
     @test JuliaExcel.encode_for_xl([1.0, 2.0, 3.0]) == "V1,3;3ff000000000000040000000000000004008000000000000"
     @test JuliaExcel.encode_for_xl([1.0 2.0; 3.0 4.0]) == "V2,2,2;3ff0000000000000400800000000000040000000000000004010000000000000"
 
@@ -95,6 +92,22 @@ round_trip(x) = isequal(JuliaExcel.decode_from_xl(JuliaExcel.encode_for_xl(x)), 
     let x3d = fill(1.0, 2, 2, 2) |> a -> Array{Any}(a)
         @test !startswith(JuliaExcel.encode_for_xl(x3d), "V")
         @test JuliaExcel.encode_for_xl(x3d) == JuliaExcel.encode_array_general(x3d)
+    end
+
+    # decode_xl_array_v (src/decode.jl) - the VBA -> Julia direction, added alongside
+    # TrySerialiseArrayAsV (modSerialise.bas). Real round trips are possible now that
+    # decode_from_xl understands "V", unlike the encode-only assertions above.
+    @test round_trip([1.0, 2.0, 3.0])
+    @test round_trip([1.0 2.0 3.0; 4.0 5.0 6.0])  # non-square, to catch a row/column transposition bug
+    @test JuliaExcel.decode_from_xl(JuliaExcel.encode_for_xl([1.0, 2.0, 3.0])) isa Vector{Float64}
+    @test JuliaExcel.decode_from_xl(JuliaExcel.encode_for_xl([1.0 2.0; 3.0 4.0])) isa Matrix{Float64}
+
+    # Hand-built, VBA-style big-endian hex (plain MSB-first hex per element, matching what
+    # DoubleToHex in modSerialise.bas actually produces) - confirms decode_xl_array_v works against
+    # genuinely VBA-encoded-style input, not only against Julia's own encoder output.
+    let be_hex(v) = uppercase(string(reinterpret(UInt64, v), base=16, pad=16))
+        manual = "V1,3;" * be_hex(1.0) * be_hex(-2.5) * be_hex(3.14159265358979)
+        @test JuliaExcel.decode_from_xl(manual) == [1.0, -2.5, 3.14159265358979]
     end
 
 end

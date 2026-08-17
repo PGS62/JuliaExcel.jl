@@ -20,6 +20,8 @@ Type indicators:
  !   Error    (followed by Excel error number, e.g. 2042 for #N/A)
  *   Array    (*<rank>,<d1>[,<d2>];<len1>,<len2>,...,;<elements> column-major)
  H   Dict     (H<count>;<key1_len>,<val1_len>,...,;<key1><val1>... pairs column-order)
+ V   Array of Float64 only (VBA -> Julia direction; see decode_xl_array_v below and
+     TrySerialiseArrayAsV in modSerialise.bas, which produces this format)
 
 See also VBA function SerialiseElement (modSerialise.bas) which serialises i.e. inverts this.
 =#
@@ -64,6 +66,8 @@ function decode_from_xl(s::String)
         decode_xl_array(s)
     elseif c == 'H'
         decode_xl_dict(s)
+    elseif c == 'V'
+        decode_xl_array_v(s)
     else
         error("decode_from_xl: unknown type indicator $(repr(c)) in '$(first(s, 50))'")
     end
@@ -137,6 +141,34 @@ function decode_xl_array(s::String)
     # Reshape for 2D; try to return a typed array
     arr = rank == 1 ? elements : reshape(elements, dims)
     _maybe_typed(arr)
+end
+
+"""
+    decode_xl_array_v(s::String)
+
+Decode a "V"-format array-of-Float64 string (starting with `V`) - the compact encoding VBA's
+`TrySerialiseArrayAsV` (modSerialise.bas) produces for a 1-D or 2-D array whose elements are all
+finite Doubles: no per-element type indicator or length, since every element is always exactly 16
+hex characters. Unlike `decode_xl_array`, this never needs `_maybe_typed` - `reinterpret`/`reshape`
+already produce a genuinely typed `Vector{Float64}`/`Matrix{Float64}` directly.
+
+The hex is big-endian (matching `hex_to_float64`'s scalar convention), produced on the VBA side by
+plain `DoubleToHex` (no byte reordering needed there, since VBA already reads/writes hex MSB-first)
+- decoded here by `hex2bytes` (giving the bytes in wire/big-endian order) followed by `bswap` to
+get the native (little-endian) `UInt64` bit pattern before reinterpreting as `Float64`. This is the
+same convention `encode_for_xl(::Vector{Float64})` (encode.jl) uses for the Julia -> Excel
+direction, just decoded instead of encoded.
+"""
+function decode_xl_array_v(s::String)
+    # Format: V<rank>,<d1>[,<d2>];<hex, no delimiters, 16 hex chars per Float64>
+    p1 = findfirst(isequal(';'), s)::Int
+    parts = split(s[2:p1-1], ',')
+    rank = parse(Int, parts[1])
+    dims = tuple(parse.(Int, parts[2:end])...)
+
+    raw = hex2bytes(s[p1+1:end])
+    vals = reinterpret(Float64, bswap.(reinterpret(UInt64, raw)))
+    rank == 1 ? collect(vals) : reshape(collect(vals), dims)
 end
 
 """
