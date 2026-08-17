@@ -196,71 +196,84 @@ Function PerformanceTest() As String
 
           'Warm up
 5         JuliaEval "exit()" 'shuts down Julia if it's running
-6         JuliaLaunch , , "--project=c:/temp/juliaexcel"
-7         ThrowIfError JuliaEval("1+1")
-8         InputData = Application.Evaluate("=RANDARRAY(100)")
-9         ThrowIfError JuliaCall("identity", InputData)
-10        ThrowIfError JuliaCall("sum", InputData)
-11        ThrowIfError JuliaEval("collect((1:" & VectorLength & ").*pi)")
+6         PreciseSleep 1000
+7         JuliaLaunch , , "--project=c:/temp/juliaexcel"
+8         ThrowIfError JuliaEval("1+1")
+9         InputData = Application.Evaluate("=RANDARRAY(100)")
+10        ThrowIfError JuliaCall("identity", InputData)
+11        ThrowIfError JuliaCall("sum", InputData)
+12        ThrowIfError JuliaEval("collect((1:" & VectorLength & ").*pi)")
 
           'Latency test
-12        t1 = ElapsedTime
-13        For i = 1 To NumCallsOnePlusOne
-14            Res = JuliaEval("1+1")
-15        Next i
-16        t2 = ElapsedTime
+13        t1 = ElapsedTime
+14        For i = 1 To NumCallsOnePlusOne
+15            Res = JuliaEval("1+1")
+16        Next i
+17        t2 = ElapsedTime
 
-17        Report = Report & "JuliaExcel Version = " & CStr(shAudit.Range("Headers").Cells(2, 1).Value) & vbLf
-18        Report = Report & "Computer = " & Environ$("ComputerName") & vbLf
-19        Report = Report & "Latency test" & vbLf
-20        Report = Report & "Average time for JuliaEval(""1+1"") = " & CStr(1000 * (t2 - t1) / NumCallsOnePlusOne) & _
+18        Report = Report & "JuliaExcel Version = " & CStr(shAudit.Range("Headers").Cells(2, 1).Value) & vbLf
+19        Report = Report & "Computer = " & Environ$("ComputerName") & vbLf
+20        Report = Report & "Latency test" & vbLf
+21        Report = Report & "Average time for JuliaEval(""1+1"") = " & CStr(1000 * (t2 - t1) / NumCallsOnePlusOne) & _
               " miliseconds (averaged over " & CStr(NumCallsOnePlusOne) & " calls)" & vbLf
 
-21        InputData = Application.Evaluate("=RANDARRAY(" & VectorLength & ")")
+22        InputData = Application.Evaluate("=RANDARRAY(" & VectorLength & ")")
 
-          'Data transport tests
-22        For j = 1 To 3
-23            JuliaFunction = Choose(j, "identity", "sum", "collect")
-24            If JuliaFunction = "collect" Then
-25                t1 = ElapsedTime()
-26                For i = 1 To NumCallsVectors
-27                    Res = JuliaEval("collect((1:" & VectorLength & ").*pi)")
-28                Next i
-29                t2 = ElapsedTime()
-30            Else
-31                t1 = ElapsedTime()
-32                For i = 1 To NumCallsVectors
-33                    Res = JuliaCall(JuliaFunction, InputData)
-34                Next i
-35                t2 = ElapsedTime()
-36            End If
+          'Data transport tests. One Select Case per iteration - covering how to time the call, the
+          'report text, and (for "identity" only) the correctness check - rather than testing
+          'JuliaFunction against the same string literals in several separate If/ElseIf blocks.
+23        For j = 1 To 4
+24            JuliaFunction = Choose(j, "identity", "sum", "collect", "range")
 
-37            If JuliaFunction = "identity" Then
-38                If Not ArraysIdentical(Res, InputData) Then
-39                    Throw "Ohoh, return from Julia function identity is not equal to its input"
-40                End If
-41            End If
+25            Select Case JuliaFunction
+                  Case "identity"
+26                    t1 = ElapsedTime()
+27                    For i = 1 To NumCallsVectors
+28                        Res = JuliaCall(JuliaFunction, InputData)
+29                    Next i
+30                    t2 = ElapsedTime()
+31                    If Not ArraysIdentical(Res, InputData) Then Throw "Ohoh, return from Julia function identity is not equal to its input"
+32                    WhatWasExecuted = "JuliaCall(""identity"", vector of " & Format(VectorLength, "###,###") & " doubles)"
+33                    Report = Report & "Two-way data transport test" & vbLf
 
-42            If JuliaFunction = "identity" Then
-43                WhatWasExecuted = "JuliaCall(""identity"", vector of " & Format(VectorLength, "###,###") & " doubles)"
-44                Report = Report & "Two-way data transport test" & vbLf
-45            ElseIf JuliaFunction = "sum" Then
-46                WhatWasExecuted = "JuliaCall(""sum"", vector of " & Format(VectorLength, "###,###") & " doubles)"
-47                Report = Report & "One-way data transport test, Excel to Julia" & vbLf
-48            ElseIf JuliaFunction = "collect" Then
-49                WhatWasExecuted = "JuliaEval(""collect((1:" & CStr(VectorLength) & ").*pi)"")"
-50                Report = Report & "One-way data transport test, Julia to Excel" & vbLf
-51            End If
+                  Case "sum"
+34                    t1 = ElapsedTime()
+35                    For i = 1 To NumCallsVectors
+36                        Res = JuliaCall(JuliaFunction, InputData)
+37                    Next i
+38                    t2 = ElapsedTime()
+39                    WhatWasExecuted = "JuliaCall(""sum"", vector of " & Format(VectorLength, "###,###") & " doubles)"
+40                    Report = Report & "One-way data transport test, Excel to Julia" & vbLf
 
-52            Report = Report & "Average time for " & WhatWasExecuted & " = " & _
+                  Case "collect"
+41                    t1 = ElapsedTime()
+42                    For i = 1 To NumCallsVectors
+43                        Res = JuliaEval("collect((1:" & VectorLength & ").*pi)")
+44                    Next i
+45                    t2 = ElapsedTime()
+46                    WhatWasExecuted = "JuliaEval(""collect((1:" & CStr(VectorLength) & ").*pi)"")"
+47                    Report = Report & "One-way data transport test, Julia to Excel" & vbLf
+
+                  Case "range"
+48                    t1 = ElapsedTime()
+49                    For i = 1 To NumCallsVectors
+50                        Res = JuliaEval("(1:" & VectorLength & ").*pi")
+51                    Next i
+52                    t2 = ElapsedTime()
+53                    WhatWasExecuted = "JuliaEval(""(1:" & CStr(VectorLength) & ").*pi"")"
+54                    Report = Report & "One-way data transport (AbstractRange), Julia to Excel" & vbLf
+              End Select
+
+55            Report = Report & "Average time for " & WhatWasExecuted & " = " & _
                   CStr((t2 - t1) / NumCallsVectors) & " seconds (averaged over " & CStr(NumCallsVectors) & " calls)" & vbLf
-53        Next j
+56        Next j
 
-54        Debug.Print "'" & Replace(Report, vbLf, vbLf & "'")
-55        PerformanceTest = Report
-56        Exit Function
+57        Debug.Print "'" & Replace(Report, vbLf, vbLf & "'")
+58        AppActivate Application.Caption
+59        PerformanceTest = Report
+60        Exit Function
 ErrHandler:
-57        PerformanceTest = ReThrow("PerformanceTest", Err, True)
+61        PerformanceTest = ReThrow("PerformanceTest", Err, True)
 End Function
 
 '--------------------------------------------------

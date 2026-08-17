@@ -8,8 +8,8 @@
 ,"All 140 rows shown.",,,,
 ,"Dbl-click","Double-click","Dbl-click","Double-click","Double-click to filter"
 ,"Version","Date","Time","Author","Comment"
-,140,2026-08-17,0.717893518522033,"Philip Swannell","Imported Claude/PGS idea for "" of R encoding"" of UnitRange/StepRange/StepRangeLen/LinRange etc"
-,139,2026-08-17,0.452002314814308,"Philip Swannell","Imported Claude\PGS rewrite to do bulk encoding (V option) of arrays of Float64."
+,140,2026-08-17,0.717893518522033,"Philip Swannell","Imported PGS idea (Claude implemented) for ""R encoding"" of UnitRange/StepRange/StepRangeLen/LinRange etc."
+,139,2026-08-17,0.452002314814308,"Philip Swannell","Imported Claude/PGS rewrite to do bulk encoding (V option) of arrays of Float64."
 ,138,2026-08-14,0.522175925929332,"Philip Swannell","Fix to RegisterJuliaExcelFunctionsWithFunctionWizard which was failing silently."
 ,137,2026-08-13,0.632488425922929,"Philip Swannell","Refreshed line numbers in all modules."
 ,136,2026-08-13,0.631458333336923,"Philip Swannell","Locked project for viewing."

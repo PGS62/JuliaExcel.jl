@@ -93,17 +93,18 @@ Function RunTests(Optional SilentMode = False)
 52        PrintTwice String(80, "=")
 
 53        If Not SilentMode Then
-54            MsgBox Prompt, IIf(NumFailed = 0, vbInformation, vbCritical), Title
-55        End If
+54            AppActivate Application.Caption
+55            MsgBox Prompt, IIf(NumFailed = 0, vbInformation, vbCritical), Title
+56        End If
 
-56        RunTests = NumFailed = 0
+57        RunTests = NumFailed = 0
 
-57        Exit Function
+58        Exit Function
 ErrHandler:
-58        If Not SilentMode Then
-59            MsgBox ReThrow("RunTests", Err, True), vbCritical, Title
-60        End If
-61        RunTests = False
+59        If Not SilentMode Then
+60            MsgBox ReThrow("RunTests", Err, True), vbCritical, Title
+61        End If
+62        RunTests = False
 End Function
 
 Sub PrintTwice(Text As String)
