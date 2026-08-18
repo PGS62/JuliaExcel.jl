@@ -17,7 +17,6 @@ ErrHandler:
 6     Debug.Print TestExitAndRelaunch
 End Function
 
-
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : RunTests
 ' Purpose    : Test JuliaCall for a variety of data types. For each data type we check that x is identical to

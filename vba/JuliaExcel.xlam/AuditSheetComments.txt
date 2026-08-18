@@ -1,4 +1,5 @@
 ﻿Version	Date	Time	Author	Comment
+145	18-Aug-2026	20:14	Philip Swannell	Tests now use the default Julia environment.
 144	18-Aug-2026	19:41	Philip Swannell	Friendlier JuliaEval errors, stronger round_trip test, and Byte support.
 143	18-Aug-2026	11:56	Philip Swannell	Fix to performance regression. "two-way" is now back to 0.15 seconds.
 142	17-Aug-2026	22:33	Philip Swannell	Deleted redundant methods.
