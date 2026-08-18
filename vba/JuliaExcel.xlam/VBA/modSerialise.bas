@@ -205,55 +205,43 @@ End Function
 '              one element. Rank > 9 is not attempted here since it's already excluded by
 '              SerialiseElement's own callers (its Case Else throws before reaching this call for
 '              Rank > 9), matching VBA's own GetAt/ReDimVariantArray cap elsewhere in the codebase.
-'              Single-pass and optimistic: checks VarType and finiteness per element AS it appends
-'              hex to a buffer array (joined once at the end via VBA.Join$, avoiding the O(n^2)
-'              reallocation risk of repeated string concatenation) - returns False (with EncodedV
-'              left unset) the instant any element isn't a finite Double, so the caller falls back
-'              to the general per-element encoding unchanged. Mirrors the same optimistic
-'              single-pass design TryFastDecodeDoubleVector (formerly in the now-deleted
-'              modUnserialiseExperimental.bas) used on the decode side.
+'              Single-pass and optimistic: checks VarType per element AS it appends hex to a buffer
+'              array (joined once at the end via VBA.Join$, avoiding the O(n^2) reallocation risk of
+'              repeated string concatenation) - returns False (with EncodedV left unset) the instant
+'              any element isn't a Double, so the caller falls back to the general per-element
+'              encoding unchanged. Mirrors the same optimistic single-pass design
+'              TryFastDecodeDoubleVector (formerly in the now-deleted modUnserialiseExperimental.bas)
+'              used on the decode side.
 '              Rank 3-9 walks the array via GetAt/Idx() exactly as SerialiseElement's own Case Else
 '              does for the general format, just without any per-element length lookup, since every
 '              element is always exactly 16 hex characters.
 '              Measured (via the now-removed prototype benchmark VEncodeSpeedTest, modPerformance.bas)
 '              at roughly 40% faster than the general format even for the realistic worst case - a
-'              Variant() array (as
-'              Range.Value2 always is, even when every cell holds a number) rather than a
-'              genuinely-typed Double() array, so VarType must be checked per element rather than
-'              being free.
-' -----------------------------------------------------------------------------------------------------------------------
-' -----------------------------------------------------------------------------------------------------------------------
-' Procedure  : TrySerialiseArrayAsV (finiteness check)
-' Note       : The NaN/Inf-safe finiteness check (see the removed IsFiniteHex's historical note
-'              below) is inlined directly at each of the three call sites below, rather than called
-'              as a separate Function - measured (FunctionCallOverheadTest, modPerformance.bas,
-'              2026-08-18) to cost ~80ms of pure VBA function-call/BSTR-copy overhead alone for a
-'              100,000-element array, i.e. roughly as much as the rest of the encoding put together.
-'              This was a real, measured regression (PerformanceTest's "sum"/"identity" cases going
-'              from ~0.07s/0.15s to ~0.16s/0.25s - worse than the pre-"V" baseline) traced back to
-'              the original fix for the NaN-crash incident: correct, but paid for as a separate
-'              Function call on every element.
-'              Historical note on WHY the check exists at all (previously in IsFiniteHex's own
-'              docstring): True unless the 16-character big-endian hex string (from DoubleToHex,
-'              modUnserialise.bas) represents NaN or +-Infinity - i.e. unless its 11-bit exponent
-'              field is all-ones. Works purely on the hex STRING, never on the Double value itself:
-'              VBA's own comparison operators (<>, >, <) raise a runtime "Overflow" error when
-'              applied to a genuine NaN bit pattern, rather than returning a Boolean as IEEE-754
-'              unordered-comparison semantics would - found the hard way (an early version of this
-'              function used "v <> v", which crashed the VBA project badly enough to require
-'              reverting the workbook from git). DoubleToHex itself is safe regardless of the bit
-'              pattern - it only does byte reinterpretation via LSet, no comparisons - so routing
-'              through it first and inspecting the resulting hex text avoids the dangerous operators
-'              entirely. The exponent occupies the low 3 bits of the first hex digit (that digit's
-'              top bit is the sign) plus all of the second and third hex digits - all-ones there
-'              means the first digit is "7" or "F" and the next two are "FF".
+'              Variant() array (as Range.Value2 always is, even when every cell holds a number)
+'              rather than a genuinely-typed Double() array, so VarType must be checked per element
+'              rather than being free.
+'              No NaN/Inf check: an earlier version declined (fell back to general) for any element
+'              that wasn't a finite Double, using a Function IsFiniteHex to test the hex-encoded
+'              exponent bits (a real NaN-bit-pattern crash - see modUnserialise.bas's wire-format
+'              history - had ruled out ever comparing the raw Double value, e.g. "v <> v", directly).
+'              That check was removed 2026-08-18 once shown unnecessary: SerialiseElement's own
+'              general per-scalar Double encoding ("#" & DoubleToHex(CDbl(x)), no NaN/Inf handling of
+'              any kind) produces the exact same bit pattern the "V" path would, and Julia's decode
+'              (decode_xl_array_v, or hex_to_float64 on the general path) reconstructs the identical
+'              Float64 either way - so which path an Excel-sourced NaN/Inf Double takes never changed
+'              what Julia received. That's different from the Julia -> Excel direction
+'              (encode_for_xl(::Float64), src/encode.jl), where NaN/Inf genuinely must be translated
+'              to Excel error values (Excel has no native representation for them) - that translation
+'              only happens in the general per-scalar path there, which is why the Julia-side "V"
+'              array encoder still excludes NaN/Inf and falls back to general. Removing the check
+'              also removed the ~80ms/100,000-element cost of testing for it (see VFormatEncodeSpeedTest,
+'              modPerformance.bas).
 ' -----------------------------------------------------------------------------------------------------------------------
 Function TrySerialiseArrayAsV(ByVal x As Variant, ByRef EncodedV As String) As Boolean
           Dim Chunks() As String
           Dim Dims() As Long
           Dim DimStr() As String
           Dim El As Variant
-          Dim FirstDigit As String
           Dim i As Long
           Dim Idx() As Long
           Dim j As Long
@@ -276,71 +264,65 @@ Function TrySerialiseArrayAsV(ByVal x As Variant, ByRef EncodedV As String) As B
 7                 For i = LBound(x) To UBound(x)
 8                     If VarType(x(i)) <> vbDouble Then Exit Function
 9                     Chunks(k) = DoubleToHex(CDbl(x(i)))
-10                    FirstDigit = Mid$(Chunks(k), 1, 1)
-11                    If (FirstDigit = "7" Or FirstDigit = "F") And Mid$(Chunks(k), 2, 2) = "FF" Then Exit Function
-12                    k = k + 1
-13                Next i
-14                EncodedV = "V1," & CStr(n) & ";" & VBA.Join$(Chunks, "")
-15                TrySerialiseArrayAsV = True
+10                    k = k + 1
+11                Next i
+12                EncodedV = "V1," & CStr(n) & ";" & VBA.Join$(Chunks, "")
+13                TrySerialiseArrayAsV = True
 
-16            Case 2
-17                NR = UBound(x, 1) - LBound(x, 1) + 1
-18                NC = UBound(x, 2) - LBound(x, 2) + 1
-19                ReDim Chunks(1 To NR * NC)
-20                k = 1
-21                For j = LBound(x, 2) To UBound(x, 2)    ' column-major to match Julia
-22                    For i = LBound(x, 1) To UBound(x, 1)
-23                        If VarType(x(i, j)) <> vbDouble Then Exit Function
-24                        Chunks(k) = DoubleToHex(CDbl(x(i, j)))
-25                        FirstDigit = Mid$(Chunks(k), 1, 1)
-26                        If (FirstDigit = "7" Or FirstDigit = "F") And Mid$(Chunks(k), 2, 2) = "FF" Then Exit Function
-27                        k = k + 1
-28                    Next i
-29                Next j
+14            Case 2
+15                NR = UBound(x, 1) - LBound(x, 1) + 1
+16                NC = UBound(x, 2) - LBound(x, 2) + 1
+17                ReDim Chunks(1 To NR * NC)
+18                k = 1
+19                For j = LBound(x, 2) To UBound(x, 2)    ' column-major to match Julia
+20                    For i = LBound(x, 1) To UBound(x, 1)
+21                        If VarType(x(i, j)) <> vbDouble Then Exit Function
+22                        Chunks(k) = DoubleToHex(CDbl(x(i, j)))
+23                        k = k + 1
+24                    Next i
+25                Next j
                   ' Nx1 -> 1D Vector, matching SerialiseElement's own Nx1 collapsing.
-30                If NC = 1 Then
-31                    EncodedV = "V1," & CStr(NR) & ";" & VBA.Join$(Chunks, "")
-32                Else
-33                    EncodedV = "V2," & CStr(NR) & "," & CStr(NC) & ";" & VBA.Join$(Chunks, "")
-34                End If
-35                TrySerialiseArrayAsV = True
+26                If NC = 1 Then
+27                    EncodedV = "V1," & CStr(NR) & ";" & VBA.Join$(Chunks, "")
+28                Else
+29                    EncodedV = "V2," & CStr(NR) & "," & CStr(NC) & ";" & VBA.Join$(Chunks, "")
+30                End If
+31                TrySerialiseArrayAsV = True
 
               Case Else
-36                Rank = NumDimensions(x)
-37                ReDim Dims(1 To Rank)
-38                ReDim DimStr(1 To Rank)
-39                ReDim Idx(1 To Rank)
-40                Total = 1
-41                For q = 1 To Rank
-42                    Dims(q) = UBound(x, q) - LBound(x, q) + 1
-43                    DimStr(q) = CStr(Dims(q))
-44                    Idx(q) = LBound(x, q)
-45                    Total = Total * Dims(q)
-46                Next q
-47                ReDim Chunks(1 To Total)
-48                k = 1
-49                Do
-50                    El = GetAt(x, Idx)
-51                    If VarType(El) <> vbDouble Then Exit Function
-52                    Chunks(k) = DoubleToHex(CDbl(El))
-53                    FirstDigit = Mid$(Chunks(k), 1, 1)
-54                    If (FirstDigit = "7" Or FirstDigit = "F") And Mid$(Chunks(k), 2, 2) = "FF" Then Exit Function
-55                    k = k + 1
-56                    q = 1
-57                    Do While q <= Rank
-58                        Idx(q) = Idx(q) + 1
-59                        If Idx(q) <= UBound(x, q) Then Exit Do
-60                        Idx(q) = LBound(x, q)
-61                        q = q + 1
-62                    Loop
-63                    If q > Rank Then Exit Do
-64                Loop
-65                EncodedV = "V" & CStr(Rank) & "," & VBA.Join$(DimStr, ",") & ";" & VBA.Join$(Chunks, "")
-66                TrySerialiseArrayAsV = True
-67        End Select
+32                Rank = NumDimensions(x)
+33                ReDim Dims(1 To Rank)
+34                ReDim DimStr(1 To Rank)
+35                ReDim Idx(1 To Rank)
+36                Total = 1
+37                For q = 1 To Rank
+38                    Dims(q) = UBound(x, q) - LBound(x, q) + 1
+39                    DimStr(q) = CStr(Dims(q))
+40                    Idx(q) = LBound(x, q)
+41                    Total = Total * Dims(q)
+42                Next q
+43                ReDim Chunks(1 To Total)
+44                k = 1
+45                Do
+46                    El = GetAt(x, Idx)
+47                    If VarType(El) <> vbDouble Then Exit Function
+48                    Chunks(k) = DoubleToHex(CDbl(El))
+49                    k = k + 1
+50                    q = 1
+51                    Do While q <= Rank
+52                        Idx(q) = Idx(q) + 1
+53                        If Idx(q) <= UBound(x, q) Then Exit Do
+54                        Idx(q) = LBound(x, q)
+55                        q = q + 1
+56                    Loop
+57                    If q > Rank Then Exit Do
+58                Loop
+59                EncodedV = "V" & CStr(Rank) & "," & VBA.Join$(DimStr, ",") & ";" & VBA.Join$(Chunks, "")
+60                TrySerialiseArrayAsV = True
+61        End Select
 
-68        Exit Function
+62        Exit Function
 ErrHandler:
-69        ReThrow "TrySerialiseArrayAsV", Err
+63        ReThrow "TrySerialiseArrayAsV", Err
 End Function
 

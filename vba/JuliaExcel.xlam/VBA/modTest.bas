@@ -79,32 +79,33 @@ Function RunTests(Optional SilentMode = False)
 43        AccResult "TestRangeJuliaEvalVBAIsOneD", TestRangeJuliaEvalVBAIsOneD, NumPassed, NumFailed
 44        AccResult "TestRangeJuliaEvalIsColumn", TestRangeJuliaEvalIsColumn, NumPassed, NumFailed
 45        AccResult "TestRangeWireFormat", TestRangeWireFormat, NumPassed, NumFailed
+46        AccResult "TestNaNInfRoundTripViaV", TestNaNInfRoundTripViaV, NumPassed, NumFailed
 
-46        Prompt = NumPassed & " test(s) passed" & vbLf & _
+47        Prompt = NumPassed & " test(s) passed" & vbLf & _
               NumFailed & " test(s) failed"
 
-47        If NumFailed > 0 Then
-48            Prompt = Prompt & vbLf & vbLf & _
+48        If NumFailed > 0 Then
+49            Prompt = Prompt & vbLf & vbLf & _
                   "See VBA Immediate window for details"
-49        End If
+50        End If
 
-50        PrintTwice NumPassed & " test(s) passed"
-51        PrintTwice NumFailed & " test(s) failed"
-52        PrintTwice String(80, "=")
+51        PrintTwice NumPassed & " test(s) passed"
+52        PrintTwice NumFailed & " test(s) failed"
+53        PrintTwice String(80, "=")
 
-53        If Not SilentMode Then
-54            AppActivate Application.Caption
-55            MsgBox Prompt, IIf(NumFailed = 0, vbInformation, vbCritical), Title
-56        End If
+54        If Not SilentMode Then
+55            AppActivate Application.Caption
+56            MsgBox Prompt, IIf(NumFailed = 0, vbInformation, vbCritical), Title
+57        End If
 
-57        RunTests = NumFailed = 0
+58        RunTests = NumFailed = 0
 
-58        Exit Function
+59        Exit Function
 ErrHandler:
-59        If Not SilentMode Then
-60            MsgBox ReThrow("RunTests", Err, True), vbCritical, Title
-61        End If
-62        RunTests = False
+60        If Not SilentMode Then
+61            MsgBox ReThrow("RunTests", Err, True), vbCritical, Title
+62        End If
+63        RunTests = False
 End Function
 
 Sub PrintTwice(Text As String)
@@ -657,11 +658,13 @@ End Function
 
 ' Direct unit test of TrySerialiseArrayAsV (modSerialise.bas) - the Excel -> Julia direction "V"
 ' encoder wired into SerialiseElement. Checks the exact wire string for a vector and a (non-square,
-' column-major) matrix, and that it correctly declines (returns False) for a mixed-type array and
-' for NaN/Infinity. NaN/Infinity Doubles can't be produced by ordinary VBA arithmetic (which raises
-' a runtime error on overflow rather than returning a special value), so they're constructed here
-' via HexToDouble on the standard IEEE-754 bit patterns, the same trick DoubleToHex/HexToDouble
-' themselves rely on.
+' column-major) matrix, that it correctly declines (returns False) for a mixed-type array, and
+' (since 2026-08-18 - see TrySerialiseArrayAsV's own docstring for why no NaN/Inf check is needed on
+' this side) that it now SUCCEEDS for an array containing NaN/Infinity, producing the same raw
+' bit-pattern encoding as any other Double. NaN/Infinity Doubles can't be produced by ordinary VBA
+' arithmetic (which raises a runtime error on overflow rather than returning a special value), so
+' they're constructed here via HexToDouble on the standard IEEE-754 bit patterns, the same trick
+' DoubleToHex/HexToDouble themselves rely on.
 Function TestSerialiseArrayAsV()
           Dim EncodedV As String
           Dim OK As Boolean
@@ -695,19 +698,53 @@ Function TestSerialiseArrayAsV()
 15        xNaN(1) = 1#
 16        xNaN(2) = HexToDouble("7FF8000000000000") 'quiet NaN
 17        OK = TrySerialiseArrayAsV(xNaN, EncodedV)
-18        If OK Then Throw "Expected TrySerialiseArrayAsV to decline an array containing NaN"
+18        If Not OK Then Throw "Expected TrySerialiseArrayAsV to succeed for an array containing NaN"
+19        If EncodedV <> "V1,2;" & DoubleToHex(xNaN(1)) & DoubleToHex(xNaN(2)) Then _
+              Throw "Unexpected 'V' encoding for an array containing NaN"
 
-19        xInf(1) = 1#
-20        xInf(2) = HexToDouble("7FF0000000000000") 'positive infinity
-21        OK = TrySerialiseArrayAsV(xInf, EncodedV)
-22        If OK Then Throw "Expected TrySerialiseArrayAsV to decline an array containing Infinity"
+20        xInf(1) = 1#
+21        xInf(2) = HexToDouble("7FF0000000000000") 'positive infinity
+22        OK = TrySerialiseArrayAsV(xInf, EncodedV)
+23        If Not OK Then Throw "Expected TrySerialiseArrayAsV to succeed for an array containing Infinity"
+24        If EncodedV <> "V1,2;" & DoubleToHex(xInf(1)) & DoubleToHex(xInf(2)) Then _
+              Throw "Unexpected 'V' encoding for an array containing Infinity"
 
-23        TestSerialiseArrayAsV = True
+25        TestSerialiseArrayAsV = True
 
-24        Exit Function
+26        Exit Function
 ErrHandler:
-25        PrintTwice ReThrow("TestSerialiseArrayAsV", Err, True)
-26        TestSerialiseArrayAsV = False
+27        PrintTwice ReThrow("TestSerialiseArrayAsV", Err, True)
+28        TestSerialiseArrayAsV = False
+End Function
+
+' Confirms that removing TrySerialiseArrayAsV's NaN/Inf check (2026-08-18) didn't change end-to-end
+' behaviour: an array containing NaN/Infinity now travels Excel -> Julia via the fast "V" path (raw
+' bit pattern, no translation) rather than falling back to the general format, but Julia's own
+' outbound encode_for_xl(::Float64) still correctly maps NaN -> #N/A and Infinity -> #NUM! on the
+' way back - exactly as it does for a literal Julia-side NaN/Inf (TestNaNFallback/TestInfFallback).
+Function TestNaNInfRoundTripViaV()
+          Dim Expected(1 To 4, 1 To 1) As Variant
+          Dim x(1 To 4) As Double
+          Dim y As Variant
+
+1         On Error GoTo ErrHandler
+2         x(1) = 1#
+3         x(2) = HexToDouble("7FF8000000000000") 'quiet NaN
+4         x(3) = 2#
+5         x(4) = HexToDouble("7FF0000000000000") 'positive infinity
+
+6         Expected(1, 1) = 1#
+7         Expected(2, 1) = CVErr(2042) '#N/A
+8         Expected(3, 1) = 2#
+9         Expected(4, 1) = CVErr(2036) '#NUM!
+
+10        y = ThrowIfError(JuliaCall("identity", x))
+11        TestNaNInfRoundTripViaV = ArraysIdentical(Expected, y)
+
+12        Exit Function
+ErrHandler:
+13        PrintTwice ReThrow("TestNaNInfRoundTripViaV", Err, True)
+14        TestNaNInfRoundTripViaV = False
 End Function
 
 ' Live round trip through a Variant() array (not a genuinely-typed Double() array) - the realistic

@@ -209,6 +209,26 @@ Option Explicit
 'Average time for JuliaEval("collect((1:100000).*pi)") = 8.29558800003724E-02 seconds (averaged over 10 calls)
 'One-way data transport (AbstractRange), Julia to Excel
 'Average time for JuliaEval("(1:100000).*pi") = 1.24318100002711E-02 seconds (averaged over 10 calls)
+'========================================================================================================================
+'Running method PerformanceTest - AFTER removing TrySerialiseArrayAsV's NaN/Inf finiteness check
+'entirely (not just inlining it): shown unnecessary for the Excel -> Julia direction, since the
+'general per-scalar Double encode does no NaN/Inf translation either, and Julia's own decode
+'reconstructs the identical Float64 bit pattern via either path - unlike the Julia -> Excel
+'direction, where NaN -> #N/A / Inf -> #NUM! translation is genuine and stays in place (see
+'TrySerialiseArrayAsV's docstring, modSerialise.bas). Best numbers yet.
+'Time now = 2026-08-18 12:12:01
+'JuliaExcel Version = 143
+'Computer = MSI
+'Latency test
+'Average time for JuliaEval("1+1") = 1.2095915999962 miliseconds (averaged over 500 calls)
+'Two-way data transport test
+'Average time for JuliaCall("identity", vector of 100,000 doubles) = 0.14551833000005 seconds (averaged over 10 calls)
+'One-way data transport test, Excel to Julia
+'Average time for JuliaCall("sum", vector of 100,000 doubles) = 6.27044100001513E-02 seconds (averaged over 10 calls)
+'One-way data transport test, Julia to Excel
+'Average time for JuliaEval("collect((1:100000).*pi)") = 8.13102000000072E-02 seconds (averaged over 10 calls)
+'One-way data transport (AbstractRange), Julia to Excel
+'Average time for JuliaEval("(1:100000).*pi") = 1.25317000005452E-02 seconds (averaged over 10 calls)
 
 Function PerformanceTest() As String
           Const NumCallsOnePlusOne As Long = 500
