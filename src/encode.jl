@@ -115,6 +115,12 @@ function encode_for_xl(x::Float32)
     end
 end
 
+# An ExcelError decoded from VBA (see decode_from_xl's '!' branch, decode.jl) re-emits the same
+# wire form it was decoded from, so an Excel error genuinely round-trips through Julia - e.g.
+# JuliaCall("identity", SomeErrorCell) returns the same error, unlike the Inf/Float64 case above,
+# which only ever produces #NUM!/#N/A from Julia's own numeric NaN/Inf, not a full 14-error set.
+encode_for_xl(x::ExcelError) = "!" * string(x.code)
+
 function encode_array_general(x::AbstractArray)
     sx = size(x)
     dimssection = string(xl_length(sx)) * "," * join(sx, ",")

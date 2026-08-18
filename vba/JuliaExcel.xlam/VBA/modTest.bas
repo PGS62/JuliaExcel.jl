@@ -80,32 +80,33 @@ Function RunTests(Optional SilentMode = False)
 44        AccResult "TestRangeJuliaEvalIsColumn", TestRangeJuliaEvalIsColumn, NumPassed, NumFailed
 45        AccResult "TestRangeWireFormat", TestRangeWireFormat, NumPassed, NumFailed
 46        AccResult "TestNaNInfRoundTripViaV", TestNaNInfRoundTripViaV, NumPassed, NumFailed
+47        AccResult "TestExcelErrorRoundTrip", TestExcelErrorRoundTrip, NumPassed, NumFailed
 
-47        Prompt = NumPassed & " test(s) passed" & vbLf & _
+48        Prompt = NumPassed & " test(s) passed" & vbLf & _
               NumFailed & " test(s) failed"
 
-48        If NumFailed > 0 Then
-49            Prompt = Prompt & vbLf & vbLf & _
+49        If NumFailed > 0 Then
+50            Prompt = Prompt & vbLf & vbLf & _
                   "See VBA Immediate window for details"
-50        End If
+51        End If
 
-51        PrintTwice NumPassed & " test(s) passed"
-52        PrintTwice NumFailed & " test(s) failed"
-53        PrintTwice String(80, "=")
+52        PrintTwice NumPassed & " test(s) passed"
+53        PrintTwice NumFailed & " test(s) failed"
+54        PrintTwice String(80, "=")
 
-54        If Not SilentMode Then
-55            AppActivate Application.Caption
-56            MsgBox Prompt, IIf(NumFailed = 0, vbInformation, vbCritical), Title
-57        End If
+55        If Not SilentMode Then
+56            AppActivate Application.Caption
+57            MsgBox Prompt, IIf(NumFailed = 0, vbInformation, vbCritical), Title
+58        End If
 
-58        RunTests = NumFailed = 0
+59        RunTests = NumFailed = 0
 
-59        Exit Function
+60        Exit Function
 ErrHandler:
-60        If Not SilentMode Then
-61            MsgBox ReThrow("RunTests", Err, True), vbCritical, Title
-62        End If
-63        RunTests = False
+61        If Not SilentMode Then
+62            MsgBox ReThrow("RunTests", Err, True), vbCritical, Title
+63        End If
+64        RunTests = False
 End Function
 
 Sub PrintTwice(Text As String)
@@ -745,6 +746,39 @@ Function TestNaNInfRoundTripViaV()
 ErrHandler:
 13        PrintTwice ReThrow("TestNaNInfRoundTripViaV", Err, True)
 14        TestNaNInfRoundTripViaV = False
+End Function
+
+' Confirms Excel errors now round-trip correctly through Julia via JuliaCall("identity", ...):
+' Julia decodes an incoming VBA error to the ExcelError type (JuliaExcel.jl, added 2026-08-18)
+' rather than a plain String, so a function like "identity" that doesn't know about errors
+' specifically passes the value straight through unchanged, and Julia's own
+' encode_for_xl(::ExcelError) re-emits the same wire "!<code>" - unlike a String, which would
+' encode as an ordinary text value. Exercises all 14 Excel error codes, not just the two (2036,
+' 2042) Julia can generate automatically from Inf/NaN. Built with ReDim (1-based), not VBA.Array()
+' (0-based), to match Unserialise's own 1-based convention for the general "*" array format - see
+' TestVEncodeFromVariantArray's comment for the same trap.
+Function TestExcelErrorRoundTrip()
+          Dim Codes(1 To 14) As Long
+          Dim Expected(1 To 14, 1 To 1) As Variant
+          Dim i As Long
+          Dim y As Variant
+
+1         On Error GoTo ErrHandler
+2         Codes(1) = 2000: Codes(2) = 2007: Codes(3) = 2015: Codes(4) = 2023: Codes(5) = 2029
+3         Codes(6) = 2036: Codes(7) = 2042: Codes(8) = 2043: Codes(9) = 2045: Codes(10) = 2046
+4         Codes(11) = 2047: Codes(12) = 2048: Codes(13) = 2049: Codes(14) = 2050
+
+5         For i = 1 To 14
+6             Expected(i, 1) = CVErr(Codes(i))
+7         Next i
+
+8         y = ThrowIfError(JuliaCall("identity", Expected))
+9         TestExcelErrorRoundTrip = ArraysIdentical(Expected, y)
+
+10        Exit Function
+ErrHandler:
+11        PrintTwice ReThrow("TestExcelErrorRoundTrip", Err, True)
+12        TestExcelErrorRoundTrip = False
 End Function
 
 ' Live round trip through a Variant() array (not a genuinely-typed Double() array) - the realistic

@@ -17,7 +17,7 @@ Type indicators:
  ^   Int64    (followed by decimal)
  D   Date     (followed by Excel serial integer: days since 1899-12-30)
  G   DateTime (followed by 16 hex chars representing Excel serial as Float64)
- !   Error    (followed by Excel error number, e.g. 2042 for #N/A)
+ !   Error    (followed by Excel error number, e.g. 2042 for #N/A; decodes to ExcelError)
  *   Array    (*<rank>,<d1>[,<d2>];<len1>,<len2>,...,;<elements> column-major)
  H   Dict     (H<count>;<key1_len>,<val1_len>,...,;<key1><val1>... pairs column-order)
  V   Array of Float64 only (VBA -> Julia direction; see decode_xl_array_v below and
@@ -35,38 +35,38 @@ Inverse of `encode_for_xl`.
 function decode_from_xl(s::String)
     isempty(s) && return missing
     c = s[1]
-    if c == '#'
+    if c == '#'                    #Double -> Float64
         hex_to_float64(s[2:end])
-    elseif c == '£'
-        s[nextind(s, 1):end]                                   # skip the 2-byte £ prefix
-    elseif c == 'T'
+    elseif c == '£'                #String -> String 
+        s[nextind(s, 1):end]       # skip the 2-byte £ prefix
+    elseif c == 'T'                #Boolean True -> Bool true
         true
-    elseif c == 'F'
+    elseif c == 'F'                #Boolean False -> Bool false
         false
-    elseif c == 'E'
+    elseif c == 'E'                #Empty -> Missing
         missing
-    elseif c == 'N'
+    elseif c == 'N'                #Null -> Nothing
         nothing
-    elseif c == '&'
+    elseif c == '&'                #Long -> Int32
         parse(Int32, s[2:end])
-    elseif c == '%'
+    elseif c == '%'                #Integer -> Int16
         parse(Int16, s[2:end])
-    elseif c == '^'
+    elseif c == '^'                #LongLong -> Int64
         parse(Int64, s[2:end])
-    elseif c == 'S'
+    elseif c == 'S'                #Single -> Float32
         hex_to_float32(s[2:end])
-    elseif c == 'D'
+    elseif c == 'D'                #Date, no time component -> Date
         Dates.Date(1899, 12, 30) + Dates.Day(parse(Int, s[2:end]))
-    elseif c == 'G'
+    elseif c == 'G'                #Date, with time component -> DateTime
         Dates.DateTime(1899, 12, 30) +
             Dates.Millisecond(round(Int64, hex_to_float64(s[2:end]) * 86_400_000))
-    elseif c == '!'
-        "#ExcelError$(s[2:end])!"
-    elseif c == '*'
+    elseif c == '!'                #Error -> ExcelError
+        ExcelError(parse(Int, s[2:end]))
+    elseif c == '*'                #Array -> Array
         decode_xl_array(s)
-    elseif c == 'H'
+    elseif c == 'H'                #Dictionary -> Dict
         decode_xl_dict(s)
-    elseif c == 'V'
+    elseif c == 'V'                #Array of Doubles (compact) -> Array{Float64,N}
         decode_xl_array_v(s)
     else
         error("decode_from_xl: unknown type indicator $(repr(c)) in '$(first(s, 50))'")

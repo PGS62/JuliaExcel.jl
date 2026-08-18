@@ -22,6 +22,8 @@ round_trip(x) = isequal(JuliaExcel.decode_from_xl(JuliaExcel.encode_for_xl(x)), 
     @test JuliaExcel.encode_for_xl(Inf) == "!2036"
     @test JuliaExcel.encode_for_xl(-Inf) == "!2036"
     @test JuliaExcel.encode_for_xl(NaN) == "!2042"
+    @test JuliaExcel.encode_for_xl(JuliaExcel.ExcelError(2007)) == "!2007"
+    @test JuliaExcel.decode_from_xl("!2007") == JuliaExcel.ExcelError(2007)
     @test JuliaExcel.encode_for_xl(Date("2021-11-8")) == "D44508"
     @test JuliaExcel.encode_for_xl(DateTime("2021-11-8T12:00:00")) == "G40E5BB9000000000"
     @test JuliaExcel.encode_for_xl(Int64) == "£Int64"
@@ -46,9 +48,9 @@ round_trip(x) = isequal(JuliaExcel.decode_from_xl(JuliaExcel.encode_for_xl(x)), 
   #  @test round_trip(:x)  # Symbols morph to String
   #  @test round_trip(nothing) # Nothing morphs to missing (Empty in Excel)
      @test round_trip(missing)
-  #  @test round_trip(Inf)
-  #  @test round_trip(-Inf)
-  #  @test round_trip(NaN)
+  #  @test round_trip(Inf)  # Morphs to ExcelError(2036) (#NUM! in Excel)
+  #  @test round_trip(-Inf) # Morphs to ExcelError(2036) (#NUM! in Excel)
+  #  @test round_trip(NaN)  # Morphs to ExcelError(2042) (#N/A in Excel)
     @test round_trip(Date("2021-11-8"))
     @test round_trip(DateTime("2021-11-8T12:00:00"))
   #  @test round_trip(Int64) # Types morph to String
@@ -59,6 +61,15 @@ round_trip(x) = isequal(JuliaExcel.decode_from_xl(JuliaExcel.encode_for_xl(x)), 
     @test round_trip([1, true, "x"])
     @test round_trip([1, [2, 3]])
     @test round_trip(Dict("a"=>1, "b"=>2))
+
+    # ExcelError - unlike Inf/NaN above (which only ever produce 2036/2042 from Julia's own
+    # numeric values), every documented Excel error code round-trips exactly through Julia when it
+    # originates as a genuine VBA error - see ExcelError's docstring (JuliaExcel.jl) for why this is
+    # a distinct type rather than a String.
+    for code in keys(JuliaExcel.EXCEL_ERROR_NAMES)
+        @test JuliaExcel.decode_from_xl("!$code") == JuliaExcel.ExcelError(code)
+        @test round_trip(JuliaExcel.ExcelError(code))
+    end
 
     # "V" format - compact encoding for arrays of Float64 (see encode_for_xl(::Vector{Float64})/
     # (::Matrix{Float64}) and the dynamic AbstractArray fallback in src/encode.jl).
