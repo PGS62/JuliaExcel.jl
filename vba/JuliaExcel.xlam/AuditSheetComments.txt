@@ -1,4 +1,5 @@
 ﻿Version	Date	Time	Author	Comment
+143	18-Aug-2026	11:56	Philip Swannell	Fix to performance regression. "two-way" is now back to 0.15 seconds.
 142	17-Aug-2026	22:33	Philip Swannell	Deleted redundant methods.
 141	17-Aug-2026	19:20	Philip Swannell	Global const gTestCommandOptions.
 140	17-Aug-2026	17:13	Philip Swannell	Imported PGS idea (Claude implemented) for "R encoding" of UnitRange/StepRange/StepRangeLen/LinRange etc.

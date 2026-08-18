@@ -172,6 +172,43 @@ Option Explicit
 'Average time for JuliaCall("sum", vector of 100,000 doubles) = 6.95522399968468E-02 seconds (averaged over 10 calls)
 'One-way data transport test, Julia to Excel
 'Average time for JuliaEval("collect((1:100000).*pi)") = 8.78807900007814E-02 seconds (averaged over 10 calls)
+'========================================================================================================================
+'Running method PerformanceTest
+'Time now = 2026-08-18 11:31:05. Slowdown since 2026-08-17 14:25:31 - ROOT CAUSE FOUND AND FIXED (see
+'run below): TrySerialiseArrayAsV's finiteness check (modSerialise.bas) called a separate Function
+'(IsFiniteHex, ByVal String parameter) once per element - measured at ~80ms of pure VBA function-
+'call/BSTR-copy overhead alone for a 100,000-element array, on top of the encoding itself. Fixed by
+'inlining the check at each of the three call sites; IsFiniteHex deleted. Not thermal throttling -
+'the PC had been idle overnight and was cool when this run was taken.
+'JuliaExcel Version = 142
+'Computer = MSI
+'Latency test
+'Average time for JuliaEval("1+1") = 1.56602779999957 miliseconds (averaged over 500 calls)
+'Two-way data transport test
+'Average time for JuliaCall("identity", vector of 100,000 doubles) = 0.254055260000314 seconds (averaged over 10 calls)
+'One-way data transport test, Excel to Julia
+'Average time for JuliaCall("sum", vector of 100,000 doubles) = 0.157926959999895 seconds (averaged over 10 calls)
+'One-way data transport test, Julia to Excel
+'Average time for JuliaEval("collect((1:100000).*pi)") = 9.43088400003035E-02 seconds (averaged over 10 calls)
+'One-way data transport (AbstractRange), Julia to Excel
+'Average time for JuliaEval("(1:100000).*pi") = 1.29171199994744E-02 seconds (averaged over 10 calls)
+'========================================================================================================================
+'Running method PerformanceTest - AFTER inlining TrySerialiseArrayAsV's finiteness check (removing
+'the per-element IsFiniteHex Function call). Confirms recovery to, and slightly better than, the
+'2026-08-17 14:25:31 numbers (identity = 0.1502s, sum = 0.0696s).
+'Time now = 2026-08-18 11:52:28
+'JuliaExcel Version = 142
+'Computer = MSI
+'Latency test
+'Average time for JuliaEval("1+1") = 1.20299299999897 miliseconds (averaged over 500 calls)
+'Two-way data transport test
+'Average time for JuliaCall("identity", vector of 100,000 doubles) = 0.158094169999822 seconds (averaged over 10 calls)
+'One-way data transport test, Excel to Julia
+'Average time for JuliaCall("sum", vector of 100,000 doubles) = 0.071729609999602 seconds (averaged over 10 calls)
+'One-way data transport test, Julia to Excel
+'Average time for JuliaEval("collect((1:100000).*pi)") = 8.29558800003724E-02 seconds (averaged over 10 calls)
+'One-way data transport (AbstractRange), Julia to Excel
+'Average time for JuliaEval("(1:100000).*pi") = 1.24318100002711E-02 seconds (averaged over 10 calls)
 
 Function PerformanceTest() As String
           Const NumCallsOnePlusOne As Long = 500
@@ -372,6 +409,61 @@ ErrHandler:
 27        VFormatDecodeSpeedTest = ReThrow("VFormatDecodeSpeedTest", Err, True)
 End Function
 
+Function VFormatEncodeSpeedTest() As String
+          ' Diagnostic twin of VFormatDecodeSpeedTest, but for the encode direction: isolates
+          ' VBA-side encode cost only (no HTTP, no Julia) by timing the real production
+          ' TrySerialiseArrayAsV (modSerialise.bas) directly against a Variant() vector of Doubles
+          ' from RANDARRAY, exactly as SerialiseElement receives from Range.Value2.
+          ' Added 2026-08-18 to investigate a reported PerformanceTest regression in "sum"/"identity"
+          ' (Excel -> Julia encode direction) while "collect" (decode direction) and the "1+1"
+          ' latency test stayed flat. Root cause found: TrySerialiseArrayAsV's finiteness check was
+          ' calling a separate Function (IsFiniteHex, ByVal String parameter) once per element -
+          ' ~80ms of pure VBA function-call/BSTR-copy overhead for a 100,000-element array, roughly
+          ' as much as the rest of the encoding combined. Fixed by inlining the check directly at
+          ' each call site (see TrySerialiseArrayAsV's own docstring in modSerialise.bas) - keep this
+          ' test around as an ongoing regression check for the encode side, mirroring
+          ' VFormatDecodeSpeedTest's role on the decode side.
+          Const NumCalls As Long = 50
+          Const VectorLength As Long = 100000
+          Dim EncodedV As String
+          Dim i As Long
+          Dim InputData As Variant
+          Dim OK As Boolean
+          Dim Report As String
+          Dim t1 As Double
+          Dim t2 As Double
+          Dim Total As Double
+
+1         On Error GoTo ErrHandler
+2         Debug.Print "'" & String(120, "=")
+3         Debug.Print "'Running method VFormatEncodeSpeedTest"
+4         Debug.Print "'Time now = " & Format$(Now(), "yyyy-mm-dd hh:mm:ss")
+5         Debug.Print "'JuliaExcel Version = " & CStr(shAudit.Range("Headers").Cells(2, 1).Value)
+6         Debug.Print "'Computer = " & Environ$("ComputerName")
+
+7         InputData = Application.Evaluate("=RANDARRAY(" & VectorLength & ")")
+
+8         OK = TrySerialiseArrayAsV(InputData, EncodedV)
+9         If Not OK Then Throw "TrySerialiseArrayAsV unexpectedly declined an all-Double RANDARRAY"
+10        If Left$(EncodedV, 1) <> "V" Then Throw "Expected a 'V'-format string but got '" & Left$(EncodedV, 1) & "'"
+
+11        For i = 1 To NumCalls
+12            t1 = ElapsedTime
+13            OK = TrySerialiseArrayAsV(InputData, EncodedV)
+14            t2 = ElapsedTime
+15            Total = Total + (t2 - t1)
+16        Next i
+
+17        Report = "Average encode time, 'V' format, VBA-side only, no HTTP (Variant() vector of " & _
+              Format(VectorLength, "###,###") & " Doubles) = " & CStr(Total / NumCalls) & _
+              " seconds (averaged over " & NumCalls & " calls)"
+18        Debug.Print "'" & Replace(Report, vbLf, vbLf & "'")
+19        VFormatEncodeSpeedTest = Report
+
+20        Exit Function
+ErrHandler:
+21        VFormatEncodeSpeedTest = ReThrow("VFormatEncodeSpeedTest", Err, True)
+End Function
 
 'TryFastEncodeDoubleArrayAsV (a PROTOTYPE-only "V" encoder, used solely to measure whether a "V"
 'encoder would be worth building) and VEncodeSpeedTest (which timed it against SerialiseElement)
