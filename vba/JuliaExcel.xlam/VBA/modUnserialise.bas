@@ -83,6 +83,7 @@ End Type
 ' N Null
 ' % Integer
 ' & Long
+' B Byte (VBA's only unsigned type; Julia's UInt8)
 ' S Single, payload is hex
 ' C Currency - reserved, not currently implemented in Julia function encode_for_xl
 ' ! Error
@@ -209,19 +210,21 @@ Function Unserialise(Chars As String, AllowNesting As Boolean, ByRef Depth As Lo
 29                Unserialise = CInt(Mid$(Chars, 2))
 30            Case 38     '& vbLong
 31                Unserialise = CLng(Mid$(Chars, 2))
-32            Case 94     '^ vbLongLong
-33                Unserialise = parseInt64(Mid$(Chars, 2))
-34            Case 83     'S vbSingle
-35                Unserialise = HexToSingle(Mid$(Chars, 2))
-36            Case 67     'C vbCurrency, not currently implemented in Julia function encode_for_xl
-37                Unserialise = CCur(Mid$(Chars, 2))
-38            Case 33     '! vbError
-39                Unserialise = CVErr(Mid$(Chars, 2))
-40            Case 64     '@ vbDecimal, not currently implemented in Julia function encode_for_xl
-41                Unserialise = CDec(Mid$(Chars, 2))
+32            Case 66     'B vbByte
+33                Unserialise = CByte(Mid$(Chars, 2))
+34            Case 94     '^ vbLongLong
+35                Unserialise = parseInt64(Mid$(Chars, 2))
+36            Case 83     'S vbSingle
+37                Unserialise = HexToSingle(Mid$(Chars, 2))
+38            Case 67     'C vbCurrency, not currently implemented in Julia function encode_for_xl
+39                Unserialise = CCur(Mid$(Chars, 2))
+40            Case 33     '! vbError
+41                Unserialise = CVErr(Mid$(Chars, 2))
+42            Case 64     '@ vbDecimal, not currently implemented in Julia function encode_for_xl
+43                Unserialise = CDec(Mid$(Chars, 2))
                   
-42            Case 42     '* vbArray
-43                If Depth > 1 Then If Not AllowNesting Then Throw "Excel cannot display arrays containing arrays"
+44            Case 42     '* vbArray
+45                If Depth > 1 Then If Not AllowNesting Then Throw "Excel cannot display arrays containing arrays"
 
                   Dim Ret() As Variant
                   Dim p1 As Long    ' Position of first ';'
@@ -231,196 +234,196 @@ Function Unserialise(Chars As String, AllowNesting As Boolean, ByRef Depth As Lo
                   Dim k As Long     ' Pointer into payload section
                   Dim ThisLength As Long
 
-44                p1 = InStr(Chars, ";")
-45                p2 = InStr(p1 + 1, Chars, ";")
-46                m = p1 + 1
-47                k = p2 + 1
+46                p1 = InStr(Chars, ";")
+47                p2 = InStr(p1 + 1, Chars, ";")
+48                m = p1 + 1
+49                k = p2 + 1
 
                   ' Rank is the single character after '*', e.g. "*2,3,4;..."
                   Dim Rank As Long
                   'but check that the number of dimensions has only 1 digit!
-48                If Mid$(Chars, 3, 1) <> "," Then Throw "Cannot unserialise arrays with " & _
+50                If Mid$(Chars, 3, 1) <> "," Then Throw "Cannot unserialise arrays with " & _
                       Mid$(Chars, 2, InStr(Chars, ",") - 2) & " dimensions (max supported: 9)"
-49                Rank = CInt(Mid$(Chars, 2, 1))
+51                Rank = CInt(Mid$(Chars, 2, 1))
 
-50                Select Case Rank
+52                Select Case Rank
                       Case 1
                           Dim i As Long
                           Dim n As Long
-51                        n = CLng(Mid$(Chars, 4, p1 - 4))
-52                        If n = 0 Then
-53                            If Not AllowNesting Then Throw "Excel cannot display arrays with zero elements"
-54                            Unserialise = VBA.Split(vbNullString)
-55                        Else
-56                            If JuliaVectorToXLColumn Then
-57                                ReDim Ret(1 To n, 1 To 1)
-58                                For i = 1 To n
-59                                    m2 = InStr(m, Chars, ",") + 1
-60                                    ThisLength = CLng(Mid$(Chars, m, m2 - m - 1))
-61                                    Assign Ret(i, 1), Unserialise(Mid$(Chars, k, ThisLength), AllowNesting, Depth, StringLengthLimit, JuliaVectorToXLColumn)
-62                                    k = k + ThisLength
-63                                    m = m2
-64                                Next i
-65                            Else
-66                                ReDim Ret(1 To n)
-67                                For i = 1 To n
-68                                    m2 = InStr(m, Chars, ",") + 1
-69                                    ThisLength = CLng(Mid$(Chars, m, m2 - m - 1))
-70                                    Assign Ret(i), Unserialise(Mid$(Chars, k, ThisLength), AllowNesting, Depth, StringLengthLimit, JuliaVectorToXLColumn)
-71                                    k = k + ThisLength
-72                                    m = m2
-73                                Next i
-74                            End If
-75                            Unserialise = Ret
-76                        End If
+53                        n = CLng(Mid$(Chars, 4, p1 - 4))
+54                        If n = 0 Then
+55                            If Not AllowNesting Then Throw "Excel cannot display arrays with zero elements"
+56                            Unserialise = VBA.Split(vbNullString)
+57                        Else
+58                            If JuliaVectorToXLColumn Then
+59                                ReDim Ret(1 To n, 1 To 1)
+60                                For i = 1 To n
+61                                    m2 = InStr(m, Chars, ",") + 1
+62                                    ThisLength = CLng(Mid$(Chars, m, m2 - m - 1))
+63                                    Assign Ret(i, 1), Unserialise(Mid$(Chars, k, ThisLength), AllowNesting, Depth, StringLengthLimit, JuliaVectorToXLColumn)
+64                                    k = k + ThisLength
+65                                    m = m2
+66                                Next i
+67                            Else
+68                                ReDim Ret(1 To n)
+69                                For i = 1 To n
+70                                    m2 = InStr(m, Chars, ",") + 1
+71                                    ThisLength = CLng(Mid$(Chars, m, m2 - m - 1))
+72                                    Assign Ret(i), Unserialise(Mid$(Chars, k, ThisLength), AllowNesting, Depth, StringLengthLimit, JuliaVectorToXLColumn)
+73                                    k = k + ThisLength
+74                                    m = m2
+75                                Next i
+76                            End If
+77                            Unserialise = Ret
+78                        End If
 
-77                    Case 2
+79                    Case 2
                           Dim CommaPos As Long
                           Dim j As Long
                           Dim NC As Long
                           Dim NR As Long
-78                        CommaPos = InStr(4, Chars, ",")
-79                        NR = CLng(Mid$(Chars, 4, CommaPos - 4))
-80                        NC = CLng(Mid$(Chars, CommaPos + 1, p1 - CommaPos - 1))
-81                        If NR = 0 Or NC = 0 Then Throw "Cannot create array of size zero"
-82                        ReDim Ret(1 To NR, 1 To NC)
-83                        For j = 1 To NC
-84                            For i = 1 To NR
-85                                m2 = InStr(m, Chars, ",") + 1
-86                                ThisLength = CLng(Mid$(Chars, m, m2 - m - 1))
-87                                Assign Ret(i, j), Unserialise(Mid$(Chars, k, ThisLength), AllowNesting, Depth, StringLengthLimit, JuliaVectorToXLColumn)
-88                                k = k + ThisLength
-89                                m = m2
-90                            Next i
-91                        Next j
-92                        Unserialise = Ret
+80                        CommaPos = InStr(4, Chars, ",")
+81                        NR = CLng(Mid$(Chars, 4, CommaPos - 4))
+82                        NC = CLng(Mid$(Chars, CommaPos + 1, p1 - CommaPos - 1))
+83                        If NR = 0 Or NC = 0 Then Throw "Cannot create array of size zero"
+84                        ReDim Ret(1 To NR, 1 To NC)
+85                        For j = 1 To NC
+86                            For i = 1 To NR
+87                                m2 = InStr(m, Chars, ",") + 1
+88                                ThisLength = CLng(Mid$(Chars, m, m2 - m - 1))
+89                                Assign Ret(i, j), Unserialise(Mid$(Chars, k, ThisLength), AllowNesting, Depth, StringLengthLimit, JuliaVectorToXLColumn)
+90                                k = k + ThisLength
+91                                m = m2
+92                            Next i
+93                        Next j
+94                        Unserialise = Ret
 
-93                    Case Else
+95                    Case Else
                           ' === Section to handle >=3 dimensional arrays written by Copilot 23 Dec 2025
                           Dim Dims() As Long
-94                        Dims = ParseDims(Mid$(Chars, 4, p1 - 4), Rank)  ' section between "*,<rank>," and first ';'
+96                        Dims = ParseDims(Mid$(Chars, 4, p1 - 4), Rank)  ' section between "*,<rank>," and first ';'
 
                           ' Guard: Excel cannot display >2-D arrays; allow only when nesting is permitted i.e. when unserialising to VBA variable
-95                        If Not AllowNesting Then
-96                            Throw "Excel cannot display arrays with more than 2 dimensions"
-97                        End If
+97                        If Not AllowNesting Then
+98                            Throw "Excel cannot display arrays with more than 2 dimensions"
+99                        End If
 
                           ' None of the dims may be zero
                           Dim q As Long
                           Dim Total As Long
-98                        Total = 1
-99                        For q = 1 To Rank
-100                           If Dims(q) <= 0 Then Throw "Cannot create array of size zero"
-101                           Total = Total * Dims(q)
-102                       Next q
+100                        Total = 1
+101                        For q = 1 To Rank
+102                           If Dims(q) <= 0 Then Throw "Cannot create array of size zero"
+103                           Total = Total * Dims(q)
+104                       Next q
 
                           ' Allocate Ret() to the requested rank (up to MAX_RANK supported)
-103                       ReDimVariantArray Ret, Dims
+105                       ReDimVariantArray Ret, Dims
 
                           ' Walk in column-major order (dim 1 fastest), assigning elements
                           Dim Idx() As Long
-104                       ReDim Idx(1 To Rank)
-105                       For q = 1 To Rank: Idx(q) = 1: Next q
+106                       ReDim Idx(1 To Rank)
+107                       For q = 1 To Rank: Idx(q) = 1: Next q
 
                           Dim Count As Long
                           Dim Val As Variant
-106                       For Count = 1 To Total
-107                           m2 = InStr(m, Chars, ",") + 1
-108                           ThisLength = CLng(Mid$(Chars, m, m2 - m - 1))
-109                           Assign Val, Unserialise(Mid$(Chars, k, ThisLength), AllowNesting, Depth, StringLengthLimit, JuliaVectorToXLColumn)
-110                           AssignByRank Ret, Idx, Val  ' Assign Ret(i1, i2, ..., irank) = val
+108                       For Count = 1 To Total
+109                           m2 = InStr(m, Chars, ",") + 1
+110                           ThisLength = CLng(Mid$(Chars, m, m2 - m - 1))
+111                           Assign Val, Unserialise(Mid$(Chars, k, ThisLength), AllowNesting, Depth, StringLengthLimit, JuliaVectorToXLColumn)
+112                           AssignByRank Ret, Idx, Val  ' Assign Ret(i1, i2, ..., irank) = val
 
-111                           k = k + ThisLength
-112                           m = m2
+113                           k = k + ThisLength
+114                           m = m2
 
                               ' Increment indices: dim 1 fastest
-113                           q = 1
-114                           Do While q <= Rank
-115                               Idx(q) = Idx(q) + 1
-116                               If Idx(q) <= Dims(q) Then Exit Do
-117                               Idx(q) = 1
-118                               q = q + 1
-119                           Loop
-120                           If q > Rank Then Exit For
-121                       Next Count
+115                           q = 1
+116                           Do While q <= Rank
+117                               Idx(q) = Idx(q) + 1
+118                               If Idx(q) <= Dims(q) Then Exit Do
+119                               Idx(q) = 1
+120                               q = q + 1
+121                           Loop
+122                           If q > Rank Then Exit For
+123                       Next Count
 
-122                       Unserialise = Ret
-123               End Select
-124           Case 72 'H Dictionary
-125               If Not AllowNesting Then Throw "Excel cannot display variables of type Dictionary"
-126               p1 = InStr(Chars, ";")
-127               p2 = InStr(p1 + 1, Chars, ";")
-128               m = p1 + 1 '"pointer" to read from lengths section. Points to the first character after each comma.
-129               k = p2 + 1 '"pointer" to read from contents section. Points to the first character of each "chunk".
+124                       Unserialise = Ret
+125               End Select
+126           Case 72 'H Dictionary
+127               If Not AllowNesting Then Throw "Excel cannot display variables of type Dictionary"
+128               p1 = InStr(Chars, ";")
+129               p2 = InStr(p1 + 1, Chars, ";")
+130               m = p1 + 1 '"pointer" to read from lengths section. Points to the first character after each comma.
+131               k = p2 + 1 '"pointer" to read from contents section. Points to the first character of each "chunk".
                   Dim DictRet As New Scripting.Dictionary
                   Dim KeyLength As Long
                   Dim m3 As Long
                   Dim ThisKey As Variant
                   Dim ThisValue As Variant
                   Dim ValueLength As Long
-130               n = Mid$(Chars, 2, p1 - 2) 'Num elements in dictionary
-131               For i = 1 To n
-132                   m2 = InStr(m, Chars, ",") + 1
-133                   m3 = InStr(m2, Chars, ",") + 1
-134                   KeyLength = Mid$(Chars, m, m2 - m - 1)
-135                   ValueLength = Mid$(Chars, m2, m3 - m2 - 1)
-136                   Assign ThisKey, Unserialise(Mid$(Chars, k, KeyLength), AllowNesting, Depth, StringLengthLimit, JuliaVectorToXLColumn)
-137                   k = k + KeyLength
-138                   Assign ThisValue, Unserialise(Mid$(Chars, k, ValueLength), AllowNesting, Depth, StringLengthLimit, JuliaVectorToXLColumn)
-139                   k = k + ValueLength
-140                   m = m3
+132               n = Mid$(Chars, 2, p1 - 2) 'Num elements in dictionary
+133               For i = 1 To n
+134                   m2 = InStr(m, Chars, ",") + 1
+135                   m3 = InStr(m2, Chars, ",") + 1
+136                   KeyLength = Mid$(Chars, m, m2 - m - 1)
+137                   ValueLength = Mid$(Chars, m2, m3 - m2 - 1)
+138                   Assign ThisKey, Unserialise(Mid$(Chars, k, KeyLength), AllowNesting, Depth, StringLengthLimit, JuliaVectorToXLColumn)
+139                   k = k + KeyLength
+140                   Assign ThisValue, Unserialise(Mid$(Chars, k, ValueLength), AllowNesting, Depth, StringLengthLimit, JuliaVectorToXLColumn)
+141                   k = k + ValueLength
+142                   m = m3
 
-141                   If VarType(ThisKey) = vbLongLong Then 'LongLong not allowed as key?
-142                       DictRet.Add CLng(ThisKey), ThisValue
-143                   Else
-144                       DictRet.Add ThisKey, ThisValue
-145                   End If
-146               Next i
-147               Set Unserialise = DictRet
-148           Case 86 'V vbArray of Float64 only, no per-element type indicator or length - the
+143                   If VarType(ThisKey) = vbLongLong Then 'LongLong not allowed as key?
+144                       DictRet.Add CLng(ThisKey), ThisValue
+145                   Else
+146                       DictRet.Add ThisKey, ThisValue
+147                   End If
+148               Next i
+149               Set Unserialise = DictRet
+150           Case 86 'V vbArray of Float64 only, no per-element type indicator or length - the
                   '"V" indicator itself is Julia's own guarantee, via multiple dispatch, that every
                   'element really is a Float64, so unlike the general "*" array case above, nothing
                   'here needs to defend against that not being true.
                   Const VBytesPerElement As Long = 16 'BE hex (as scalar "#"), no type-indicator character per element
                   Dim Pos As Long
-149               p1 = InStr(Chars, ";")
-150               If Mid$(Chars, 3, 1) <> "," Then Throw "Cannot unserialise 'V'-format arrays with " & _
+151               p1 = InStr(Chars, ";")
+152               If Mid$(Chars, 3, 1) <> "," Then Throw "Cannot unserialise 'V'-format arrays with " & _
                       Mid$(Chars, 2, InStr(Chars, ",") - 2) & " dimensions (max supported: 9)"
-151               Rank = CInt(Mid$(Chars, 2, 1))
-152               k = p1 + 1
+153               Rank = CInt(Mid$(Chars, 2, 1))
+154               k = p1 + 1
 
-153               Select Case Rank
+155               Select Case Rank
                       Case 1
-154                       n = CLng(Mid$(Chars, 4, p1 - 4))
-155                       If Len(Chars) - k + 1 <> n * VBytesPerElement Then Throw _
+156                       n = CLng(Mid$(Chars, 4, p1 - 4))
+157                       If Len(Chars) - k + 1 <> n * VBytesPerElement Then Throw _
                               "'V'-format string has the wrong number of hex characters for a 1-D array of " & n & " element(s)"
-156                       If JuliaVectorToXLColumn Then
-157                           ReDim Ret(1 To n, 1 To 1)
-158                           For i = 1 To n
-159                               Pos = k + (i - 1) * VBytesPerElement
-160                               Ret(i, 1) = HexToDouble(Mid$(Chars, Pos, VBytesPerElement))
-161                           Next i
-162                       Else
-163                           ReDim Ret(1 To n)
-164                           For i = 1 To n
-165                               Pos = k + (i - 1) * VBytesPerElement
-166                               Ret(i) = HexToDouble(Mid$(Chars, Pos, VBytesPerElement))
-167                           Next i
-168                       End If
+158                       If JuliaVectorToXLColumn Then
+159                           ReDim Ret(1 To n, 1 To 1)
+160                           For i = 1 To n
+161                               Pos = k + (i - 1) * VBytesPerElement
+162                               Ret(i, 1) = HexToDouble(Mid$(Chars, Pos, VBytesPerElement))
+163                           Next i
+164                       Else
+165                           ReDim Ret(1 To n)
+166                           For i = 1 To n
+167                               Pos = k + (i - 1) * VBytesPerElement
+168                               Ret(i) = HexToDouble(Mid$(Chars, Pos, VBytesPerElement))
+169                           Next i
+170                       End If
 
-169                   Case 2
-170                       CommaPos = InStr(4, Chars, ",")
-171                       NR = CLng(Mid$(Chars, 4, CommaPos - 4))
-172                       NC = CLng(Mid$(Chars, CommaPos + 1, p1 - CommaPos - 1))
-173                       If Len(Chars) - k + 1 <> NR * NC * VBytesPerElement Then Throw _
+171                   Case 2
+172                       CommaPos = InStr(4, Chars, ",")
+173                       NR = CLng(Mid$(Chars, 4, CommaPos - 4))
+174                       NC = CLng(Mid$(Chars, CommaPos + 1, p1 - CommaPos - 1))
+175                       If Len(Chars) - k + 1 <> NR * NC * VBytesPerElement Then Throw _
                               "'V'-format string has the wrong number of hex characters for a " & NR & "x" & NC & " array"
-174                       ReDim Ret(1 To NR, 1 To NC)
-175                       For j = 1 To NC
-176                           For i = 1 To NR
-177                               Pos = k + ((j - 1) * NR + (i - 1)) * VBytesPerElement
-178                               Ret(i, j) = HexToDouble(Mid$(Chars, Pos, VBytesPerElement))
-179                           Next i
-180                       Next j
+176                       ReDim Ret(1 To NR, 1 To NC)
+177                       For j = 1 To NC
+178                           For i = 1 To NR
+179                               Pos = k + ((j - 1) * NR + (i - 1)) * VBytesPerElement
+180                               Ret(i, j) = HexToDouble(Mid$(Chars, Pos, VBytesPerElement))
+181                           Next i
+182                       Next j
 
                       Case Else
                           ' Rank 3-9, reusing the same ParseDims/ReDimVariantArray/AssignByRank
@@ -428,32 +431,32 @@ Function Unserialise(Chars As String, AllowNesting As Boolean, ByRef Depth As Lo
                           ' "*" array format's own >=2-dimensional handling above - just without any
                           ' per-element length lookup, since every element is always exactly
                           ' VBytesPerElement hex characters.
-181                       Dims = ParseDims(Mid$(Chars, 4, p1 - 4), Rank)
-182                       If Not AllowNesting Then Throw "Excel cannot display arrays with more than 2 dimensions"
-183                       Total = 1
-184                       For q = 1 To Rank
-185                           If Dims(q) <= 0 Then Throw "Cannot create array of size zero"
-186                           Total = Total * Dims(q)
-187                       Next q
-188                       If Len(Chars) - k + 1 <> Total * VBytesPerElement Then Throw _
+183                       Dims = ParseDims(Mid$(Chars, 4, p1 - 4), Rank)
+184                       If Not AllowNesting Then Throw "Excel cannot display arrays with more than 2 dimensions"
+185                       Total = 1
+186                       For q = 1 To Rank
+187                           If Dims(q) <= 0 Then Throw "Cannot create array of size zero"
+188                           Total = Total * Dims(q)
+189                       Next q
+190                       If Len(Chars) - k + 1 <> Total * VBytesPerElement Then Throw _
                               "'V'-format string has the wrong number of hex characters for a " & Rank & "-D array"
-189                       ReDimVariantArray Ret, Dims
-190                       ReDim Idx(1 To Rank)
-191                       For q = 1 To Rank: Idx(q) = 1: Next q
-192                       For Count = 1 To Total
-193                           Pos = k + (Count - 1) * VBytesPerElement
-194                           AssignByRank Ret, Idx, HexToDouble(Mid$(Chars, Pos, VBytesPerElement))
-195                           q = 1
-196                           Do While q <= Rank
-197                               Idx(q) = Idx(q) + 1
-198                               If Idx(q) <= Dims(q) Then Exit Do
-199                               Idx(q) = 1
-200                               q = q + 1
-201                           Loop
-202                           If q > Rank Then Exit For
-203                       Next Count
-204               End Select
-205               Unserialise = Ret
+191                       ReDimVariantArray Ret, Dims
+192                       ReDim Idx(1 To Rank)
+193                       For q = 1 To Rank: Idx(q) = 1: Next q
+194                       For Count = 1 To Total
+195                           Pos = k + (Count - 1) * VBytesPerElement
+196                           AssignByRank Ret, Idx, HexToDouble(Mid$(Chars, Pos, VBytesPerElement))
+197                           q = 1
+198                           Do While q <= Rank
+199                               Idx(q) = Idx(q) + 1
+200                               If Idx(q) <= Dims(q) Then Exit Do
+201                               Idx(q) = 1
+202                               q = q + 1
+203                           Loop
+204                           If q > Rank Then Exit For
+205                       Next Count
+206               End Select
+207               Unserialise = Ret
 
               Case 82 'R Range (UnitRange/StepRange/StepRangeLen/LinRange etc.) - reconstructed via
                   'arithmetic (first + (i-1)*step), no per-element wire data at all; see
@@ -463,39 +466,39 @@ Function Unserialise(Chars As String, AllowNesting As Boolean, ByRef Depth As Lo
                   Dim HeaderParts() As String
                   Dim RFirst As Variant
                   Dim RStep As Variant
-206               p1 = InStr(Chars, ";")
-207               If Mid$(Chars, 2, 1) = "I" Then
-208                   HeaderParts = Split(Mid$(Chars, 4, p1 - 4), ",")
-209                   n = CLng(HeaderParts(0))
-210                   RFirst = parseInt64(HeaderParts(1))
-211                   RStep = parseInt64(HeaderParts(2))
-212               ElseIf Mid$(Chars, 2, 1) = "F" Then
-213                   n = CLng(Mid$(Chars, 4, p1 - 4))
-214                   RFirst = HexToDouble(Mid$(Chars, p1 + 1, 16))
-215                   RStep = HexToDouble(Mid$(Chars, p1 + 17, 16))
-216               Else
-217                   Throw "Character '" & Mid$(Chars, 2, 1) & "' is not a recognised 'R'-format sub-type (expected 'I' or 'F')"
-218               End If
-219               If JuliaVectorToXLColumn Then
-220                   ReDim Ret(1 To n, 1 To 1)
-221                   For i = 1 To n
-222                       Ret(i, 1) = RFirst + (i - 1) * RStep
-223                   Next i
-224               Else
-225                   ReDim Ret(1 To n)
-226                   For i = 1 To n
-227                       Ret(i) = RFirst + (i - 1) * RStep
-228                   Next i
-229               End If
-230               Unserialise = Ret
+208               p1 = InStr(Chars, ";")
+209               If Mid$(Chars, 2, 1) = "I" Then
+210                   HeaderParts = Split(Mid$(Chars, 4, p1 - 4), ",")
+211                   n = CLng(HeaderParts(0))
+212                   RFirst = parseInt64(HeaderParts(1))
+213                   RStep = parseInt64(HeaderParts(2))
+214               ElseIf Mid$(Chars, 2, 1) = "F" Then
+215                   n = CLng(Mid$(Chars, 4, p1 - 4))
+216                   RFirst = HexToDouble(Mid$(Chars, p1 + 1, 16))
+217                   RStep = HexToDouble(Mid$(Chars, p1 + 17, 16))
+218               Else
+219                   Throw "Character '" & Mid$(Chars, 2, 1) & "' is not a recognised 'R'-format sub-type (expected 'I' or 'F')"
+220               End If
+221               If JuliaVectorToXLColumn Then
+222                   ReDim Ret(1 To n, 1 To 1)
+223                   For i = 1 To n
+224                       Ret(i, 1) = RFirst + (i - 1) * RStep
+225                   Next i
+226               Else
+227                   ReDim Ret(1 To n)
+228                   For i = 1 To n
+229                       Ret(i) = RFirst + (i - 1) * RStep
+230                   Next i
+231               End If
+232               Unserialise = Ret
 
-231           Case Else
-232               Throw "Character '" & Left$(Chars, 1) & "' is not recognised as a type identifier"
-233       End Select
+233           Case Else
+234               Throw "Character '" & Left$(Chars, 1) & "' is not recognised as a type identifier"
+235       End Select
 
-234       Exit Function
+236       Exit Function
 ErrHandler:
-235       ReThrow "Unserialise", Err
+237       ReThrow "Unserialise", Err
 End Function
 
 'Values of type Int64 in Julia must be handled differently on Excel 32-bit and Excel 64bit

@@ -147,51 +147,52 @@ Public Function SerialiseElement(ByVal x As Variant) As String
 98                Case vbNull:     SerialiseElement = "N"
 99                Case vbInteger:  SerialiseElement = "%" & CStr(CInt(x))
 100               Case vbLong:     SerialiseElement = "&" & CStr(CLng(x))
-101               Case vbSingle:   SerialiseElement = "S" & SingleToHex(CSng(x))
-102               Case vbDate
+101               Case vbByte:     SerialiseElement = "B" & CStr(CByte(x))
+102               Case vbSingle:   SerialiseElement = "S" & SingleToHex(CSng(x))
+103               Case vbDate
                       ' CDbl of a VBA date gives the Excel serial number directly:
                       ' integer part = days since 1899-12-30, fractional part = time of day.
-103                   If CDbl(x) = Int(CDbl(x)) Then
-104                       SerialiseElement = "D" & CStr(CLng(CDbl(x)))         ' date only
-105                   Else
-106                       SerialiseElement = "G" & DoubleToHex(CDbl(x))        ' date + time
-107                   End If
-108               Case vbError
+104                   If CDbl(x) = Int(CDbl(x)) Then
+105                       SerialiseElement = "D" & CStr(CLng(CDbl(x)))         ' date only
+106                   Else
+107                       SerialiseElement = "G" & DoubleToHex(CDbl(x))        ' date + time
+108                   End If
+109               Case vbError
                       ' CStr(CVErr(n)) = "Error n"; extract the number after the space.
-109                   SerialiseElement = "!" & Mid(CStr(x), InStr(CStr(x), " ") + 1)
-110               Case vbObject
-111                   If TypeName(x) = "Dictionary" Then
-112                       n = x.Count
-113                       If n = 0 Then
-114                           SerialiseElement = "H0;;"
-115                           Exit Function
-116                       End If
-117                       ReDim Encoded(1 To 2 * n)
-118                       ReDim Lens(1 To 2 * n)
-119                       k = 1
-120                       For Each DictKey In x.Keys
-121                           Encoded(k) = SerialiseElement(DictKey)
-122                           Lens(k) = CStr(Len(Encoded(k)))
-123                           k = k + 1
-124                           Encoded(k) = SerialiseElement(x(DictKey))
-125                           Lens(k) = CStr(Len(Encoded(k)))
-126                           k = k + 1
-127                       Next DictKey
-128                       SerialiseElement = "H" & CStr(n) & ";" & VBA.Join$(Lens, ",") & ",;" & VBA.Join$(Encoded, "")
-129                   Else
-130                       Throw "Cannot serialise object of type " & TypeName(x)
-131                   End If
+110                   SerialiseElement = "!" & Mid(CStr(x), InStr(CStr(x), " ") + 1)
+111               Case vbObject
+112                   If TypeName(x) = "Dictionary" Then
+113                       n = x.Count
+114                       If n = 0 Then
+115                           SerialiseElement = "H0;;"
+116                           Exit Function
+117                       End If
+118                       ReDim Encoded(1 To 2 * n)
+119                       ReDim Lens(1 To 2 * n)
+120                       k = 1
+121                       For Each DictKey In x.Keys
+122                           Encoded(k) = SerialiseElement(DictKey)
+123                           Lens(k) = CStr(Len(Encoded(k)))
+124                           k = k + 1
+125                           Encoded(k) = SerialiseElement(x(DictKey))
+126                           Lens(k) = CStr(Len(Encoded(k)))
+127                           k = k + 1
+128                       Next DictKey
+129                       SerialiseElement = "H" & CStr(n) & ";" & VBA.Join$(Lens, ",") & ",;" & VBA.Join$(Encoded, "")
+130                   Else
+131                       Throw "Cannot serialise object of type " & TypeName(x)
+132                   End If
 #If Win64 Then
-132               Case vbLongLong: SerialiseElement = "^" & CStr(x)
+133               Case vbLongLong: SerialiseElement = "^" & CStr(x)
 #End If
-133               Case Else
-134                   Throw "Cannot serialise VarType=" & CStr(VarType(x))
-135           End Select
-136       End If
+134               Case Else
+135                   Throw "Cannot serialise VarType=" & CStr(VarType(x))
+136           End Select
+137       End If
 
-137       Exit Function
+138       Exit Function
 ErrHandler:
-138       ReThrow "SerialiseElement", Err
+139       ReThrow "SerialiseElement", Err
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------

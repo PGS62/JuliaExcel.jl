@@ -75,6 +75,7 @@ encode_for_xl(x::Int16) = string("%", x)   # Integer in VBA
 encode_for_xl(x::Int32) = string("&", x)   # Long in VBA 64-bit, no native 32-bit integer
 # type exists on 64 bit Excel
 encode_for_xl(x::Int64) = string("^", x)   # LongLong in VBA 64-bit
+encode_for_xl(x::UInt8) = string("B", x)   # Byte in VBA - VBA's only unsigned type
 encode_for_xl(x::Int128) = encode_for_xl(Float64(x))   # Double in VBA
 encode_for_xl(x::Irrational) = encode_for_xl(Float64(x)) #Double in VBA
 encode_for_xl(x::Missing) = "E"            # Empty in VBA

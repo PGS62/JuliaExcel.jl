@@ -81,32 +81,33 @@ Function RunTests(Optional SilentMode = False)
 45        AccResult "TestRangeWireFormat", TestRangeWireFormat, NumPassed, NumFailed
 46        AccResult "TestNaNInfRoundTripViaV", TestNaNInfRoundTripViaV, NumPassed, NumFailed
 47        AccResult "TestExcelErrorRoundTrip", TestExcelErrorRoundTrip, NumPassed, NumFailed
+48        AccResult "TestByte", TestByte, NumPassed, NumFailed
 
-48        Prompt = NumPassed & " test(s) passed" & vbLf & _
+49        Prompt = NumPassed & " test(s) passed" & vbLf & _
               NumFailed & " test(s) failed"
 
-49        If NumFailed > 0 Then
-50            Prompt = Prompt & vbLf & vbLf & _
+50        If NumFailed > 0 Then
+51            Prompt = Prompt & vbLf & vbLf & _
                   "See VBA Immediate window for details"
-51        End If
+52        End If
 
-52        PrintTwice NumPassed & " test(s) passed"
-53        PrintTwice NumFailed & " test(s) failed"
-54        PrintTwice String(80, "=")
+53        PrintTwice NumPassed & " test(s) passed"
+54        PrintTwice NumFailed & " test(s) failed"
+55        PrintTwice String(80, "=")
 
-55        If Not SilentMode Then
-56            AppActivate Application.Caption
-57            MsgBox Prompt, IIf(NumFailed = 0, vbInformation, vbCritical), Title
-58        End If
+56        If Not SilentMode Then
+57            AppActivate Application.Caption
+58            MsgBox Prompt, IIf(NumFailed = 0, vbInformation, vbCritical), Title
+59        End If
 
-59        RunTests = NumFailed = 0
+60        RunTests = NumFailed = 0
 
-60        Exit Function
+61        Exit Function
 ErrHandler:
-61        If Not SilentMode Then
-62            MsgBox ReThrow("RunTests", Err, True), vbCritical, Title
-63        End If
-64        RunTests = False
+62        If Not SilentMode Then
+63            MsgBox ReThrow("RunTests", Err, True), vbCritical, Title
+64        End If
+65        RunTests = False
 End Function
 
 Sub PrintTwice(Text As String)
@@ -209,6 +210,20 @@ Function TestLong()
 ErrHandler:
 6         PrintTwice ReThrow("TestLong", Err, True)
 7         TestLong = False
+End Function
+
+Function TestByte()
+          Dim x As Byte
+          Dim y As Variant
+1         On Error GoTo ErrHandler
+2         x = 200
+3         y = ThrowIfError(JuliaCall("identity", x))
+4         TestByte = (x = y) And VarType(y) = vbByte
+
+5         Exit Function
+ErrHandler:
+6         PrintTwice ReThrow("TestByte", Err, True)
+7         TestByte = False
 End Function
 
 Function TestLongLong()

@@ -15,6 +15,7 @@ Type indicators:
  %   Int16    (followed by decimal)
  &   Int32    (followed by decimal)
  ^   Int64    (followed by decimal)
+ B   UInt8    (followed by decimal; VBA's Byte, its only unsigned type)
  D   Date     (followed by Excel serial integer: days since 1899-12-30)
  G   DateTime (followed by 16 hex chars representing Excel serial as Float64)
  !   Error    (followed by Excel error number, e.g. 2042 for #N/A; decodes to ExcelError)
@@ -53,6 +54,8 @@ function decode_from_xl(s::String)
         parse(Int16, s[2:end])
     elseif c == '^'                #LongLong -> Int64
         parse(Int64, s[2:end])
+    elseif c == 'B'                #Byte -> UInt8
+        parse(UInt8, s[2:end])
     elseif c == 'S'                #Single -> Float32
         hex_to_float32(s[2:end])
     elseif c == 'D'                #Date, no time component -> Date
@@ -176,8 +179,10 @@ end
 """
     decode_xl_dict(s::String)
 
-Decode a dict-encoded string (starting with `H`) from the JuliaExcel wire format.
-Returns a `Dict{Any,Any}` with keys and values decoded by `decode_from_xl`.
+Decode a dict-encoded string (starting with `H`) from the JuliaExcel wire format, with keys and
+values decoded by `decode_from_xl`. Returns a typed `Dict{K,V}` when every key shares a concrete
+type `K` and every value shares a concrete type `V` (see `_maybe_typed` below - the same treatment
+`decode_xl_array` already gives arrays), otherwise `Dict{Any,Any}`.
 """
 function decode_xl_dict(s::String)
     # Format: H<count>;<key1_len>,<val1_len>,...,;<key1><val1>...
@@ -207,7 +212,7 @@ function decode_xl_dict(s::String)
         result[key] = val
         pos = val_end
     end
-    result
+    _maybe_typed(result)
 end
 
 # Convert Array{Any} to a typed array when all elements share the same concrete type.
@@ -219,5 +224,21 @@ function _maybe_typed(a::Array{Any})
         convert(Array{T}, a)
     catch
         a
+    end
+end
+
+# Convert Dict{Any,Any} to a typed Dict{K,V} when every key shares a concrete type K and every
+# value shares a concrete type V - mirrors _maybe_typed's treatment of arrays above.
+function _maybe_typed(d::Dict{Any,Any})
+    isempty(d) && return d
+    ks = collect(keys(d))
+    vs = collect(values(d))
+    K = typeof(ks[1])
+    V = typeof(vs[1])
+    (all(x -> typeof(x) === K, ks) && all(x -> typeof(x) === V, vs)) || return d
+    try
+        Dict{K,V}(d)
+    catch
+        d
     end
 end
