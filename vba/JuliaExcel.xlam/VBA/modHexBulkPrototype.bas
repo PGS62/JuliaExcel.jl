@@ -341,3 +341,85 @@ Function BulkHexDecodeBenchmark() As String
 ErrHandler:
 27        BulkHexDecodeBenchmark = ReThrow("BulkHexDecodeBenchmark", Err, True)
 End Function
+
+' ------------------------------------------------------------------------------------------------
+' Two things the above prototypes gloss over, both stemming from the same fact: a Variant() array
+' (what Range.Value2 always is, and what Unserialise's shared Ret() As Variant is declared as) is
+' NOT a packed buffer of raw Doubles the way a genuinely-typed Double() array is - each slot is its
+' own tagged Variant (16 bytes on 64-bit, not 8). So CopyMemory can't operate directly on either a
+' Variant() source (encode) or a Variant() destination (decode) - both need a bridging step to/from
+' a genuinely-typed Double() buffer, which is what the two tests below check the cost/feasibility of
+' before any of this gets wired into TrySerialiseArrayAsV/Unserialise for real.
+' ------------------------------------------------------------------------------------------------
+
+' Does assigning a whole genuinely-typed Double() array to a Variant in one shot (v = MyDoubleArray)
+' produce a working, correctly-typed array cheaply (a single SAFEARRAY-wrapping operation), or does
+' VBA silently box every element into its own Variant, same as the current per-element
+' "Ret(i) = HexToDouble(...)" loop already does? If the former, BulkDecodeA-style results can be
+' handed back as Unserialise's return value directly, without ever populating a Variant() array
+' element-by-element.
+Function TestVariantArrayAssignEfficiency() As String
+          Const NumCalls As Long = 50
+          Const VectorLength As Long = 100000
+          Dim c As Long
+          Dim i As Long
+          Dim Report As String
+          Dim RetLoop() As Variant
+          Dim RetWhole As Variant
+          Dim SourceD() As Double
+          Dim t1 As Double
+          Dim t2 As Double
+          Dim TotalLoop As Double
+          Dim TotalWhole As Double
+
+1         On Error GoTo ErrHandler
+2         ReDim SourceD(1 To VectorLength)
+3         For i = 1 To VectorLength
+4             SourceD(i) = Rnd() * 1000 - 500
+5         Next i
+
+          'Correctness check: both approaches should give an array with matching values/VarType.
+6         ReDim RetLoop(1 To VectorLength)
+7         For i = 1 To VectorLength
+8             RetLoop(i) = SourceD(i)
+9         Next i
+10        RetWhole = SourceD
+11        If LBound(RetWhole) <> 1 Or UBound(RetWhole) <> VectorLength Then Throw "RetWhole has unexpected bounds"
+12        If RetWhole(1) <> RetLoop(1) Or RetWhole(VectorLength) <> RetLoop(VectorLength) Then Throw "Value mismatch"
+13        If VarType(RetLoop(1)) <> vbDouble Or VarType(RetWhole(1)) <> vbDouble Then Throw "Unexpected VarType"
+
+14        For c = 1 To NumCalls
+15            t1 = ElapsedTime
+16            ReDim RetLoop(1 To VectorLength)
+17            For i = 1 To VectorLength
+18                RetLoop(i) = SourceD(i)
+19            Next i
+20            t2 = ElapsedTime
+21            TotalLoop = TotalLoop + (t2 - t1)
+
+22            t1 = ElapsedTime
+23            RetWhole = SourceD
+24            t2 = ElapsedTime
+25            TotalWhole = TotalWhole + (t2 - t1)
+26        Next c
+
+27        Report = "Per-element assign into Variant() array (today's approach) = " & CStr(TotalLoop / NumCalls) & " s" & vbLf & _
+              "Whole-array assign to a single Variant (v = MyDoubleArray)   = " & CStr(TotalWhole / NumCalls) & " s"
+28        Debug.Print "'" & Report
+29        TestVariantArrayAssignEfficiency = Report
+
+30        Exit Function
+ErrHandler:
+31        TestVariantArrayAssignEfficiency = ReThrow("TestVariantArrayAssignEfficiency", Err, True)
+End Function
+
+' Note: assigning a Double() array to a variable declared Variant() (an array type, as opposed to a
+' scalar Variant) is a COMPILE ERROR in VBA ("Can't assign to array") - confirmed empirically (it's
+' what blocked Excel while this file still had that line in it). Unlike the scalar-Variant case
+' above, there is no way to get the "whole-array, one cheap wrap" assignment behaviour into a
+' variable that's explicitly typed as an array of Variants - which is exactly how Unserialise's
+' shared Ret variable is declared (modUnserialise.bas). So wiring BulkDecodeA into production means
+' either building the V-format branch's own local scalar Variant and returning that directly
+' (bypassing Ret and the shared "Unserialise = Ret" line), or falling back to populating Ret
+' element-by-element as today (in which case only the hex-parsing side of BulkDecodeA's saving
+' applies, not this whole-array-assignment saving).
