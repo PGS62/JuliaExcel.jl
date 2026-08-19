@@ -130,7 +130,7 @@ Function TestBulkHexCorrectness() As Boolean
 4         x(3) = -1#
 5         x(4) = 3.14159265358979
 6         x(5) = -2.5
-7         x(6) = 1.7976931348623157E+308  ' near Double max
+7         x(6) = 1.79769313486231E+308    ' near Double max
 8         x(7) = 4.94065645841247E-324    ' smallest positive subnormal Double
 
 9         Expected = ReferenceEncode(x)
@@ -271,7 +271,7 @@ Function TestBulkHexDecodeCorrectness() As Boolean
 4         x(3) = -1#
 5         x(4) = 3.14159265358979
 6         x(5) = -2.5
-7         x(6) = 1.7976931348623157E+308  ' near Double max
+7         x(6) = 1.79769313486231E+308    ' near Double max
 8         x(7) = 4.94065645841247E-324    ' smallest positive subnormal Double
 
 9         Chars = ReferenceEncode(x)
