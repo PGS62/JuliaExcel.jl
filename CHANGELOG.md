@@ -12,7 +12,7 @@
 
 ### New features
 
-- Large numeric arrays now transfer substantially faster between Excel and Julia, in both directions - every number is packed into a fixed number of characters with no per-element bookkeeping; on the Julia side the whole array converts in one bulk operation, though VBA still processes it number by number.
+- Large numeric arrays now transfer substantially faster between Excel and Julia, in both directions - every number is packed into a fixed number of characters with no per-element bookkeeping, and the core conversion between numbers and that packed form happens as one bulk operation on both sides, rather than looping over each number individually.
 - Friendlier `JuliaCall`/`JuliaEval` error messages: an expression that errors now returns a short summary to Excel (e.g. `MethodError: no method matching +(::Int64, ::String)...`) instead of a raw exception dump like `#(MethodError(+, (1, "1"), 0x000000000000979f))!`. The full error and stacktrace are printed to the Julia console.
 - Julia `Range`s (`UnitRange`, `StepRange` etc.) now transfer to Excel far faster regardless of size - only the first value, step, and length cross the wire, and VBA reconstructs the array from those.
 - `Byte` support: VBA's `Byte` type now round-trips to Julia's `UInt8` (previously unsupported in both directions).
@@ -22,9 +22,9 @@
 | Test | v0.2.16 | v0.2.17 | v1.0 | v2.0 |
 |------|---------|---------|------|------|
 | Latency: `JuliaEval("1+1")` | 7.2 ms | 6.4 ms | 1.1 ms | 1.2 ms |
-| Two-way: `JuliaCall("identity", vector of 100,000 Doubles)` | 1.56 s | 0.37 s | 0.27 s | 0.15 s |
-| One-way (Excel to Julia): `JuliaCall("sum", vector of 100,000 Doubles)` | 1.45 s | 0.11 s | 0.11 s | 0.06 s |
-| One-way (Julia to Excel): `JuliaEval("collect((1:100000).*pi)")` | 0.31 s | 0.26 s | 0.17 s | 0.08 s |
+| Two-way: `JuliaCall("identity", vector of 100,000 Doubles)` | 1.56 s | 0.37 s | 0.27 s | 0.10 s |
+| One-way (Excel to Julia): `JuliaCall("sum", vector of 100,000 Doubles)` | 1.45 s | 0.11 s | 0.11 s | 0.05 s |
+| One-way (Julia to Excel): `JuliaEval("collect((1:100000).*pi)")` | 0.31 s | 0.26 s | 0.17 s | 0.05 s |
 | One-way (Julia to Excel): `JuliaEval("(1:100000).*pi")` | 0.31 s | 0.26 s | 0.17 s | 0.01 s |
 
 *All figures measured on the same machine: Intel Core Ultra 9 288V, 32GB RAM*

@@ -6,6 +6,12 @@ Attribute VB_Name = "modSerialise"
 Option Explicit
 Option Private Module
 
+#If VBA7 Then
+Private Declare PtrSafe Sub CopyMemory Lib "kernel32" Alias "RtlMoveMemory" (Destination As Any, Source As Any, ByVal Length As Long)
+#Else
+Private Declare Sub CopyMemory Lib "kernel32" Alias "RtlMoveMemory" (Destination As Any, Source As Any, ByVal Length As Long)
+#End If
+
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : SerialiseElement
 ' Purpose    : Encode a single VBA value (scalar or array) into the JuliaExcel wire format.
@@ -237,9 +243,15 @@ End Function
 '              array encoder still excludes NaN/Inf and falls back to general. Removing the check
 '              also removed the ~80ms/100,000-element cost of testing for it (see VFormatEncodeSpeedTest,
 '              modPerformance.bas).
+'              Per-element work here is now limited to the VarType check and copying the value into
+'              Buf(), a genuinely-typed Double() array - the hex encoding itself happens once, in
+'              bulk, via BulkHexOfDoubleArray below, rather than one DoubleToHex call per element.
+'              See BulkHexOfDoubleArray's own docstring for why, and modHexBulkPrototype.bas (a
+'              scratch, not-wired-in module) for the benchmark that measured it: ~30% faster than
+'              calling DoubleToHex per element, for a 100,000-element array.
 ' -----------------------------------------------------------------------------------------------------------------------
 Function TrySerialiseArrayAsV(ByVal x As Variant, ByRef EncodedV As String) As Boolean
-          Dim Chunks() As String
+          Dim Buf() As Double
           Dim Dims() As Long
           Dim DimStr() As String
           Dim El As Variant
@@ -260,33 +272,33 @@ Function TrySerialiseArrayAsV(ByVal x As Variant, ByRef EncodedV As String) As B
 3         Select Case NumDimensions(x)
               Case 1
 4                 n = UBound(x) - LBound(x) + 1
-5                 ReDim Chunks(1 To n)
+5                 ReDim Buf(1 To n)
 6                 k = 1
 7                 For i = LBound(x) To UBound(x)
 8                     If VarType(x(i)) <> vbDouble Then Exit Function
-9                     Chunks(k) = DoubleToHex(CDbl(x(i)))
+9                     Buf(k) = CDbl(x(i))
 10                    k = k + 1
 11                Next i
-12                EncodedV = "V1," & CStr(n) & ";" & VBA.Join$(Chunks, "")
+12                EncodedV = "V1," & CStr(n) & ";" & BulkHexOfDoubleArray(Buf)
 13                TrySerialiseArrayAsV = True
 
 14            Case 2
 15                NR = UBound(x, 1) - LBound(x, 1) + 1
 16                NC = UBound(x, 2) - LBound(x, 2) + 1
-17                ReDim Chunks(1 To NR * NC)
+17                ReDim Buf(1 To NR * NC)
 18                k = 1
 19                For j = LBound(x, 2) To UBound(x, 2)    ' column-major to match Julia
 20                    For i = LBound(x, 1) To UBound(x, 1)
 21                        If VarType(x(i, j)) <> vbDouble Then Exit Function
-22                        Chunks(k) = DoubleToHex(CDbl(x(i, j)))
+22                        Buf(k) = CDbl(x(i, j))
 23                        k = k + 1
 24                    Next i
 25                Next j
                   ' Nx1 -> 1D Vector, matching SerialiseElement's own Nx1 collapsing.
 26                If NC = 1 Then
-27                    EncodedV = "V1," & CStr(NR) & ";" & VBA.Join$(Chunks, "")
+27                    EncodedV = "V1," & CStr(NR) & ";" & BulkHexOfDoubleArray(Buf)
 28                Else
-29                    EncodedV = "V2," & CStr(NR) & "," & CStr(NC) & ";" & VBA.Join$(Chunks, "")
+29                    EncodedV = "V2," & CStr(NR) & "," & CStr(NC) & ";" & BulkHexOfDoubleArray(Buf)
 30                End If
 31                TrySerialiseArrayAsV = True
 
@@ -302,12 +314,12 @@ Function TrySerialiseArrayAsV(ByVal x As Variant, ByRef EncodedV As String) As B
 40                    Idx(q) = LBound(x, q)
 41                    Total = Total * Dims(q)
 42                Next q
-43                ReDim Chunks(1 To Total)
+43                ReDim Buf(1 To Total)
 44                k = 1
 45                Do
 46                    El = GetAt(x, Idx)
 47                    If VarType(El) <> vbDouble Then Exit Function
-48                    Chunks(k) = DoubleToHex(CDbl(El))
+48                    Buf(k) = CDbl(El)
 49                    k = k + 1
 50                    q = 1
 51                    Do While q <= Rank
@@ -318,12 +330,59 @@ Function TrySerialiseArrayAsV(ByVal x As Variant, ByRef EncodedV As String) As B
 56                    Loop
 57                    If q > Rank Then Exit Do
 58                Loop
-59                EncodedV = "V" & CStr(Rank) & "," & VBA.Join$(DimStr, ",") & ";" & VBA.Join$(Chunks, "")
+59                EncodedV = "V" & CStr(Rank) & "," & VBA.Join$(DimStr, ",") & ";" & BulkHexOfDoubleArray(Buf)
 60                TrySerialiseArrayAsV = True
 61        End Select
 
 62        Exit Function
 ErrHandler:
 63        ReThrow "TrySerialiseArrayAsV", Err
+End Function
+
+' -----------------------------------------------------------------------------------------------------------------------
+' Procedure  : BulkHexOfDoubleArray
+' Purpose    : Encodes a genuinely-typed Double() array as the "V" format's big-endian hex payload
+'              (16 hex characters per element, no delimiters) - the same bit-for-bit encoding
+'              DoubleToHex (modUnserialise.bas) produces per element, but for a whole array in one
+'              pass. One bulk RtlMoveMemory ("CopyMemory") call copies the array's raw bytes into a
+'              Byte() buffer, replacing N per-element LSet reinterpretations with a single memory
+'              copy; each element's 8 bytes are then mapped through a static 256-entry lookup table
+'              (built once, matching DoubleToHex's own table) to build its 16-character hex chunk.
+'              This avoids the per-element function-call overhead of invoking DoubleToHex N times,
+'              which a throwaway prototype (modHexBulkPrototype.bas, not wired into production, kept
+'              purely as a record of the benchmark) measured as a genuinely dominant cost - not a
+'              negligible one - worth roughly 30% for a 100,000-element array.
+'              A Double's 8 bytes are little-endian in memory on Windows; the wire format is
+'              big-endian (matching DoubleToHex), so each element's 8-byte group is read in reverse.
+'              Callers are expected to pass a non-empty array (Buf must have at least one element).
+' -----------------------------------------------------------------------------------------------------------------------
+Private Function BulkHexOfDoubleArray(ByRef Buf() As Double) As String
+          Static HexByte(0 To 255) As String
+          Static Initialized As Boolean
+          Dim base As Long
+          Dim bytes() As Byte
+          Dim Chunks() As String
+          Dim i As Long
+          Dim n As Long
+
+1         If Not Initialized Then
+2             For i = 0 To 255
+3                 HexByte(i) = Right$("0" & Hex$(i), 2)
+4             Next i
+5             Initialized = True
+6         End If
+
+7         n = UBound(Buf) - LBound(Buf) + 1
+8         ReDim bytes(1 To n * 8)
+9         CopyMemory bytes(1), Buf(LBound(Buf)), n * 8
+
+10        ReDim Chunks(1 To n)
+11        For i = 1 To n
+12            base = (i - 1) * 8
+13            Chunks(i) = HexByte(bytes(base + 8)) & HexByte(bytes(base + 7)) & HexByte(bytes(base + 6)) & HexByte(bytes(base + 5)) & _
+                  HexByte(bytes(base + 4)) & HexByte(bytes(base + 3)) & HexByte(bytes(base + 2)) & HexByte(bytes(base + 1))
+14        Next i
+
+15        BulkHexOfDoubleArray = VBA.Join$(Chunks, "")
 End Function
 
