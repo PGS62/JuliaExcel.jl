@@ -15,11 +15,14 @@ Type indicators:
  %   Int16    (followed by decimal)
  &   Int32    (followed by decimal)
  ^   Int64    (followed by decimal)
+ B   UInt8    (followed by decimal; VBA's Byte, its only unsigned type)
  D   Date     (followed by Excel serial integer: days since 1899-12-30)
  G   DateTime (followed by 16 hex chars representing Excel serial as Float64)
- !   Error    (followed by Excel error number, e.g. 2042 for #N/A)
+ !   Error    (followed by Excel error number, e.g. 2042 for #N/A; decodes to ExcelError)
  *   Array    (*<rank>,<d1>[,<d2>];<len1>,<len2>,...,;<elements> column-major)
  H   Dict     (H<count>;<key1_len>,<val1_len>,...,;<key1><val1>... pairs column-order)
+ V   Array of Float64 only (VBA -> Julia direction; see decode_xl_array_v below and
+     TrySerialiseArrayAsV in modSerialise.bas, which produces this format)
 
 See also VBA function SerialiseElement (modSerialise.bas) which serialises i.e. inverts this.
 =#
@@ -33,37 +36,41 @@ Inverse of `encode_for_xl`.
 function decode_from_xl(s::String)
     isempty(s) && return missing
     c = s[1]
-    if c == '#'
+    if c == '#'                    #Double -> Float64
         hex_to_float64(s[2:end])
-    elseif c == '£'
-        s[nextind(s, 1):end]                                   # skip the 2-byte £ prefix
-    elseif c == 'T'
+    elseif c == '£'                #String -> String 
+        s[nextind(s, 1):end]       # skip the 2-byte £ prefix
+    elseif c == 'T'                #Boolean True -> Bool true
         true
-    elseif c == 'F'
+    elseif c == 'F'                #Boolean False -> Bool false
         false
-    elseif c == 'E'
+    elseif c == 'E'                #Empty -> Missing
         missing
-    elseif c == 'N'
+    elseif c == 'N'                #Null -> Nothing
         nothing
-    elseif c == '&'
+    elseif c == '&'                #Long -> Int32
         parse(Int32, s[2:end])
-    elseif c == '%'
+    elseif c == '%'                #Integer -> Int16
         parse(Int16, s[2:end])
-    elseif c == '^'
+    elseif c == '^'                #LongLong -> Int64
         parse(Int64, s[2:end])
-    elseif c == 'S'
+    elseif c == 'B'                #Byte -> UInt8
+        parse(UInt8, s[2:end])
+    elseif c == 'S'                #Single -> Float32
         hex_to_float32(s[2:end])
-    elseif c == 'D'
+    elseif c == 'D'                #Date, no time component -> Date
         Dates.Date(1899, 12, 30) + Dates.Day(parse(Int, s[2:end]))
-    elseif c == 'G'
+    elseif c == 'G'                #Date, with time component -> DateTime
         Dates.DateTime(1899, 12, 30) +
             Dates.Millisecond(round(Int64, hex_to_float64(s[2:end]) * 86_400_000))
-    elseif c == '!'
-        "#ExcelError$(s[2:end])!"
-    elseif c == '*'
+    elseif c == '!'                #Error -> ExcelError
+        ExcelError(parse(Int, s[2:end]))
+    elseif c == '*'                #Array -> Array
         decode_xl_array(s)
-    elseif c == 'H'
+    elseif c == 'H'                #Dictionary -> Dict
         decode_xl_dict(s)
+    elseif c == 'V'                #Array of Doubles (compact) -> Array{Float64,N}
+        decode_xl_array_v(s)
     else
         error("decode_from_xl: unknown type indicator $(repr(c)) in '$(first(s, 50))'")
     end
@@ -140,10 +147,42 @@ function decode_xl_array(s::String)
 end
 
 """
+    decode_xl_array_v(s::String)
+
+Decode a "V"-format array-of-Float64 string (starting with `V`) - the compact encoding VBA's
+`TrySerialiseArrayAsV` (modSerialise.bas) produces for a 1- to 9-dimensional array whose elements
+are all finite Doubles: no per-element type indicator or length, since every element is always
+exactly 16 hex characters. This function itself places no limit on rank - `reshape` works for any
+N - the 1-9 cap is on the VBA-encode side, matching VBA's own GetAt/ReDimVariantArray cap
+elsewhere in the codebase. Unlike `decode_xl_array`, this never needs `_maybe_typed` -
+`reinterpret`/`reshape` already produce a genuinely typed `Array{Float64,N}` directly.
+
+The hex is big-endian (matching `hex_to_float64`'s scalar convention), produced on the VBA side by
+plain `DoubleToHex` (no byte reordering needed there, since VBA already reads/writes hex MSB-first)
+- decoded here by `hex2bytes` (giving the bytes in wire/big-endian order) followed by `bswap` to
+get the native (little-endian) `UInt64` bit pattern before reinterpreting as `Float64`. This is the
+same convention `encode_for_xl(x::Array{Float64,N})` (encode.jl) uses for the Julia -> Excel
+direction, just decoded instead of encoded.
+"""
+function decode_xl_array_v(s::String)
+    # Format: V<rank>,<d1>[,<d2>];<hex, no delimiters, 16 hex chars per Float64>
+    p1 = findfirst(isequal(';'), s)::Int
+    parts = split(s[2:p1-1], ',')
+    rank = parse(Int, parts[1])
+    dims = tuple(parse.(Int, parts[2:end])...)
+
+    raw = hex2bytes(s[p1+1:end])
+    vals = reinterpret(Float64, bswap.(reinterpret(UInt64, raw)))
+    rank == 1 ? collect(vals) : reshape(collect(vals), dims)
+end
+
+"""
     decode_xl_dict(s::String)
 
-Decode a dict-encoded string (starting with `H`) from the JuliaExcel wire format.
-Returns a `Dict{Any,Any}` with keys and values decoded by `decode_from_xl`.
+Decode a dict-encoded string (starting with `H`) from the JuliaExcel wire format, with keys and
+values decoded by `decode_from_xl`. Returns a typed `Dict{K,V}` when every key shares a concrete
+type `K` and every value shares a concrete type `V` (see `_maybe_typed` below - the same treatment
+`decode_xl_array` already gives arrays), otherwise `Dict{Any,Any}`.
 """
 function decode_xl_dict(s::String)
     # Format: H<count>;<key1_len>,<val1_len>,...,;<key1><val1>...
@@ -173,7 +212,7 @@ function decode_xl_dict(s::String)
         result[key] = val
         pos = val_end
     end
-    result
+    _maybe_typed(result)
 end
 
 # Convert Array{Any} to a typed array when all elements share the same concrete type.
@@ -185,5 +224,21 @@ function _maybe_typed(a::Array{Any})
         convert(Array{T}, a)
     catch
         a
+    end
+end
+
+# Convert Dict{Any,Any} to a typed Dict{K,V} when every key shares a concrete type K and every
+# value shares a concrete type V - mirrors _maybe_typed's treatment of arrays above.
+function _maybe_typed(d::Dict{Any,Any})
+    isempty(d) && return d
+    ks = collect(keys(d))
+    vs = collect(values(d))
+    K = typeof(ks[1])
+    V = typeof(vs[1])
+    (all(x -> typeof(x) === K, ks) && all(x -> typeof(x) === V, vs)) || return d
+    try
+        Dict{K,V}(d)
+    catch
+        d
     end
 end

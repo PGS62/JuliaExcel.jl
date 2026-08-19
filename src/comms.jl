@@ -111,12 +111,38 @@ function srv_eval_inner(expression::String)::String
             println("Something went wrong evaluating the expression:")
             println(expression)
         end
-        showerror(stdout, e, catch_backtrace())
-        println("")
-        println("="^100)
-        truncate("#($e)!", 10000)
+        friendly_error(e)
     end
     Base.invokelatest(_encode_result_for_xl, result)
+end
+
+"""
+    friendly_error(e)::String
+
+Reports an error to both the Julia console and back to Excel, to be called from a `catch e`
+block in `srv_eval_inner`/`srv_call_inner`. Prints the full error to `stdout`, including `e`'s
+stacktrace via `catch_backtrace()`, for inspection in the Julia REPL - then returns a short summary
+string to send back to Excel as the encoded result.
+
+The returned summary is deliberately short: only the first two lines of `showerror(io, e)` (the
+exception's own message - `showerror` only appends a stacktrace when explicitly passed one, which
+this call doesn't), further capped at 500 characters. Even without a stacktrace, a `MethodError`'s
+"Closest candidates are:" section can run long for a heavily overloaded function (e.g. `+`), so
+without this cap a single error could still flood the cell. "Julia REPL has more details and
+stacktrace!" points the user at where the full detail actually lives.
+"""
+function friendly_error(e)
+    showerror(stdout, e, catch_backtrace())
+    println("")
+    println("="^100)
+    io = IOBuffer()
+    showerror(io, e)
+    lines = split(String(take!(io)), '\n')
+    error_desc = join(first(lines, 2), ' ')
+    if length(error_desc) > 500
+        error_desc = truncate(error_desc, 500) * "..."
+    end
+    return "#$error_desc Julia REPL has more details and stacktrace!"
 end
 
 """
@@ -152,10 +178,7 @@ function srv_call_inner(payload::String)::String
         println("="^100)
         call_desc = broadcasting ? "$fn_name.(JuliaExcel.args_from_xl...)" : "$fn_name(JuliaExcel.args_from_xl...)"
         println("Something went wrong calling the Julia function $fn_name from Excel, against arguments saved in JuliaExcel.args_from_xl (until overwritten by the next call), so the error should be reproducible from here with '$call_desc'.")
-        showerror(stdout, e, catch_backtrace())
-        println("")
-        println("="^100)
-        truncate("#($e)!", 10000)
+        friendly_error(e)
     end
     Base.invokelatest(_encode_result_for_xl, result)
 end

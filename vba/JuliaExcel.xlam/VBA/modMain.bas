@@ -15,6 +15,7 @@ Private Declare Function IsWindow Lib "user32" (ByVal hwnd As Long) As Long
 #End If
 
 Public Const gPackageName As String = "JuliaExcel"
+Public Const gTestCommandOptions = "" 'So we use the default Julia environment
 
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure : JuliaIsRunning
@@ -596,67 +597,6 @@ ErrHandler:
 21        ReThrow "ConcatenateExpressions", Err
 End Function
 
-'--------------------------------------------------
-'05-Nov-2021 16:18:37        DESKTOP-0VD2AF0
-'Expression = fill("xxx", 1000, 1000)
-'Average time in JuliaEval    1.47189380999916
-'--------------------------------------------------
-'06-Nov-2021 12:28:58        PHILIP-LAPTOP
-'Expression = fill("xxx", 1000, 1000)
-'Average time in JuliaEval    1.9295860900078
-'--------------------------------------------------
-'30-Nov-2021 10:13:30        PHILIP-LAPTOP
-'Expression = fill("xxx", 1000, 1000)
-'Average time in JuliaEval    2.82354638000252  <--- Mmm, why the slowdown since 6-Nov version? Use of Assign?
-'--------------------------------------------------
-'01-Dec-2021 10:30:10       DESKTOP-0VD2AF0
-'Expression = fill("xxx",1000,1000)
-'Average time in JuliaEval   2.25666286000051   <-- also seeing slowdown on PC in the office
-'--------------------------------------------------
-'20-Sep-2023 16:34:52       DESKTOP-HSGAM5S
-'Expression = fill("xxx",1000,1000)
-'Average time in JuliaEval   1.42395350000006  <-- higher spec PC
-'--------------------------------------------------
-'29-Oct-2025 18:40:16       PHILIP-HPZ1
-'Expression = fill("xxx",1000,1000)
-'Average time in JuliaEval   2.66512269999985           Averaged over 10 calls
-'--------------------------------------------------
-'22-Dec-2025 15:57:14       MSI
-'Expression = fill("xxx",1000,1000)
-'Average time in JuliaEval   1.7418744300001            Averaged over 20 calls
-'--------------------------------------------------
-Private Sub SpeedTest()
-
-          Const Expression As String = "fill(""xxx"",1000,1000)"
-          Const UseLinux As Boolean = False
-          Const NumCalls = 20
-          Dim i As Long
-          Dim Res As Variant
-          Dim t1 As Double
-          Dim t2 As Double
-
-1         JuliaLaunch UseLinux
-2         t1 = ElapsedTime
-3         For i = 1 To NumCalls
-4             Res = JuliaEval(Expression)
-5         Next i
-6         t2 = ElapsedTime
-
-7         Debug.Print "'" & Format(Now(), "dd-mmm-yyyy hh:mm:ss"), Environ("ComputerName")
-8         Debug.Print "'Expression = " & Expression
-9         Debug.Print "'Average time in JuliaEval", (t2 - t1) / NumCalls, "Averaged over " & CStr(NumCalls) & " calls"
-10        Debug.Print "'--------------------------------------------------"
-End Sub
-
-'--------------------------------------------------
-'29-Oct-2025 18:37:22       PHILIP-HPZ1
-'Expression = 1+1
-'Average time in JuliaEval   6.16188229999898E-03       Averaged over 1000 calls
-'--------------------------------------------------
-'22-Dec-2025 15:58:22       MSI
-'Expression = 1+1
-'Average time in JuliaEval   0.015039338300001          Averaged over 1000 calls
-'--------------------------------------------------
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : JuliaCall_LowLevel
 ' Purpose    : Shared dispatch for JuliaCall and JuliaCallVBA. POSTs EncodedArgs (a 1D array in the
@@ -669,19 +609,22 @@ End Sub
 '              an argument in any call, so the encoding loop is duplicated in each public wrapper.
 ' -----------------------------------------------------------------------------------------------------------------------
 Private Function JuliaCall_LowLevel(EncodedArgs As String, IsFromWorksheet As Boolean)
+          Dim HttpResult As String
+
 1         On Error GoTo ErrHandler
 2         If GetJuliaPort() = 0 Then
 3             JuliaCall_LowLevel = "#Please call JuliaLaunch before calling JuliaEval or JuliaCall!"
 4             Exit Function
 5         End If
 6         If IsFromWorksheet Then
-7             Assign JuliaCall_LowLevel, UnserialiseFromString(JuliaHttpPost(EncodedArgs, "/call"), False, GetStringLengthLimit(), True)
-8         Else
-9             Assign JuliaCall_LowLevel, UnserialiseFromString(JuliaHttpPost(EncodedArgs, "/call"), True, 0, False)
-10        End If
-11        Exit Function
+7             HttpResult = JuliaHttpPost(EncodedArgs, "/call")
+8             Assign JuliaCall_LowLevel, UnserialiseFromString(HttpResult, False, GetStringLengthLimit(), True)
+9         Else
+10            Assign JuliaCall_LowLevel, UnserialiseFromString(JuliaHttpPost(EncodedArgs, "/call"), True, 0, False)
+11        End If
+12        Exit Function
 ErrHandler:
-12        ReThrow "JuliaCall_LowLevel", Err
+13        ReThrow "JuliaCall_LowLevel", Err
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
@@ -745,7 +688,7 @@ End Function
 '             or Range. Ranges are expanded to their .Value2 before encoding.
 ' -----------------------------------------------------------------------------------------------------------------------
 Public Function JuliaCallVBA(JuliaFunction As String, ParamArray Args())
-Attribute JuliaCallVBA.VB_Description = "Call a named Julia function from VBA. Differs from JuliaCall in handling of 1-d arrays and strings longer than 32,767 characters. May return data of types that cannot be displayed on a worksheet, such as a dictionary, an array of arrays, or arrays of dim…"
+Attribute JuliaCallVBA.VB_Description = "Call a named Julia function from VBA. Differs from JuliaCall in handling of 1-d arrays and strings longer than 32,767 characters. May return data of types that cannot be displayed on a worksheet, such as a dictionary, an array of arrays, or arrays of dimï¿½"
 Attribute JuliaCallVBA.VB_ProcData.VB_Invoke_Func = " \n14"
           Dim Arg As Variant
           Dim ContentsSection As String
@@ -775,30 +718,3 @@ Attribute JuliaCallVBA.VB_ProcData.VB_Invoke_Func = " \n14"
 ErrHandler:
 16        ReThrow "JuliaCallVBA", Err
 End Function
-
-Private Sub SpeedTest2()
-
-          Const Expression As String = "1+1"
-          Const UseLinux As Boolean = False
-          Const NumCalls = 1000
-          Dim i As Long
-          Dim Res As Variant
-          Dim t1 As Double
-          Dim t2 As Double
-
-1         JuliaLaunch UseLinux
-2         t1 = ElapsedTime
-3         For i = 1 To NumCalls
-4             Res = JuliaEval(Expression)
-5             If Res <> 2 Then Stop
-6         Next i
-7         t2 = ElapsedTime
-
-8         Debug.Print "'" & Format(Now(), "dd-mmm-yyyy hh:mm:ss"), Environ("ComputerName")
-9         Debug.Print "'Expression = " & Expression
-10        Debug.Print "'Average time in JuliaEval", (t2 - t1) / NumCalls, "Averaged over " & CStr(NumCalls) & " calls"
-11        Debug.Print "'--------------------------------------------------"
-End Sub
-
-
-

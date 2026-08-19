@@ -29,6 +29,22 @@
                 "focus": true
             },
             "problemMatcher": []
+        },
+        {
+            "label": "VBA: Run Tests",
+            "type": "shell",
+            "command": "powershell -File \"${workspaceFolder}/scripts/Run-VbaTests.ps1\"",
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "clear": true,
+                "focus": true
+            },
+            "problemMatcher": []
         }
     ]
 }

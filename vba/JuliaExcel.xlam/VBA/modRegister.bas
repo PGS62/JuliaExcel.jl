@@ -81,7 +81,6 @@ ErrHandler:
 35        Debug.Print "#RegisterJuliaExcelFunctionsWithFunctionWizard (line " & CStr(Erl) + "): " & Err.Description & "!"
 End Sub
 
-
 Private Function Trim255(Text As String)
 
 1         If Len(Text) < 255 Then

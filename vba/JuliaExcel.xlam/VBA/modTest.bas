@@ -17,7 +17,6 @@ ErrHandler:
 6     Debug.Print TestExitAndRelaunch
 End Function
 
-
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : RunTests
 ' Purpose    : Test JuliaCall for a variety of data types. For each data type we check that x is identical to
@@ -35,7 +34,7 @@ Function RunTests(Optional SilentMode = False)
 
 2         JuliaEval "exit()"
 3         PreciseSleep 1000 'Give time to shut down properly, otherwise launch can fail thinking Julia still running but unresponsive
-4         ThrowIfError JuliaLaunch()
+4         ThrowIfError JuliaLaunch(, , gTestCommandOptions)
 
 5         PrintTwice vbLf & String(80, "=")
 6         PrintTwice "JuliaExcel RunTests"
@@ -64,31 +63,51 @@ Function RunTests(Optional SilentMode = False)
 28        AccResult "TestOneDArraysDisplayAsOneColumnOnSheet", TestOneDArraysDisplayAsOneColumnOnSheet, NumPassed, NumFailed
 29        AccResult "TestElType", TestElType, NumPassed, NumFailed
 30        AccResult "TestBroadcasting", TestBroadcasting, NumPassed, NumFailed
+31        AccResult "TestNaNFallback", TestNaNFallback, NumPassed, NumFailed
+32        AccResult "TestInfFallback", TestInfFallback, NumPassed, NumFailed
+33        AccResult "TestVFormatVectorColumn", TestVFormatVectorColumn, NumPassed, NumFailed
+34        AccResult "TestVFormatMatrixNonSquare", TestVFormatMatrixNonSquare, NumPassed, NumFailed
+35        AccResult "TestMatrixNaNFallback", TestMatrixNaNFallback, NumPassed, NumFailed
+36        AccResult "TestVFormatEmptyArrayFallback", TestVFormatEmptyArrayFallback, NumPassed, NumFailed
+37        AccResult "TestSerialiseArrayAsV", TestSerialiseArrayAsV, NumPassed, NumFailed
+38        AccResult "TestVEncodeFromVariantArray", TestVEncodeFromVariantArray, NumPassed, NumFailed
+39        AccResult "TestVFormat3DArray", TestVFormat3DArray, NumPassed, NumFailed
+40        AccResult "TestRangeIntegerVsCollect", TestRangeIntegerVsCollect, NumPassed, NumFailed
+41        AccResult "TestRangeStepVsCollect", TestRangeStepVsCollect, NumPassed, NumFailed
+42        AccResult "TestRangeFloatVsCollect", TestRangeFloatVsCollect, NumPassed, NumFailed
+43        AccResult "TestRangeJuliaEvalVBAIsOneD", TestRangeJuliaEvalVBAIsOneD, NumPassed, NumFailed
+44        AccResult "TestRangeJuliaEvalIsColumn", TestRangeJuliaEvalIsColumn, NumPassed, NumFailed
+45        AccResult "TestRangeWireFormat", TestRangeWireFormat, NumPassed, NumFailed
+46        AccResult "TestNaNInfRoundTripViaV", TestNaNInfRoundTripViaV, NumPassed, NumFailed
+47        AccResult "TestExcelErrorRoundTrip", TestExcelErrorRoundTrip, NumPassed, NumFailed
+48        AccResult "TestByte", TestByte, NumPassed, NumFailed
+49        AccResult "TestVFormatBoundarySizes", TestVFormatBoundarySizes, NumPassed, NumFailed
 
-31        Prompt = NumPassed & " test(s) passed" & vbLf & _
+50        Prompt = NumPassed & " test(s) passed" & vbLf & _
               NumFailed & " test(s) failed"
 
-32        If NumFailed > 0 Then
-33            Prompt = Prompt & vbLf & vbLf & _
+51        If NumFailed > 0 Then
+52            Prompt = Prompt & vbLf & vbLf & _
                   "See VBA Immediate window for details"
-34        End If
+53        End If
 
-35        PrintTwice NumPassed & " test(s) passed"
-36        PrintTwice NumFailed & " test(s) failed"
-37        PrintTwice String(80, "=")
+54        PrintTwice NumPassed & " test(s) passed"
+55        PrintTwice NumFailed & " test(s) failed"
+56        PrintTwice String(80, "=")
 
-38        If Not SilentMode Then
-39            MsgBox Prompt, IIf(NumFailed = 0, vbInformation, vbCritical), Title
-40        End If
+57        If Not SilentMode Then
+58            AppActivate Application.Caption
+59            MsgBox Prompt, IIf(NumFailed = 0, vbInformation, vbCritical), Title
+60        End If
 
-41        RunTests = NumFailed = 0
+61        RunTests = NumFailed = 0
 
-42        Exit Function
+62        Exit Function
 ErrHandler:
-43        If Not SilentMode Then
-44            MsgBox ReThrow("RunTests", Err, True), vbCritical, Title
-45        End If
-46        RunTests = False
+63        If Not SilentMode Then
+64            MsgBox ReThrow("RunTests", Err, True), vbCritical, Title
+65        End If
+66        RunTests = False
 End Function
 
 Sub PrintTwice(Text As String)
@@ -191,6 +210,59 @@ Function TestLong()
 ErrHandler:
 6         PrintTwice ReThrow("TestLong", Err, True)
 7         TestLong = False
+End Function
+
+Function TestByte()
+          Dim x As Byte
+          Dim y As Variant
+1         On Error GoTo ErrHandler
+2         x = 200
+3         y = ThrowIfError(JuliaCall("identity", x))
+4         TestByte = (x = y) And VarType(y) = vbByte
+
+5         Exit Function
+ErrHandler:
+6         PrintTwice ReThrow("TestByte", Err, True)
+7         TestByte = False
+End Function
+
+' Confirms TrySerialiseArrayAsV/Unserialise's "V" format round-trips correctly across a range of
+' array sizes, particularly at small boundaries (1, 2, 3) and well beyond the usual 100,000-element
+' benchmark size - added 2026-08-19 alongside the bulk CopyMemory-based rewrite of both the encode
+' (BulkHexOfDoubleArray, modSerialise.bas) and decode (BulkDoublesFromHex, modUnserialise.bas)
+' helpers, to directly exercise the byte-count arithmetic at sizes the standard performance tests
+' never varied. TrySerialiseArrayAsV/Unserialise are called directly (the real production functions,
+' not the now-deleted throwaway prototype - see git history) so this tests the actual code path.
+Function TestVFormatBoundarySizes() As Boolean
+          Dim EncodedV As String
+          Dim i As Long
+          Dim Idx As Long
+          Dim OK As Boolean
+          Dim Sizes As Variant
+          Dim Sz As Long
+          Dim x() As Double
+          Dim y As Variant
+
+1         On Error GoTo ErrHandler
+2         Sizes = Array(1, 2, 3, 7, 8, 9, 17, 100, 1000, 1000000)
+
+3         For Idx = LBound(Sizes) To UBound(Sizes)
+4             Sz = Sizes(Idx)
+5             ReDim x(1 To Sz)
+6             For i = 1 To Sz
+7                 x(i) = (i - Sz / 2) * 1.5 + 0.25   ' varied: negative, positive, fractional values
+8             Next i
+9             OK = TrySerialiseArrayAsV(x, EncodedV)
+10            If Not OK Then Throw "TrySerialiseArrayAsV declined for size " & Sz
+11            y = UnserialiseFromString(EncodedV, False, GetStringLengthLimit(), False)
+12            If Not ArraysIdentical(x, y) Then Throw "Round trip mismatch for size " & Sz
+13        Next Idx
+
+14        TestVFormatBoundarySizes = True
+15        Exit Function
+ErrHandler:
+16        PrintTwice ReThrow("TestVFormatBoundarySizes", Err, True)
+17        TestVFormatBoundarySizes = False
 End Function
 
 Function TestLongLong()
@@ -517,5 +589,415 @@ Function TestBroadcasting()
 ErrHandler:
 10        PrintTwice ReThrow("TestBroadcasting", Err, True)
 11        TestBroadcasting = False
+End Function
+
+' Checks that a Vector{Float64} containing a NaN falls back from the compact "V" wire format to
+' the general "*" format (see encode_for_xl(::Vector{Float64}) in src/encode.jl), so that the NaN
+' element arrives as the Excel error #N/A rather than corrupting the fast binary decode.
+Function TestNaNFallback()
+          Dim Expected(1 To 3, 1 To 1) As Variant
+          Dim y As Variant
+
+1         On Error GoTo ErrHandler
+2         Expected(1, 1) = 1#
+3         Expected(2, 1) = 2#
+4         Expected(3, 1) = CVErr(2042) '#N/A
+5         y = ThrowIfError(JuliaEval("[1.0,2.0,NaN]"))
+6         TestNaNFallback = ArraysIdentical(Expected, y)
+
+7         Exit Function
+ErrHandler:
+8         PrintTwice ReThrow("TestNaNFallback", Err, True)
+9         TestNaNFallback = False
+End Function
+
+' As TestNaNFallback, but for Inf, which falls back to the general format because it also can't be
+' round-tripped through the compact "V" format's plain hex-encoded Double representation.
+Function TestInfFallback()
+          Dim Expected(1 To 3, 1 To 1) As Variant
+          Dim y As Variant
+
+1         On Error GoTo ErrHandler
+2         Expected(1, 1) = 1#
+3         Expected(2, 1) = 2#
+4         Expected(3, 1) = CVErr(2036) '#NUM!
+5         y = ThrowIfError(JuliaEval("[1.0,2.0,Inf]"))
+6         TestInfFallback = ArraysIdentical(Expected, y)
+
+7         Exit Function
+ErrHandler:
+8         PrintTwice ReThrow("TestInfFallback", Err, True)
+9         TestInfFallback = False
+End Function
+
+' Exercises the Case 86 'V' branch's "JuliaVectorToXLColumn = True" path (modUnserialise.bas), used
+' by JuliaCall/JuliaEval but not by JuliaCallVBA - Test1DArrayOfDoubles/TestExactRoundTripping only
+' cover the False (native VBA 1-D array) path, via JuliaCallVBA.
+Function TestVFormatVectorColumn()
+          Dim Expected(1 To 4, 1 To 1) As Variant
+          Dim x() As Double
+          Dim y As Variant
+
+1         On Error GoTo ErrHandler
+2         ReDim x(1 To 4)
+3         x(1) = 1.5: x(2) = -2.25: x(3) = 0#: x(4) = 100000.125
+4         Expected(1, 1) = x(1): Expected(2, 1) = x(2)
+5         Expected(3, 1) = x(3): Expected(4, 1) = x(4)
+6         y = ThrowIfError(JuliaCall("identity", x))
+7         TestVFormatVectorColumn = ArraysIdentical(Expected, y)
+
+8         Exit Function
+ErrHandler:
+9         PrintTwice ReThrow("TestVFormatVectorColumn", Err, True)
+10        TestVFormatVectorColumn = False
+End Function
+
+' Exercises the Case 86 'V' branch's rank-2 (matrix) path with a non-square shape and distinct
+' values in every cell, to catch a row/column transposition bug that a square test could mask.
+Function TestVFormatMatrixNonSquare()
+          Dim Expected(1 To 2, 1 To 3) As Variant
+          Dim x(1 To 2, 1 To 3) As Double
+          Dim y As Variant
+
+1         On Error GoTo ErrHandler
+2         x(1, 1) = 1.1: x(1, 2) = 2.2: x(1, 3) = 3.3
+3         x(2, 1) = 4.4: x(2, 2) = 5.5: x(2, 3) = 6.6
+4         Expected(1, 1) = x(1, 1): Expected(1, 2) = x(1, 2): Expected(1, 3) = x(1, 3)
+5         Expected(2, 1) = x(2, 1): Expected(2, 2) = x(2, 2): Expected(2, 3) = x(2, 3)
+6         y = JuliaCallVBA("identity", x)
+7         TestVFormatMatrixNonSquare = ArraysIdentical(Expected, y)
+
+8         Exit Function
+ErrHandler:
+9         PrintTwice ReThrow("TestVFormatMatrixNonSquare", Err, True)
+10        TestVFormatMatrixNonSquare = False
+End Function
+
+' As TestNaNFallback, but for encode_for_xl(::Matrix{Float64}) - a separate method in src/encode.jl
+' with its own NaN/Inf fallback guard, not covered by the vector-only NaN/Inf tests above.
+Function TestMatrixNaNFallback()
+          Dim Expected(1 To 2, 1 To 3) As Variant
+          Dim y As Variant
+
+1         On Error GoTo ErrHandler
+2         Expected(1, 1) = 1#: Expected(1, 2) = 2#: Expected(1, 3) = 3#
+3         Expected(2, 1) = 4#
+4         Expected(2, 2) = CVErr(2042) '#N/A
+5         Expected(2, 3) = 6#
+6         y = ThrowIfError(JuliaEval("[1.0 2.0 3.0; 4.0 NaN 6.0]"))
+7         TestMatrixNaNFallback = ArraysIdentical(Expected, y)
+
+8         Exit Function
+ErrHandler:
+9         PrintTwice ReThrow("TestMatrixNaNFallback", Err, True)
+10        TestMatrixNaNFallback = False
+End Function
+
+' Checks the n = 0 guard in encode_for_xl(::Vector{Float64}) (src/encode.jl) correctly routes an
+' empty Float64 vector to the general "*" array format rather than attempting a zero-length "V"
+' payload. The general format represents a zero-element 1-D array (when AllowNesting is True, as it
+' is for JuliaEvalVBA) as a zero-length array, via VBA.Split(vbNullString) in Unserialise
+' (modUnserialise.bas) - not something introduced by "V".
+Function TestVFormatEmptyArrayFallback()
+          Dim y As Variant
+
+1         On Error GoTo ErrHandler
+2         y = ThrowIfError(JuliaEvalVBA("Float64[]"))
+3         TestVFormatEmptyArrayFallback = IsArray(y) And (UBound(y) < LBound(y))
+
+4         Exit Function
+ErrHandler:
+5         PrintTwice ReThrow("TestVFormatEmptyArrayFallback", Err, True)
+6         TestVFormatEmptyArrayFallback = False
+End Function
+
+' Direct unit test of TrySerialiseArrayAsV (modSerialise.bas) - the Excel -> Julia direction "V"
+' encoder wired into SerialiseElement. Checks the exact wire string for a vector and a (non-square,
+' column-major) matrix, that it correctly declines (returns False) for a mixed-type array, and
+' (since 2026-08-18 - see TrySerialiseArrayAsV's own docstring for why no NaN/Inf check is needed on
+' this side) that it now SUCCEEDS for an array containing NaN/Infinity, producing the same raw
+' bit-pattern encoding as any other Double. NaN/Infinity Doubles can't be produced by ordinary VBA
+' arithmetic (which raises a runtime error on overflow rather than returning a special value), so
+' they're constructed here via HexToDouble on the standard IEEE-754 bit patterns, the same trick
+' DoubleToHex/HexToDouble themselves rely on.
+Function TestSerialiseArrayAsV()
+          Dim EncodedV As String
+          Dim OK As Boolean
+          Dim x() As Double
+          Dim x2D(1 To 2, 1 To 3) As Double
+          Dim xInf(1 To 2) As Double
+          Dim xMixed(1 To 3) As Variant
+          Dim xNaN(1 To 2) As Double
+
+1         On Error GoTo ErrHandler
+
+2         ReDim x(1 To 3)
+3         x(1) = 1#: x(2) = -2.5: x(3) = 3.14159265358979
+4         OK = TrySerialiseArrayAsV(x, EncodedV)
+5         If Not OK Then Throw "Expected TrySerialiseArrayAsV to succeed for an all-Double vector"
+6         If EncodedV <> "V1,3;" & DoubleToHex(x(1)) & DoubleToHex(x(2)) & DoubleToHex(x(3)) Then _
+              Throw "Unexpected 'V' encoding for a Double vector"
+
+7         x2D(1, 1) = 1: x2D(1, 2) = 2: x2D(1, 3) = 3
+8         x2D(2, 1) = 4: x2D(2, 2) = 5: x2D(2, 3) = 6
+9         OK = TrySerialiseArrayAsV(x2D, EncodedV)
+10        If Not OK Then Throw "Expected TrySerialiseArrayAsV to succeed for an all-Double matrix"
+11        If EncodedV <> "V2,2,3;" & DoubleToHex(1#) & DoubleToHex(4#) & DoubleToHex(2#) & _
+              DoubleToHex(5#) & DoubleToHex(3#) & DoubleToHex(6#) Then _
+              Throw "Unexpected 'V' encoding for a Double matrix (expected column-major)"
+
+12        xMixed(1) = 1#: xMixed(2) = "foo": xMixed(3) = 3#
+13        OK = TrySerialiseArrayAsV(xMixed, EncodedV)
+14        If OK Then Throw "Expected TrySerialiseArrayAsV to decline a mixed-type array"
+
+15        xNaN(1) = 1#
+16        xNaN(2) = HexToDouble("7FF8000000000000") 'quiet NaN
+17        OK = TrySerialiseArrayAsV(xNaN, EncodedV)
+18        If Not OK Then Throw "Expected TrySerialiseArrayAsV to succeed for an array containing NaN"
+19        If EncodedV <> "V1,2;" & DoubleToHex(xNaN(1)) & DoubleToHex(xNaN(2)) Then _
+              Throw "Unexpected 'V' encoding for an array containing NaN"
+
+20        xInf(1) = 1#
+21        xInf(2) = HexToDouble("7FF0000000000000") 'positive infinity
+22        OK = TrySerialiseArrayAsV(xInf, EncodedV)
+23        If Not OK Then Throw "Expected TrySerialiseArrayAsV to succeed for an array containing Infinity"
+24        If EncodedV <> "V1,2;" & DoubleToHex(xInf(1)) & DoubleToHex(xInf(2)) Then _
+              Throw "Unexpected 'V' encoding for an array containing Infinity"
+
+25        TestSerialiseArrayAsV = True
+
+26        Exit Function
+ErrHandler:
+27        PrintTwice ReThrow("TestSerialiseArrayAsV", Err, True)
+28        TestSerialiseArrayAsV = False
+End Function
+
+' Confirms that removing TrySerialiseArrayAsV's NaN/Inf check (2026-08-18) didn't change end-to-end
+' behaviour: an array containing NaN/Infinity now travels Excel -> Julia via the fast "V" path (raw
+' bit pattern, no translation) rather than falling back to the general format, but Julia's own
+' outbound encode_for_xl(::Float64) still correctly maps NaN -> #N/A and Infinity -> #NUM! on the
+' way back - exactly as it does for a literal Julia-side NaN/Inf (TestNaNFallback/TestInfFallback).
+Function TestNaNInfRoundTripViaV()
+          Dim Expected(1 To 4, 1 To 1) As Variant
+          Dim x(1 To 4) As Double
+          Dim y As Variant
+
+1         On Error GoTo ErrHandler
+2         x(1) = 1#
+3         x(2) = HexToDouble("7FF8000000000000") 'quiet NaN
+4         x(3) = 2#
+5         x(4) = HexToDouble("7FF0000000000000") 'positive infinity
+
+6         Expected(1, 1) = 1#
+7         Expected(2, 1) = CVErr(2042) '#N/A
+8         Expected(3, 1) = 2#
+9         Expected(4, 1) = CVErr(2036) '#NUM!
+
+10        y = ThrowIfError(JuliaCall("identity", x))
+11        TestNaNInfRoundTripViaV = ArraysIdentical(Expected, y)
+
+12        Exit Function
+ErrHandler:
+13        PrintTwice ReThrow("TestNaNInfRoundTripViaV", Err, True)
+14        TestNaNInfRoundTripViaV = False
+End Function
+
+' Confirms Excel errors now round-trip correctly through Julia via JuliaCall("identity", ...):
+' Julia decodes an incoming VBA error to the ExcelError type (JuliaExcel.jl, added 2026-08-18)
+' rather than a plain String, so a function like "identity" that doesn't know about errors
+' specifically passes the value straight through unchanged, and Julia's own
+' encode_for_xl(::ExcelError) re-emits the same wire "!<code>" - unlike a String, which would
+' encode as an ordinary text value. Exercises all 14 Excel error codes, not just the two (2036,
+' 2042) Julia can generate automatically from Inf/NaN. Built with ReDim (1-based), not VBA.Array()
+' (0-based), to match Unserialise's own 1-based convention for the general "*" array format - see
+' TestVEncodeFromVariantArray's comment for the same trap.
+Function TestExcelErrorRoundTrip()
+          Dim Codes(1 To 14) As Long
+          Dim Expected(1 To 14, 1 To 1) As Variant
+          Dim i As Long
+          Dim y As Variant
+
+1         On Error GoTo ErrHandler
+2         Codes(1) = 2000: Codes(2) = 2007: Codes(3) = 2015: Codes(4) = 2023: Codes(5) = 2029
+3         Codes(6) = 2036: Codes(7) = 2042: Codes(8) = 2043: Codes(9) = 2045: Codes(10) = 2046
+4         Codes(11) = 2047: Codes(12) = 2048: Codes(13) = 2049: Codes(14) = 2050
+
+5         For i = 1 To 14
+6             Expected(i, 1) = CVErr(Codes(i))
+7         Next i
+
+8         y = ThrowIfError(JuliaCall("identity", Expected))
+9         TestExcelErrorRoundTrip = ArraysIdentical(Expected, y)
+
+10        Exit Function
+ErrHandler:
+11        PrintTwice ReThrow("TestExcelErrorRoundTrip", Err, True)
+12        TestExcelErrorRoundTrip = False
+End Function
+
+' Live round trip through a Variant() array (not a genuinely-typed Double() array) - the realistic
+' "worst case" TrySerialiseArrayAsV has to handle in practice, since Range.Value2 always arrives
+' this way, even when every element holds a number (measured historically via the now-removed
+' prototype benchmark VEncodeSpeedTest, modPerformance.bas). Test1DArrayOfDoubles/TestExactRoundTripping
+' already cover the genuinely-typed Double() case via JuliaCallVBA.
+' Built with ReDim (1-based), not the VBA.Array() function - Array() returns a 0-based array, which
+' would make ArraysIdentical report a spurious mismatch against the decoder's always-1-based result
+' (Unserialise's Case 86 and Case 42 both ReDim their result 1 To n) even when every value round-
+' tripped correctly - a real trap hit while writing this test, not a decoder bug.
+Function TestVEncodeFromVariantArray()
+          Dim x() As Variant
+          Dim y As Variant
+
+1         On Error GoTo ErrHandler
+2         ReDim x(1 To 5)
+3         x(1) = 1#: x(2) = -2.5: x(3) = 3.14159265358979: x(4) = 0#: x(5) = 1000000#
+4         y = JuliaCallVBA("identity", x)
+5         TestVEncodeFromVariantArray = ArraysIdentical(x, y)
+
+6         Exit Function
+ErrHandler:
+7         PrintTwice ReThrow("TestVEncodeFromVariantArray", Err, True)
+8         TestVEncodeFromVariantArray = False
+End Function
+
+' Exercises the Case 86 'V' branch's rank 3-9 handling (Unserialise, modUnserialise.bas), added
+' alongside the Julia-side encode_for_xl(x::Array{Float64,N}) generalisation - reuses
+' ParseDims/ReDimVariantArray/AssignByRank, the same helpers the general "*" format's own
+' >=3-dimensional handling already used. A genuinely-typed Double() array, so both directions of
+' this round trip go via "V": VBA -> Julia through TrySerialiseArrayAsV, Julia -> Excel through the
+' new Array{Float64,N} method. Distinct values at every position (i + 10*j + 100*k) so a bug in the
+' column-major index walk (either side) would show up as a value in the wrong place, not just a
+' wrong-shaped result.
+Function TestVFormat3DArray()
+          Dim i As Long
+          Dim j As Long
+          Dim k As Long
+          Dim x(1 To 2, 1 To 3, 1 To 4) As Double
+          Dim y As Variant
+
+1         On Error GoTo ErrHandler
+2         For k = 1 To 4
+3             For j = 1 To 3
+4                 For i = 1 To 2
+5                     x(i, j, k) = i + 10 * j + 100 * k
+6                 Next i
+7             Next j
+8         Next k
+
+9         y = JuliaCallVBA("identity", x)
+10        TestVFormat3DArray = ArraysIdentical(x, y)
+
+11        Exit Function
+ErrHandler:
+12        PrintTwice ReThrow("TestVFormat3DArray", Err, True)
+13        TestVFormat3DArray = False
+End Function
+
+' Exercises the 'R' branch's integer sub-format (RI, Unserialise, modUnserialise.bas), added
+' alongside encode_for_xl(::AbstractRange{<:Integer}) in src/encode.jl. A UnitRange is encoded as
+' just first/step/length and reconstructed via arithmetic in VBA, rather than transmitting every
+' element - this confirms that fast path gives an identical result to fully materializing the
+' range in Julia first.
+Function TestRangeIntegerVsCollect()
+          Dim y1 As Variant
+          Dim y2 As Variant
+
+1         On Error GoTo ErrHandler
+2         y1 = ThrowIfError(JuliaEval("1:1000"))
+3         y2 = ThrowIfError(JuliaEval("collect(1:1000)"))
+4         TestRangeIntegerVsCollect = ArraysIdentical(y1, y2)
+
+5         Exit Function
+ErrHandler:
+6         PrintTwice ReThrow("TestRangeIntegerVsCollect", Err, True)
+7         TestRangeIntegerVsCollect = False
+End Function
+
+' As TestRangeIntegerVsCollect, but for a StepRange with a non-1 step (5:3:47) - confirms the
+' reconstruction arithmetic handles a real step, not just the step=1 case UnitRange always has.
+Function TestRangeStepVsCollect()
+          Dim y1 As Variant
+          Dim y2 As Variant
+
+1         On Error GoTo ErrHandler
+2         y1 = ThrowIfError(JuliaEval("5:3:47"))
+3         y2 = ThrowIfError(JuliaEval("collect(5:3:47)"))
+4         TestRangeStepVsCollect = ArraysIdentical(y1, y2)
+
+5         Exit Function
+ErrHandler:
+6         PrintTwice ReThrow("TestRangeStepVsCollect", Err, True)
+7         TestRangeStepVsCollect = False
+End Function
+
+' As TestRangeIntegerVsCollect, but for the float sub-format (RF) - a StepRangeLen{Float64,...}
+' from broadcasting a scalar multiply over a range. This is the case that matters most for exact
+' round-tripping: confirms VBA's naive "first + (i-1)*step" arithmetic exactly reproduces Julia's
+' own (twice-precision) range materialization, not just approximately.
+Function TestRangeFloatVsCollect()
+          Dim y1 As Variant
+          Dim y2 As Variant
+
+1         On Error GoTo ErrHandler
+2         y1 = ThrowIfError(JuliaEval("(1:1000).*pi"))
+3         y2 = ThrowIfError(JuliaEval("collect((1:1000).*pi)"))
+4         TestRangeFloatVsCollect = ArraysIdentical(y1, y2)
+
+5         Exit Function
+ErrHandler:
+6         PrintTwice ReThrow("TestRangeFloatVsCollect", Err, True)
+7         TestRangeFloatVsCollect = False
+End Function
+
+' Confirms JuliaEvalVBA (JuliaVectorToXLColumn=False) gives a genuine 1-D array for a range result,
+' matching the same distinction Case 86 ('V') already makes for rank-1 arrays - the 'R' branch
+' needs to honour JuliaVectorToXLColumn just as much as any other array-producing format.
+Function TestRangeJuliaEvalVBAIsOneD()
+          Dim y As Variant
+
+1         On Error GoTo ErrHandler
+2         y = ThrowIfError(JuliaEvalVBA("1:1000"))
+3         TestRangeJuliaEvalVBAIsOneD = (NumDimensions(y) = 1) And (UBound(y) - LBound(y) + 1 = 1000) And _
+              (y(LBound(y)) = 1) And (y(UBound(y)) = 1000)
+
+4         Exit Function
+ErrHandler:
+5         PrintTwice ReThrow("TestRangeJuliaEvalVBAIsOneD", Err, True)
+6         TestRangeJuliaEvalVBAIsOneD = False
+End Function
+
+' As TestRangeJuliaEvalVBAIsOneD, but via JuliaEval (JuliaVectorToXLColumn=True) - must give a 2-D,
+' single-column array, matching how a worksheet formula needs to display a vector result.
+Function TestRangeJuliaEvalIsColumn()
+          Dim y As Variant
+
+1         On Error GoTo ErrHandler
+2         y = ThrowIfError(JuliaEval("1:1000"))
+3         TestRangeJuliaEvalIsColumn = (NumDimensions(y) = 2) And (UBound(y, 1) = 1000) And (UBound(y, 2) = 1) And _
+              (y(1, 1) = 1) And (y(1000, 1) = 1000)
+
+4         Exit Function
+ErrHandler:
+5         PrintTwice ReThrow("TestRangeJuliaEvalIsColumn", Err, True)
+6         TestRangeJuliaEvalIsColumn = False
+End Function
+
+' Directly confirms the compact "R" wire format is actually used (not just that results happen to
+' be correct via some fallback) - checks the literal prefix of the raw string
+' encode_for_xl produces, for both the integer and float sub-formats.
+Function TestRangeWireFormat()
+          Dim s As Variant
+
+1         On Error GoTo ErrHandler
+2         s = ThrowIfError(JuliaEvalVBA("JuliaExcel.encode_for_xl(1:1000)"))
+3         If Left$(s, 3) <> "RI," Then Throw "Expected integer range to use 'RI' wire format, got: " & Left$(s, 10)
+4         s = ThrowIfError(JuliaEvalVBA("JuliaExcel.encode_for_xl((1:1000).*pi)"))
+5         If Left$(s, 3) <> "RF," Then Throw "Expected float range to use 'RF' wire format, got: " & Left$(s, 10)
+6         TestRangeWireFormat = True
+
+7         Exit Function
+ErrHandler:
+8         PrintTwice ReThrow("TestRangeWireFormat", Err, True)
+9         TestRangeWireFormat = False
 End Function
 
