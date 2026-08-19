@@ -589,9 +589,10 @@ End Function
 '              reinterprets that whole buffer's bytes as the result Double() array - replacing N
 '              per-element LSets and N per-element HexToDouble function calls (each of which also
 '              does its own Left$/Right$ substring slicing, on top of the Mid$ slicing done here)
-'              with one bulk memory copy. Measured (modHexBulkPrototype.bas, a throwaway prototype,
-'              not wired into production, kept purely as a record of the benchmark) at roughly 64%
-'              faster than calling HexToDouble per element, for a 100,000-element array - a bigger
+'              with one bulk memory copy. Measured (formerly modHexBulkPrototype.bas, a throwaway
+'              prototype now deleted once its findings were wired in here - see git history) at
+'              roughly 64% faster than calling HexToDouble per element, for a 100,000-element
+'              array - a bigger
 '              saving than the encode side's equivalent (BulkHexOfDoubleArray, modSerialise.bas),
 '              since HexToDouble's per-element overhead includes that extra string-slice on top of
 '              the function call and the LSet.

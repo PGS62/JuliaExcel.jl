@@ -232,7 +232,7 @@ End Function
 ' (BulkHexOfDoubleArray, modSerialise.bas) and decode (BulkDoublesFromHex, modUnserialise.bas)
 ' helpers, to directly exercise the byte-count arithmetic at sizes the standard performance tests
 ' never varied. TrySerialiseArrayAsV/Unserialise are called directly (the real production functions,
-' not the throwaway prototype in modHexBulkPrototype.bas) so this tests the actual code path.
+' not the now-deleted throwaway prototype - see git history) so this tests the actual code path.
 Function TestVFormatBoundarySizes() As Boolean
           Dim EncodedV As String
           Dim i As Long

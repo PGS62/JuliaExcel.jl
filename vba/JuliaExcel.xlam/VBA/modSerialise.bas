@@ -246,9 +246,9 @@ End Function
 '              Per-element work here is now limited to the VarType check and copying the value into
 '              Buf(), a genuinely-typed Double() array - the hex encoding itself happens once, in
 '              bulk, via BulkHexOfDoubleArray below, rather than one DoubleToHex call per element.
-'              See BulkHexOfDoubleArray's own docstring for why, and modHexBulkPrototype.bas (a
-'              scratch, not-wired-in module) for the benchmark that measured it: ~30% faster than
-'              calling DoubleToHex per element, for a 100,000-element array.
+'              See BulkHexOfDoubleArray's own docstring for why, and the now-deleted
+'              modHexBulkPrototype.bas (see git history) for the benchmark that measured it: ~30%
+'              faster than calling DoubleToHex per element, for a 100,000-element array.
 ' -----------------------------------------------------------------------------------------------------------------------
 Function TrySerialiseArrayAsV(ByVal x As Variant, ByRef EncodedV As String) As Boolean
           Dim Buf() As Double
@@ -349,9 +349,9 @@ End Function
 '              copy; each element's 8 bytes are then mapped through a static 256-entry lookup table
 '              (built once, matching DoubleToHex's own table) to build its 16-character hex chunk.
 '              This avoids the per-element function-call overhead of invoking DoubleToHex N times,
-'              which a throwaway prototype (modHexBulkPrototype.bas, not wired into production, kept
-'              purely as a record of the benchmark) measured as a genuinely dominant cost - not a
-'              negligible one - worth roughly 30% for a 100,000-element array.
+'              which a throwaway prototype (formerly modHexBulkPrototype.bas, now deleted once its
+'              findings were wired in here - see git history) measured as a genuinely dominant cost
+'              - not a negligible one - worth roughly 30% for a 100,000-element array.
 '              A Double's 8 bytes are little-endian in memory on Windows; the wire format is
 '              big-endian (matching DoubleToHex), so each element's 8-byte group is read in reverse.
 '              Callers are expected to pass a non-empty array (Buf must have at least one element).

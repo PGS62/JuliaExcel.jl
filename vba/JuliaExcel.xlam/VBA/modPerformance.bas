@@ -306,9 +306,10 @@ End Sub
 'Running method PerformanceTest - AFTER wiring the bulk-CopyMemory hex trick into production V-format
 'encode (TrySerialiseArrayAsV, modSerialise.bas) and decode (Unserialise Case 86, modUnserialise.bas)
 '- one bulk memory copy instead of N per-element LSet + function-call operations on each side. See
-'BulkHexOfDoubleArray/BulkDoublesFromHex's own docstrings, and modHexBulkPrototype.bas for the
-'prototype that measured this first, in isolation. "sum" and "identity" (encode) and "collect"
-'(decode) all improve substantially; "collect" roughly halves.
+'BulkHexOfDoubleArray/BulkDoublesFromHex's own docstrings, and the now-deleted
+'modHexBulkPrototype.bas (see git history) for the prototype that measured this first, in
+'isolation. "sum" and "identity" (encode) and "collect" (decode) all improve substantially;
+'"collect" roughly halves.
 'Time now = 2026-08-19 09:02:52
 'JuliaExcel Version = 145
 'Computer = MSI
