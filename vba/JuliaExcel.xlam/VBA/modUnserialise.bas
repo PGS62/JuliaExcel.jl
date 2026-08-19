@@ -602,24 +602,40 @@ End Function
 '              Variant()-declared variable in one shot is a compile error in VBA ("Can't assign to
 '              array"), so callers still copy this result into Ret element-by-element; what's saved
 '              is the hex-parsing work per element, not that final copy.
+'              Safety: CopyMemory is a raw memory copy - unlike an ordinary VBA error, a wrong length
+'              argument here could corrupt memory or crash Excel outright, not just fail this call.
+'              So immediately before calling it, both buffers' actual byte sizes are re-derived
+'              independently from their own LBound/UBound (not by trusting the "n" arithmetic that
+'              sized them) and compared; any mismatch throws a normal, catchable error instead of
+'              proceeding. This is deliberately a hard failure, not a silent fallback to the old
+'              per-element HexToDouble loop: if this ever fires, something is genuinely wrong with
+'              this function's own logic, and a fallback path that (if that logic is correct) never
+'              executes in practice would itself be an untested, silently bit-rotting liability.
 ' -----------------------------------------------------------------------------------------------------------------------
 Private Function BulkDoublesFromHex(ByVal Chars As String, ByVal StartPos As Long, ByVal n As Long) As Double()
           Dim base As Long
           Dim i As Long
           Dim Raw() As Long
+          Dim RawBytes As Long
           Dim Result() As Double
+          Dim ResultBytes As Long
 
-1         ReDim Raw(1 To n * 2)
-2         For i = 1 To n
-3             base = StartPos + (i - 1) * 16
-4             Raw(2 * i - 1) = CLng("&H" & Mid$(Chars, base + 8, 8))   ' low 32 bits (last 8 hex chars)
-5             Raw(2 * i) = CLng("&H" & Mid$(Chars, base, 8))           ' high 32 bits (first 8 hex chars)
-6         Next i
+1         If n <= 0 Then Throw "BulkDoublesFromHex requires n > 0"
+2         ReDim Raw(1 To n * 2)
+3         For i = 1 To n
+4             base = StartPos + (i - 1) * 16
+5             Raw(2 * i - 1) = CLng("&H" & Mid$(Chars, base + 8, 8))   ' low 32 bits (last 8 hex chars)
+6             Raw(2 * i) = CLng("&H" & Mid$(Chars, base, 8))           ' high 32 bits (first 8 hex chars)
+7         Next i
 
-7         ReDim Result(1 To n)
-8         CopyMemory Result(1), Raw(1), n * 8
+8         ReDim Result(1 To n)
+9         ResultBytes = (UBound(Result) - LBound(Result) + 1) * 8
+10        RawBytes = (UBound(Raw) - LBound(Raw) + 1) * 4
+11        If ResultBytes <> RawBytes Then Throw "BulkDoublesFromHex: Result is " & ResultBytes & _
+              " bytes but Raw buffer is " & RawBytes & " bytes - refusing to call CopyMemory"
+12        CopyMemory Result(1), Raw(1), ResultBytes
 
-9         BulkDoublesFromHex = Result
+13        BulkDoublesFromHex = Result
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------

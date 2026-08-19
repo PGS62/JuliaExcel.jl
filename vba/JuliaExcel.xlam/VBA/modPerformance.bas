@@ -302,6 +302,26 @@ End Sub
 'Average time for JuliaEval("collect((1:100000).*pi)") = 8.13102000000072E-02 seconds (averaged over 10 calls)
 'One-way data transport (AbstractRange), Julia to Excel
 'Average time for JuliaEval("(1:100000).*pi") = 1.25317000005452E-02 seconds (averaged over 10 calls)
+'========================================================================================================================
+'Running method PerformanceTest - AFTER wiring the bulk-CopyMemory hex trick into production V-format
+'encode (TrySerialiseArrayAsV, modSerialise.bas) and decode (Unserialise Case 86, modUnserialise.bas)
+'- one bulk memory copy instead of N per-element LSet + function-call operations on each side. See
+'BulkHexOfDoubleArray/BulkDoublesFromHex's own docstrings, and modHexBulkPrototype.bas for the
+'prototype that measured this first, in isolation. "sum" and "identity" (encode) and "collect"
+'(decode) all improve substantially; "collect" roughly halves.
+'Time now = 2026-08-19 09:02:52
+'JuliaExcel Version = 145
+'Computer = MSI
+'Latency test
+'Average time for JuliaEval("1+1") = 1.24485660000937 miliseconds (averaged over 500 calls)
+'Two-way data transport test
+'Average time for JuliaCall("identity", vector of 100,000 doubles) = 0.10265148000035 seconds (averaged over 10 calls)
+'One-way data transport test, Excel to Julia
+'Average time for JuliaCall("sum", vector of 100,000 doubles) = 5.39971099991817E-02 seconds (averaged over 10 calls)
+'One-way data transport test, Julia to Excel
+'Average time for JuliaEval("collect((1:100000).*pi)") = 4.13354000018444E-02 seconds (averaged over 10 calls)
+'One-way data transport (AbstractRange), Julia to Excel
+'Average time for JuliaEval("(1:100000).*pi") = 1.41443200001959E-02 seconds (averaged over 10 calls)
 
 Function PerformanceTest() As String
           Const NumCallsOnePlusOne As Long = 500

@@ -355,12 +355,23 @@ End Function
 '              A Double's 8 bytes are little-endian in memory on Windows; the wire format is
 '              big-endian (matching DoubleToHex), so each element's 8-byte group is read in reverse.
 '              Callers are expected to pass a non-empty array (Buf must have at least one element).
+'              Safety: CopyMemory is a raw memory copy - unlike an ordinary VBA error, a wrong length
+'              argument here could corrupt memory or crash Excel outright, not just fail this call.
+'              So immediately before calling it, both buffers' actual byte sizes are re-derived
+'              independently from their own LBound/UBound (not by trusting the "n" arithmetic that
+'              sized them) and compared; any mismatch throws a normal, catchable error instead of
+'              proceeding. This is deliberately a hard failure, not a silent fallback to the old
+'              per-element DoubleToHex loop: if this ever fires, something is genuinely wrong with
+'              this function's own logic, and a fallback path that (if that logic is correct) never
+'              executes in practice would itself be an untested, silently bit-rotting liability.
 ' -----------------------------------------------------------------------------------------------------------------------
 Private Function BulkHexOfDoubleArray(ByRef Buf() As Double) As String
           Static HexByte(0 To 255) As String
           Static Initialized As Boolean
           Dim base As Long
+          Dim BufBytes As Long
           Dim bytes() As Byte
+          Dim BytesBytes As Long
           Dim Chunks() As String
           Dim i As Long
           Dim n As Long
@@ -373,16 +384,22 @@ Private Function BulkHexOfDoubleArray(ByRef Buf() As Double) As String
 6         End If
 
 7         n = UBound(Buf) - LBound(Buf) + 1
-8         ReDim bytes(1 To n * 8)
-9         CopyMemory bytes(1), Buf(LBound(Buf)), n * 8
+8         If n <= 0 Then Throw "BulkHexOfDoubleArray requires a non-empty array"
+9         ReDim bytes(1 To n * 8)
 
-10        ReDim Chunks(1 To n)
-11        For i = 1 To n
-12            base = (i - 1) * 8
-13            Chunks(i) = HexByte(bytes(base + 8)) & HexByte(bytes(base + 7)) & HexByte(bytes(base + 6)) & HexByte(bytes(base + 5)) & _
+10        BufBytes = (UBound(Buf) - LBound(Buf) + 1) * 8
+11        BytesBytes = (UBound(bytes) - LBound(bytes) + 1)
+12        If BufBytes <> BytesBytes Then Throw "BulkHexOfDoubleArray: source is " & BufBytes & _
+              " bytes but destination buffer is " & BytesBytes & " bytes - refusing to call CopyMemory"
+13        CopyMemory bytes(1), Buf(LBound(Buf)), BytesBytes
+
+14        ReDim Chunks(1 To n)
+15        For i = 1 To n
+16            base = (i - 1) * 8
+17            Chunks(i) = HexByte(bytes(base + 8)) & HexByte(bytes(base + 7)) & HexByte(bytes(base + 6)) & HexByte(bytes(base + 5)) & _
                   HexByte(bytes(base + 4)) & HexByte(bytes(base + 3)) & HexByte(bytes(base + 2)) & HexByte(bytes(base + 1))
-14        Next i
+18        Next i
 
-15        BulkHexOfDoubleArray = VBA.Join$(Chunks, "")
+19        BulkHexOfDoubleArray = VBA.Join$(Chunks, "")
 End Function
 

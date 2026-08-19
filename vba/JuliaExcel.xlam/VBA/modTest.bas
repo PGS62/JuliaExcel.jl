@@ -81,32 +81,33 @@ Function RunTests(Optional SilentMode = False)
 46        AccResult "TestNaNInfRoundTripViaV", TestNaNInfRoundTripViaV, NumPassed, NumFailed
 47        AccResult "TestExcelErrorRoundTrip", TestExcelErrorRoundTrip, NumPassed, NumFailed
 48        AccResult "TestByte", TestByte, NumPassed, NumFailed
+49        AccResult "TestVFormatBoundarySizes", TestVFormatBoundarySizes, NumPassed, NumFailed
 
-49        Prompt = NumPassed & " test(s) passed" & vbLf & _
+50        Prompt = NumPassed & " test(s) passed" & vbLf & _
               NumFailed & " test(s) failed"
 
-50        If NumFailed > 0 Then
-51            Prompt = Prompt & vbLf & vbLf & _
+51        If NumFailed > 0 Then
+52            Prompt = Prompt & vbLf & vbLf & _
                   "See VBA Immediate window for details"
-52        End If
+53        End If
 
-53        PrintTwice NumPassed & " test(s) passed"
-54        PrintTwice NumFailed & " test(s) failed"
-55        PrintTwice String(80, "=")
+54        PrintTwice NumPassed & " test(s) passed"
+55        PrintTwice NumFailed & " test(s) failed"
+56        PrintTwice String(80, "=")
 
-56        If Not SilentMode Then
-57            AppActivate Application.Caption
-58            MsgBox Prompt, IIf(NumFailed = 0, vbInformation, vbCritical), Title
-59        End If
+57        If Not SilentMode Then
+58            AppActivate Application.Caption
+59            MsgBox Prompt, IIf(NumFailed = 0, vbInformation, vbCritical), Title
+60        End If
 
-60        RunTests = NumFailed = 0
+61        RunTests = NumFailed = 0
 
-61        Exit Function
+62        Exit Function
 ErrHandler:
-62        If Not SilentMode Then
-63            MsgBox ReThrow("RunTests", Err, True), vbCritical, Title
-64        End If
-65        RunTests = False
+63        If Not SilentMode Then
+64            MsgBox ReThrow("RunTests", Err, True), vbCritical, Title
+65        End If
+66        RunTests = False
 End Function
 
 Sub PrintTwice(Text As String)
@@ -223,6 +224,45 @@ Function TestByte()
 ErrHandler:
 6         PrintTwice ReThrow("TestByte", Err, True)
 7         TestByte = False
+End Function
+
+' Confirms TrySerialiseArrayAsV/Unserialise's "V" format round-trips correctly across a range of
+' array sizes, particularly at small boundaries (1, 2, 3) and well beyond the usual 100,000-element
+' benchmark size - added 2026-08-19 alongside the bulk CopyMemory-based rewrite of both the encode
+' (BulkHexOfDoubleArray, modSerialise.bas) and decode (BulkDoublesFromHex, modUnserialise.bas)
+' helpers, to directly exercise the byte-count arithmetic at sizes the standard performance tests
+' never varied. TrySerialiseArrayAsV/Unserialise are called directly (the real production functions,
+' not the throwaway prototype in modHexBulkPrototype.bas) so this tests the actual code path.
+Function TestVFormatBoundarySizes() As Boolean
+          Dim EncodedV As String
+          Dim i As Long
+          Dim Idx As Long
+          Dim OK As Boolean
+          Dim Sizes As Variant
+          Dim Sz As Long
+          Dim x() As Double
+          Dim y As Variant
+
+1         On Error GoTo ErrHandler
+2         Sizes = Array(1, 2, 3, 7, 8, 9, 17, 100, 1000, 1000000)
+
+3         For Idx = LBound(Sizes) To UBound(Sizes)
+4             Sz = Sizes(Idx)
+5             ReDim x(1 To Sz)
+6             For i = 1 To Sz
+7                 x(i) = (i - Sz / 2) * 1.5 + 0.25   ' varied: negative, positive, fractional values
+8             Next i
+9             OK = TrySerialiseArrayAsV(x, EncodedV)
+10            If Not OK Then Throw "TrySerialiseArrayAsV declined for size " & Sz
+11            y = UnserialiseFromString(EncodedV, False, GetStringLengthLimit(), False)
+12            If Not ArraysIdentical(x, y) Then Throw "Round trip mismatch for size " & Sz
+13        Next Idx
+
+14        TestVFormatBoundarySizes = True
+15        Exit Function
+ErrHandler:
+16        PrintTwice ReThrow("TestVFormatBoundarySizes", Err, True)
+17        TestVFormatBoundarySizes = False
 End Function
 
 Function TestLongLong()

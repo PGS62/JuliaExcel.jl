@@ -23,8 +23,8 @@
 |------|---------|---------|------|------|
 | Latency: `JuliaEval("1+1")` | 7.2 ms | 6.4 ms | 1.1 ms | 1.2 ms |
 | Two-way: `JuliaCall("identity", vector of 100,000 Doubles)` | 1.56 s | 0.37 s | 0.27 s | 0.10 s |
-| One-way (Excel to Julia): `JuliaCall("sum", vector of 100,000 Doubles)` | 1.45 s | 0.11 s | 0.11 s | 0.05 s |
-| One-way (Julia to Excel): `JuliaEval("collect((1:100000).*pi)")` | 0.31 s | 0.26 s | 0.17 s | 0.05 s |
-| One-way (Julia to Excel): `JuliaEval("(1:100000).*pi")` | 0.31 s | 0.26 s | 0.17 s | 0.01 s |
+| One-way (Excel to Julia): `JuliaCall("sum", vector of 100,000 Doubles)` | 1.45 s | 0.11 s | 0.11 s | 0.054 s |
+| One-way (Julia to Excel): `JuliaEval("collect((1:100000).*pi)")` | 0.31 s | 0.26 s | 0.17 s | 0.041 s |
+| One-way (Julia to Excel): `JuliaEval("(1:100000).*pi")` | 0.31 s | 0.26 s | 0.17 s | 0.014 s |
 
 *All figures measured on the same machine: Intel Core Ultra 9 288V, 32GB RAM*
