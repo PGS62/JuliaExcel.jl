@@ -1,0 +1,23 @@
+﻿,"JuliaExcel compared with JuliaInXL",,,,,,,,
+,,,,,,,,,
+,,,,,,,,,
+,,,,,,,,,
+,,,,,,,,,
+,"JuliaExcel project path","c:/temp/juliaexcel",,,,,,,
+,"JuliaExcelLaunch","Julia is already running in window ""Julia 1.13.0-rc3 on Windows serving Excel PID 4640, port 2701""",,,,,,,
+,"JuliaExcelTestCell",2,,,,,,,
+,"JuliaInXLTestCell",2,,,,,,,
+,"JuliaExcel running under Julia version","1.13.0-rc3",,,,,,,
+,"JuliaInXL running under Julia version","1.12.5",,,,,,,
+,"Computer","MSI",,,,,,,
+,"Results Identical?",False,,,,,,,
+,"MaximumAbsoluteDifference",1.11022302462516E-16,,,,,,,
+,"LogBase2(MaxAbsDiff)",-53,,,,,,,
+,,,,,,,,,
+,"TestSpecWithHeaders",,,,,,,,
+,"Description","VectorLength","JuliaExcelFormula","JuliaInXLFormula","NumCalls","OneCallPerCell","JuliaExcel (s)","JuliaInXL (s)","JuliaInXL / JuliaExcel"
+,"Latency",1000,"=JuliaEval(""1+1"")","=jleval(""1+1"")",1,True,1.47210319997976E-03,5.2428409998538E-04,0.356146294629744
+,"Transmit UnitRange to Excel",100000,"=JuliaEval(""1:VectorLength"")","{=jleval(""1:VectorLength"")}",5,False,2.09192000096664E-02,6.26157199963927E-02,2.99321771231496
+,"Transmit Vector{Float64} to Excel",100000,"=JuliaEval(""(1:VectorLength).^2"")","{=jleval(""(1:VectorLength).^2"")}",5,False,0.107195059990045,4.56561399972998E-02,0.425916455492817
+,"Roundtrip Vector{Float64}",100000,"=JuliaCall(""identity"",InputData)","{=jlcall(""identity"",InputData)}",5,False,0.106958980008494,0.379348759993445,3.54667518298435
+,"Transmit Vector{Float64} to Julia",100000,"=JuliaCall(""sum"",InputData)","=jlcall(""sum"",InputData)",20,False,5.71999099920504E-02,0.220009414997185,3.84632449645046

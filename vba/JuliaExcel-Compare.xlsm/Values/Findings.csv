@@ -1,0 +1,15 @@
+﻿,"Findings"
+,
+,"Round-trip precision: JuliaExcel vs JuliaInXL"
+,"When round-tripping a vector of 100,000 random numbers through Julia and back (JuliaCall(""identity"", ...) / jlcall(""identity"","
+,"...)), JuliaExcel's returned values matched the input exactly every time. JuliaInXL's did not: 17 of the 100,000 values (0.017%)"
+,"came back slightly different."
+,
+,"Each difference is exactly a power of two, one ULP (""unit in the last place"") at that value's magnitude — the most common"
+,"being 2^-54. This pattern is the signature of numbers passing through a decimal-text representation with slightly too few"
+,"significant digits: most doubles round-trip exactly with 15–16 digits, but a minority need the full 17, and a fixed-width format"
+,"that provides only 15 would corrupt just that minority by a bit or two."
+,
+,"We can't confirm the exact mechanism, since JuliaInXL's Excel-side component is closed source, but a plausible contributor is"
+,"that .NET's default double-to-text conversion used 15 significant digits before .NET Core 3.0 (2019) — a runtime old enough to"
+,"plausibly predate JuliaInXL's own last update."

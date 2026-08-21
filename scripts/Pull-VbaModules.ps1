@@ -1,14 +1,25 @@
 # Pull-VbaModules.ps1
-# Saves the JuliaExcel.xlam workbook and exports its VBA to disk, by delegating to SolumAddin.xlam's
-# SaveAddInAndExportVBA method.
+# Saves the target workbook and exports its VBA to disk, by delegating to SolumAddin.xlam's
+# SaveWorkbookAndExportForGit method via a CallSaveAddInAndExportVBA wrapper function that must
+# exist somewhere in the target workbook's own VBA project (see modUtils.bas in JuliaExcel.xlam for
+# the canonical example - any workbook wanting Pull support needs its own copy of that thin
+# wrapper, since "ThisWorkbook" inside it only resolves correctly when the code lives in that
+# workbook). SaveWorkbookAndExportForGit works for both .xlam add-ins and ordinary .xlsm workbooks
+# (its predecessor, SaveAddInAndExportVBA, was .xlam-only, which is why this script and a separate
+# Pull-VbaModules-Simple.ps1 used to be needed side by side - now this one script covers both).
 #
 # Prerequisites:
 #   - Excel Trust Center -> Trust Center Settings -> Macro Settings ->
 #     [x] Trust access to the VBA project object model
-#   - SolumAddin.xlam and JuliaExcel.xlam both open in Excel (either as ordinary workbooks or as
-#     installed add-ins - IsAddin = True is fine, see note below).
+#   - SolumAddin.xlam and the target workbook both open in Excel (either as ordinary workbooks or
+#     as installed add-ins - IsAddin = True is fine, see note below).
 #
-# Run from VSCode via Terminal -> Run Task -> "VBA: Pull from Excel".
+# Run from VSCode via Terminal -> Run Task -> "VBA: Pull from Excel", which invokes this with no
+# arguments, i.e. against workbooks\JuliaExcel.xlam.
+
+param(
+    [string]$WorkbookName = "JuliaExcel.xlam"
+)
 
 $ErrorActionPreference = "Stop"
 
@@ -16,7 +27,7 @@ $ErrorActionPreference = "Stop"
 try {
     $excel = [Runtime.InteropServices.Marshal]::GetActiveObject("Excel.Application")
 } catch {
-    Write-Error "Excel is not running. Open workbooks\JuliaExcel.xlam in Excel first."
+    Write-Error "Excel is not running. Open workbooks\$WorkbookName in Excel first."
     exit 1
 }
 
@@ -39,13 +50,13 @@ function Find-Workbook {
     return $wb
 }
 
-$xlPath = (Resolve-Path (Join-Path $PSScriptRoot "..\workbooks\JuliaExcel.xlam")).Path
-$juliaBook = Find-Workbook -Name "JuliaExcel.xlam" -ExpectedFullName $xlPath
-if ($null -eq $juliaBook) {
-    Write-Error "workbooks\JuliaExcel.xlam is not open in Excel. Open it from:`n  $xlPath"
+$xlPath = (Resolve-Path (Join-Path $PSScriptRoot "..\workbooks\$WorkbookName")).Path
+$targetBook = Find-Workbook -Name $WorkbookName -ExpectedFullName $xlPath
+if ($null -eq $targetBook) {
+    Write-Error "workbooks\$WorkbookName is not open in Excel. Open it from:`n  $xlPath"
     exit 1
 }
-Write-Host "Found workbook: $($juliaBook.FullName)"
+Write-Host "Found workbook: $($targetBook.FullName)"
 
 # SolumAddin.xlam lives outside this repo, so there's no known path to verify against - just
 # confirm Excel has a workbook of that name open.
@@ -56,19 +67,21 @@ if ($null -eq $solumBook) {
 }
 Write-Host "Found workbook: $($solumBook.FullName)"
 
-# Delegate to SolumAddin.xlam via a wrapper function in JuliaExcel.xlam (modUtils.CallSaveAddInAndExportVBA),
-# which passes ThisWorkbook (i.e. JuliaExcel.xlam itself) through to SaveAddInAndExportVBA.
-# The wrapper exists because when a macro invoked via Application.Run raises an unhandled error,
-# Excel's automation interface does not propagate the error's Description back to a COM caller like
-# this script - only an opaque HRESULT. The wrapper catches the error in VBA and returns it as a
-# string instead (in this project's usual "#FunctionName (line N): message!" error-string format),
-# so we detect failure by inspecting the returned string rather than by catching an exception here.
+# Delegate to SolumAddin.xlam via a wrapper function (CallSaveAddInAndExportVBA) that must exist
+# somewhere in the target workbook's own VBA project, which passes ThisWorkbook (i.e. the target
+# workbook itself) through to SaveWorkbookAndExportForGit. The wrapper exists because when a macro
+# invoked via Application.Run raises an unhandled error, Excel's automation interface does not
+# propagate the error's Description back to a COM caller like this script - only an opaque HRESULT.
+# The wrapper catches the error in VBA and returns it as a string instead (in this project's usual
+# "#FunctionName (line N): message!" error-string format), so we detect failure by inspecting the
+# returned string rather than by catching an exception here. Called unqualified (no module prefix)
+# since each workbook's copy of this wrapper is the only procedure of that name in its project.
 Write-Host ""
-Write-Host "Calling SaveAddInAndExportVBA for $($juliaBook.Name) ..."
-$result = $excel.Run("'$xlPath'!modUtils.CallSaveAddInAndExportVBA")
+Write-Host "Calling SaveWorkbookAndExportForGit for $($targetBook.Name) ..."
+$result = $excel.Run("'$xlPath'!CallSaveAddInAndExportVBA")
 
 if ($result -like "#*!") {
-    Write-Error "SaveAddInAndExportVBA failed: $result"
+    Write-Error "SaveWorkbookAndExportForGit failed: $result"
     exit 1
 }
 

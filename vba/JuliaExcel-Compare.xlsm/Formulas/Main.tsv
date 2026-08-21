@@ -1,0 +1,10 @@
+Address	Formula
+C7	"=JuliaLaunch(,,""--project=""&JuliaExcelProjectPath)"
+C8	"=JuliaEval(""1+1"")"
+C9	"=jleval(""1+1"")"
+C10	"=JuliaEval(""string(VERSION)"")"
+C11	"=jleval(""string(VERSION)"")"
+C12	"=GetEnvironmentVariable(""COMPUTERNAME"")"
+C13	=AND(JuliaExcel!AllResults=JuliaInXL!AllResults)
+C14	=MAX(ABS(JuliaExcel!AllResults-JuliaInXL!AllResults))
+C15	=LOG(MaximumAbsoluteDifference)/LOG(2)
