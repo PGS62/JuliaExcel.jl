@@ -1,4 +1,4 @@
-# Launches installer/Install.vbs to register the JuliaExcel.xlam Excel add-in, so that
+# Launches installer/Install.ps1 to register the JuliaExcel.xlam Excel add-in, so that
 # `Pkg.add("JuliaExcel")` alone is enough to install it - no separate manual call to
 # JuliaExcel.installme() needed. Pkg runs this script automatically right after add/build.
 #
@@ -8,14 +8,14 @@
 # the right behaviour, unlike here.
 #
 # Skipped entirely (does nothing) when:
-#   - not running on Windows - the installer registers a Windows Excel add-in via COM/wscript.exe
+#   - not running on Windows - the installer registers a Windows Excel add-in via COM/PowerShell
 #   - running under CI - the installer is interactive (message-box dialogs), which would hang a
 #     non-interactive build waiting for clicks that will never come
 if Sys.iswindows() && get(ENV, "CI", "false") != "true"
-    installscript = normpath(joinpath(@__DIR__, "..", "installer", "Install.vbs"))
-    exefile = "C:/Windows/System32/wscript.exe"
+    installscript = normpath(joinpath(@__DIR__, "..", "installer", "Install.ps1"))
+    exefile = "C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe"
     if !isfile(exefile) || !isfile(installscript)
-        @error "JuliaExcel: could not find wscript.exe or the install script; run `using JuliaExcel; JuliaExcel.installme()` manually instead."
+        @error "JuliaExcel: could not find powershell.exe or the install script; run `using JuliaExcel; JuliaExcel.installme()` manually instead."
         exit(1)
     end
 
@@ -24,8 +24,10 @@ if Sys.iswindows() && get(ENV, "CI", "false") != "true"
         # Blocking (not wait=false): Pkg.build runs this script in its own short-lived Julia
         # process, and on Windows a spawned child is killed when that process's job object
         # closes (i.e. as soon as this process exits) - a non-blocking run here would launch
-        # wscript.exe only to have it killed moments later, before showing any dialog.
-        run(`$exefile $installscript`)
+        # powershell.exe only to have it killed moments later, before showing any dialog.
+        # -ExecutionPolicy Bypass: this is a one-off script launch, not something that should
+        # depend on (or need to change) whatever execution policy is set on the user's machine.
+        run(`$exefile -ExecutionPolicy Bypass -NoProfile -File $installscript`)
     catch e
         # exit(1) rather than error(...): a non-zero exit here is enough for Pkg to mark the
         # build as failed. Note this doesn't avoid a stacktrace being shown - Pkg detects the

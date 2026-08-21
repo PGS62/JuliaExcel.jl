@@ -59,11 +59,11 @@ end
 function installme()
     Sys.iswindows() || throw("JuliaExcel.installme (which installs a Microsoft Excel " *
                              "addin) can only be run from Julia on Windows")
-    installscript = normpath(joinpath(@__DIR__, "..", "installer", "install.vbs"))
-    exefile = "C:/Windows/System32/wscript.exe"
-    isfile(exefile) || throw("Cannot find Windows Script Host at '$exefile'")
+    installscript = normpath(joinpath(@__DIR__, "..", "installer", "Install.ps1"))
+    exefile = "C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe"
+    isfile(exefile) || throw("Cannot find PowerShell at '$exefile'")
     isfile(installscript) || throw("Cannot find install script at '$installscript'")
-    run(`$exefile $installscript`, wait=false)
+    run(`$exefile -ExecutionPolicy Bypass -NoProfile -File $installscript`, wait=false)
     println("Installer script has been launched, please respond to the dialogs there.")
     nothing
 end
