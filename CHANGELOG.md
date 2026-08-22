@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+
+### New features
+
+- New `display_results` function: switch it on to echo, in the Julia console, both the expression or function call arriving from Excel and the value being returned to it - useful for seeing exactly what `JuliaCall`/`JuliaEval` are doing without leaving Excel.
+- Clearer Julia console output when a `JuliaCall`/`JuliaEval` call fails: the error and the expression that caused it are now shown in colour, making them easier to spot among other console output.
+
 ## [2.0.0] - 2026-08-19
 
 ### Breaking changes

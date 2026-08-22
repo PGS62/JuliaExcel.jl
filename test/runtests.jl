@@ -44,7 +44,10 @@ end
     @test JuliaExcel.encode_for_xl(Any[1, 2, 3.0, π]) == "*1,4;2,2,17,17,;^1^2#4008000000000000#400921FB54442D18"
     @test JuliaExcel.encode_for_xl([1, true, "x"]) == "*1,3;2,1,2,;^1T£x"
     @test JuliaExcel.encode_for_xl([1, [2, 3]]) == "*1,2;2,14,;^1*1,2;2,2,;^2^3"
-    @test JuliaExcel.encode_for_xl(Dict("a"=>1, "b"=>2)) == "H2;2,2,2,2,;£b^2£a^1"
+    # Dict key order isn't guaranteed by the language, and can differ between Julia versions/hash
+    # seeds - accept either encoding order rather than hardcoding one.
+    @test JuliaExcel.encode_for_xl(Dict("a" => 1, "b" => 2)) in
+          ("H2;2,2,2,2,;£a^1£b^2", "H2;2,2,2,2,;£b^2£a^1")
 
     @test round_trip(1)
     @test round_trip(1.0)
@@ -230,6 +233,14 @@ end
                      "exists, but no method is defined for this combination of argument types. " *
                      "Julia REPL has more details and stacktrace!"
     end
+
+    # display_results (comms.jl) - toggles REPL echoing of calls from Excel; check both the
+    # setter's return-value contract and the getter round-trips it correctly. Ends on false (the
+    # default) so it doesn't leak into any test that follows.
+    @test JuliaExcel.display_results(true) == "Results from JuliaCall/JuliaEval will display in REPL"
+    @test JuliaExcel.display_results() == true
+    @test JuliaExcel.display_results(false) == "Results from JuliaCall/JuliaEval will not display in REPL"
+    @test JuliaExcel.display_results() == false
 
 end
 

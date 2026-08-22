@@ -20,6 +20,22 @@ function getxlpid()
 end
 
 """
+    display_results(switch::Bool)
+Switch on or off display in the REPL of both the incoming expression/function call from Excel
+and the value returned to Excel, for calls via JuliaCall and JuliaEval.
+"""
+function display_results(switch::Bool)
+    _display_results[] = switch
+    "Results from JuliaCall/JuliaEval $(switch ? "will" : "will not") display in REPL"
+end
+
+"""
+    display_results()
+Returns whether display in the REPL of results of calls from Excel is currently switched on.
+"""
+display_results() = _display_results[]
+
+"""
     getcommsfolder()
 Returns the name of the comms folder used by JuliaExcel. See also `setcommsfolder`.
 """
@@ -101,17 +117,27 @@ Called by the HTTP request handler in `start_server` for requests to `/eval`, or
 from VBA calls to JuliaEval and JuliaEvalVBA.
 """
 function srv_eval_inner(expression::String)::String
+    if _display_results[]
+        printstyled("from_xl> ", color=:green)
+        println(expression)
+    end
+    success = true
     global result = try
         Main.eval(Meta.parse(expression))
     catch e
-        println("="^100)
-        if length(expression) > 500
-            println("Something went wrong evaluating the contents of an expression")
-        else
-            println("Something went wrong evaluating the expression:")
-            println(expression)
-        end
+        success = false
+        printstyled("Something went wrong evaluating the expression: ", color=:red)
+        println(expression)
         friendly_error(e)
+    end
+    if _display_results[] && success
+        printstyled("to_xl> ", color=:green)
+        try
+            display(result)
+        catch e
+            printstyled("(could not display result of type $(typeof(result)): $e)\n", color=:red)
+        end
+        println("")
     end
     Base.invokelatest(_encode_result_for_xl, result)
 end
@@ -132,11 +158,11 @@ without this cap a single error could still flood the cell. "Julia REPL has more
 stacktrace!" points the user at where the full detail actually lives.
 """
 function friendly_error(e)
+    print("\n")
     showerror(stdout, e, catch_backtrace())
-    println("")
-    println("="^100)
     io = IOBuffer()
     showerror(io, e)
+    print("\n\n")
     lines = split(String(take!(io)), '\n')
     error_desc = join(first(lines, 2), ' ')
     if length(error_desc) > 500
@@ -166,19 +192,36 @@ function srv_call_inner(payload::String)::String
     fn_name = "<unknown>"
     global args_from_xl = ["<unknown>"]
     broadcasting = false
+    success = true
     global result = try
         decoded = decode_from_xl(payload)
         fn_name = decoded[1]::String
+        if _display_results[]
+            expression = "$fn_name(args_from_xl...)"
+            printstyled("from_xl> ", color=:green)
+            println(expression)
+        end
         broadcasting = endswith(fn_name, ".")
         broadcasting && (fn_name = chop(fn_name))
         fn_to_call = Main.eval(Meta.parse(fn_name))             # fast: parses only the short function name
         args_from_xl = decoded[2:end]
         broadcasting ? broadcast(fn_to_call, args_from_xl...) : fn_to_call(args_from_xl...)
     catch e
-        println("="^100)
-        call_desc = broadcasting ? "$fn_name.(JuliaExcel.args_from_xl...)" : "$fn_name(JuliaExcel.args_from_xl...)"
-        println("Something went wrong calling the Julia function $fn_name from Excel, against arguments saved in JuliaExcel.args_from_xl (until overwritten by the next call), so the error should be reproducible from here with '$call_desc'.")
+        success = false
+        call_desc = broadcasting ? "$fn_name.(args_from_xl...)" : "$fn_name(args_from_xl...)"
+        printstyled("Something went wrong calling the Julia function $fn_name", color=:red)
+        print(" from Excel against\narguments saved in args_from_xl (overwritten by the next call),")
+        print(" so\nthe error should be reproducible from here with '$call_desc'.\n\n")
         friendly_error(e)
+    end
+    if _display_results[] && success
+        printstyled("to_xl> ", color=:green)
+        try
+            display(result)
+        catch e
+            printstyled("(could not display result of type $(typeof(result)): $e)\n", color=:red)
+        end
+        println("")
     end
     Base.invokelatest(_encode_result_for_xl, result)
 end
