@@ -275,7 +275,7 @@ End Function
 'Called from "Menu..." button on sheet Audit.
 Sub MenuButton()
 1         On Error GoTo ErrHandler
-2         Application.Run "SolumAddin.xlam!AuditMenuForAddin"
+2         Application.Run "SolumAddin.xlam!AuditMenu"
 3         Exit Sub
 ErrHandler:
 4         MsgBox ReThrow("MenuButton", Err, True), vbCritical
