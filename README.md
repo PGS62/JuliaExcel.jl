@@ -62,7 +62,7 @@ JuliaExcel makes the following functions available from Excel worksheets and fro
 ## Demo
 Here's a quick demonstration of the functions in action.
  * See how the Julia session on the left responds to the action in Excel on the right, once `display_results(true)` has been called (the formula at B6 does this).
- * The annotations in brown text ("Formula at...") are to make the what's happening in the demo clearer. They won't appear when you try JuliaExcel for yourself!
+ * The annotations in brown text ("Formula at...") are to make what's happening in the demo clearer. They won't appear when you try JuliaExcel for yourself!
  * Replay the GIF by refreshing you browser (F5).
 ![demo2](images/Demo4-take4.gif)
 
