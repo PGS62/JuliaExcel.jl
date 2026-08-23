@@ -23,6 +23,15 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+# Refuse to proceed if more than one Excel process is running - see the matching comment in
+# Push-VbaModules.ps1 for why (GetActiveObject binds to an arbitrary one of them, not necessarily
+# the instance with workbooks\$WorkbookName open).
+$excelProcesses = @(Get-Process -Name "EXCEL" -ErrorAction SilentlyContinue)
+if ($excelProcesses.Count -gt 1) {
+    Write-Error "Found $($excelProcesses.Count) Excel processes running. Close all but the one with workbooks\$WorkbookName open, then try again."
+    exit 1
+}
+
 # Locate Excel
 try {
     $excel = [Runtime.InteropServices.Marshal]::GetActiveObject("Excel.Application")

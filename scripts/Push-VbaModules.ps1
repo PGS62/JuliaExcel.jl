@@ -16,6 +16,20 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+# Refuse to proceed if more than one Excel process is running. GetActiveObject below binds to
+# whichever single Excel.Application is currently registered in the Running Object Table (ROT) -
+# with multiple instances open, which one that is is not something this script (or COM) reliably
+# controls. If that instance isn't the one you meant, pushing modules into it and saving would
+# silently leave the other instance's in-memory VBA project stale - and if that other instance
+# later saves for any reason, it would overwrite the changes just pushed. Since Excel's single
+# document interface gives no obvious visual cue that more than one instance is running, fail
+# loudly here rather than risk that happening unnoticed.
+$excelProcesses = @(Get-Process -Name "EXCEL" -ErrorAction SilentlyContinue)
+if ($excelProcesses.Count -gt 1) {
+    Write-Error "Found $($excelProcesses.Count) Excel processes running. Close all but the one with workbooks\$WorkbookName open, then try again."
+    exit 1
+}
+
 # Locate Excel
 try {
     $excel = [Runtime.InteropServices.Marshal]::GetActiveObject("Excel.Application")
