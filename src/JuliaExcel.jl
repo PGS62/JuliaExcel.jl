@@ -1,5 +1,6 @@
 module JuliaExcel
-export start_server, setxlpid, getcommsfolder, ExcelError, display_results, args_from_xl
+export start_server, setxlpid, getcommsfolder, ExcelError, display_results, args_from_xl,
+       last_question, last_answer, answer_again
 
 using DataFrames: DataFrames, DataFrame, Missing
 using Dates: Dates, Date, DateTime

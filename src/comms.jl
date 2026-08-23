@@ -117,12 +117,13 @@ Called by the HTTP request handler in `start_server` for requests to `/eval`, or
 from VBA calls to JuliaEval and JuliaEvalVBA.
 """
 function srv_eval_inner(expression::String)::String
+    global last_question = expression
     if _display_results[]
-        printstyled("from_xl> ", color=:green)
+        printstyled("question> ", color=:green)
         println(expression)
     end
     success = true
-    global result = try
+    global last_answer = try
         Main.eval(Meta.parse(expression))
     catch e
         success = false
@@ -131,15 +132,15 @@ function srv_eval_inner(expression::String)::String
         friendly_error(e)
     end
     if _display_results[] && success
-        printstyled("to_xl> ", color=:green)
+        printstyled("answer> ", color=:green)
         try
-            display(result)
+            display(last_answer)
         catch e
-            printstyled("(could not display result of type $(typeof(result)): $e)\n", color=:red)
+            printstyled("(could not display result of type $(typeof(last_answer)): $e)\n", color=:red)
         end
         println("")
     end
-    Base.invokelatest(_encode_result_for_xl, result)
+    Base.invokelatest(_encode_result_for_xl, last_answer)
 end
 
 """
@@ -193,38 +194,50 @@ function srv_call_inner(payload::String)::String
     global args_from_xl = ["<unknown>"]
     broadcasting = false
     success = true
-    global result = try
+    global last_answer = try
         decoded = decode_from_xl(payload)
         fn_name = decoded[1]::String
-        if _display_results[]
-            expression = "$fn_name(args_from_xl...)"
-            printstyled("from_xl> ", color=:green)
-            println(expression)
-        end
         broadcasting = endswith(fn_name, ".")
         broadcasting && (fn_name = chop(fn_name))
+        global last_question = broadcasting ? "$fn_name.(args_from_xl...)" : "$fn_name(args_from_xl...)"
+        if _display_results[]
+            printstyled("question> ", color=:green)
+            println(last_question)
+        end
         fn_to_call = Main.eval(Meta.parse(fn_name))             # fast: parses only the short function name
         args_from_xl = decoded[2:end]
         broadcasting ? broadcast(fn_to_call, args_from_xl...) : fn_to_call(args_from_xl...)
     catch e
         success = false
-        call_desc = broadcasting ? "$fn_name.(args_from_xl...)" : "$fn_name(args_from_xl...)"
+        global last_question = broadcasting ? "$fn_name.(args_from_xl...)" : "$fn_name(args_from_xl...)"
         printstyled("Something went wrong calling the Julia function $fn_name", color=:red)
         print(" from Excel against\narguments saved in args_from_xl (overwritten by the next call),")
-        print(" so\nthe error should be reproducible from here with '$call_desc'.\n\n")
+        print(" so\nthe error should be reproducible from here with '$last_question'.\n\n")
         friendly_error(e)
     end
     if _display_results[] && success
-        printstyled("to_xl> ", color=:green)
+        printstyled("answer> ", color=:green)
         try
-            display(result)
+            display(last_answer)
         catch e
-            printstyled("(could not display result of type $(typeof(result)): $e)\n", color=:red)
+            printstyled("(could not display result of type $(typeof(last_answer)): $e)\n", color=:red)
         end
         println("")
     end
-    Base.invokelatest(_encode_result_for_xl, result)
+    Base.invokelatest(_encode_result_for_xl, last_answer)
 end
+
+"""
+    answer_again()
+
+Evaluates `last_question` again, directly - unlike the original call from Excel, a failure here
+raises normally instead of being caught and summarised, so tools like `@enter` or Infiltrator
+breakpoints work as expected. Useful for interactively debugging a `JuliaCall`/`JuliaEval` that
+failed (or just misbehaved) when called from Excel, without needing to repeat the call from there.
+
+See also `last_question`, `last_answer`, `args_from_xl`.
+"""
+answer_again() = Main.eval(Meta.parse(last_question))
 
 """
     start_server(start::Int=2700)

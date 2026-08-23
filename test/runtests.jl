@@ -242,6 +242,27 @@ end
     @test JuliaExcel.display_results(false) == "Results from JuliaCall/JuliaEval will not display in REPL"
     @test JuliaExcel.display_results() == false
 
+    # last_question/last_answer/answer_again (comms.jl) - srv_eval_inner records the expression
+    # text itself as last_question...
+    JuliaExcel.decode_from_xl(JuliaExcel.srv_eval_inner("1+1"))
+    @test JuliaExcel.last_question == "1+1"
+    @test JuliaExcel.last_answer == 2
+    @test JuliaExcel.answer_again() == 2
+
+    # ...while srv_call_inner reconstructs a "fn_name(args_from_xl...)" call expression, with a
+    # ".(...)" broadcasting form when the function name arrives with a trailing ".".
+    let payload = JuliaExcel.encode_for_xl(Any["identity", 5])
+        @test JuliaExcel.decode_from_xl(JuliaExcel.srv_call_inner(payload)) == 5
+        @test JuliaExcel.last_question == "identity(args_from_xl...)"
+        @test JuliaExcel.last_answer == 5
+        @test JuliaExcel.answer_again() == 5
+    end
+    let payload = JuliaExcel.encode_for_xl(Any["identity.", [1, 2, 3]])
+        @test JuliaExcel.decode_from_xl(JuliaExcel.srv_call_inner(payload)) == [1, 2, 3]
+        @test JuliaExcel.last_question == "identity.(args_from_xl...)"
+        @test JuliaExcel.answer_again() == [1, 2, 3]
+    end
+
 end
 
 # The VBA-side test suite (modTest.RunTests) needs a live Excel/VBA session (via COM automation),

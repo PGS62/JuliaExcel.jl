@@ -177,7 +177,14 @@ Public Function JuliaIsRunning() As Boolean
 
 
 ## Debugging
-If a call to `JuliaCall` or `JuliaCallVBA` raises an error in the Julia function being called, the arguments passed from Excel are saved to `JuliaExcel.args_from_xl` before the call is attempted, and the Julia console prints the error together with a ready-made expression to reproduce it, something like `myfunction(JuliaExcel.args_from_xl...)`. Paste that into the Julia REPL to reproduce and debug the failure directly, without needing to repeat the call from Excel. Note that `JuliaExcel.args_from_xl` only holds the arguments from the most recent such call, so debug before making another one.
+Every call to `JuliaCall`/`JuliaCallVBA`/`JuliaEval`/`JuliaEvalVBA` leaves a trace behind in Julia, so a problem can be debugged at the REPL without needing to repeat the call from Excel:
+
+* `JuliaExcel.last_question` is the expression that was evaluated - either the exact string passed to `JuliaEval`/`JuliaEvalVBA`, or, for `JuliaCall`/`JuliaCallVBA`, a reconstructed call such as `myfunction(JuliaExcel.args_from_xl...)`.
+* `JuliaExcel.last_answer` is the value that was (or would have been) returned to Excel.
+* `JuliaExcel.args_from_xl` holds the arguments most recently passed from Excel to `JuliaCall`/`JuliaCallVBA`.
+* `JuliaExcel.answer_again()` evaluates `last_question` again, directly - unlike the original call, a failure here raises normally, so tools such as `@enter` or an Infiltrator breakpoint work as expected.
+
+All of these only reflect the most recent call, so debug before making another one. Call `JuliaExcel.display_results(true)` to also have each call and its result echoed to the Julia console as it happens.
 
 ## Marshalling
 Two question arose during implementation:
