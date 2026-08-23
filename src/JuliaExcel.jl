@@ -1,6 +1,6 @@
 module JuliaExcel
-export start_server, setxlpid, getcommsfolder, ExcelError, display_results, args_from_xl,
-       last_question, last_answer, answer_again
+export serve_xl, display_results, last_question, last_answer, answer_again, args_from_xl,
+       ExcelError, server_status, stop_server
 
 using DataFrames: DataFrames, DataFrame, Missing
 using Dates: Dates, Date, DateTime
@@ -11,6 +11,7 @@ const global xlpid = Ref(0)
 const global commsfolder = Ref("")
 const global xlport = Ref(0)
 const global _display_results = Ref(false)
+const global _server = Ref{Any}(nothing)
 
 """
     ExcelError(code::Int)

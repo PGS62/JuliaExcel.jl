@@ -13,6 +13,7 @@ Support Excel for Windows (not Mac). Julia can be run under Windows or Linux (vi
 [Demo](#demo)  
 [Example VBA](#example-vba)  
 [Function Documentation](#function-documentation)  
+[Attaching to a Julia session already running elsewhere](#attaching-to-a-julia-session-already-running-elsewhere)  
 [Debugging](#debugging)  
 [Marshalling](#marshalling)  
 [Alternatives](#alternatives)  
@@ -25,7 +26,7 @@ Support Excel for Windows (not Mac). Julia can be run under Windows or Linux (vi
 Installation does not require admin rights on the PC.
  * Both Julia and Microsoft Office must be installed on your PC, with Excel not running.
  * Launch Julia, and copy-paste the following command into the REPL:
-<!-- CHANGING THE VERSION NUMBER BELOW? DON'T FORGET TO ALSO CHANGE THE VERSION NUMBER IN THE "Installation (Linux)" SECTION -->
+<!-- CHANGING THE INSTRUCTIONS BELOW? DON'T FORGET TO ALSO CHANGE THE "Installation (Linux)" SECTION -->
    ```
    using Pkg
    Pkg.add(url="https://github.com/PGS62/JuliaExcel.jl")
@@ -58,6 +59,7 @@ JuliaExcel makes the following functions available from Excel worksheets and fro
 |[JuliaEvalVBA](#juliaevalvba)|Evaluate a Julia expression from VBA . Differs from `JuliaCall` in handling of 1-d arrays and strings longer than 32,767 characters. May return data of types that cannot be displayed on a worksheet, such as a dictionary or an array of arrays.|
 |[JuliaCallVBA](#juliacallvba)|Call a named Julia function from VBA. Differs from `JuliaCall` in handling of 1-d arrays and strings longer than 32,767 characters. May return data of types that cannot be displayed on a worksheet, such as a dictionary, an array of arrays, or arrays of dimension up to 9.|
 |[JuliaIsRunning](#juliaisrunning)|Returns TRUE if an instance of Julia is running and "listening" to the current Excel session, or FALSE otherwise.|
+|[JuliaExcelPID](#juliaexcelpid)|Returns the process id of the current Excel session. Only needed if more than one Excel instance is running - pass it to `serve_xl(pid)` to say which one to attach to.|
 
 ## Demo
 Here's a quick demonstration of the functions in action.
@@ -175,14 +177,35 @@ Returns TRUE if an instance of Julia is running and "listening" to the current E
 Public Function JuliaIsRunning() As Boolean
 ```
 
+### `JuliaExcelPID`
+Returns the process id of the current Excel session. You'll rarely need this directly: `JuliaExcel.serve_xl()` finds the running Excel process automatically when only one is open. It's only when more than one Excel instance is running that you need it, to tell `JuliaExcel.serve_xl(pid)` explicitly which one to attach to - see [Attaching to a Julia session already running elsewhere](#attaching-to-a-julia-session-already-running-elsewhere).
+```vba
+Public Function JuliaExcelPID() As Long
+```
+
+## Attaching to a Julia session already running elsewhere
+Normally `JuliaLaunch` starts its own dedicated Julia process. If you'd rather use a Julia session you already have open - for example one running inside VS Code, where you can set breakpoints and step through code - you can attach that session to Excel instead:
+
+```julia
+using JuliaExcel
+serve_xl()
+```
+
+With no argument, `serve_xl` finds the single running Excel process automatically and attaches to it. If more than one Excel process is running, it won't guess - it throws, telling you to call `JuliaExcel.serve_xl(pid)` instead, giving the process id explicitly (get it from Excel via the `JuliaExcelPID()` worksheet function). Back in Excel, `JuliaCall`/`JuliaEval`/etc. now talk to that session directly - there's no need to call `JuliaLaunch` at all, though if you do (e.g. from existing VBA code), it will detect the attached session and use it rather than starting a new one.
+
+`serve_xl` also switches `display_results` on by default, since seeing each call arrive is exactly what you want when attached like this for interactive debugging - pass `show_results=false` to opt out.
+
+Other functions for managing a session started this way:
+* `JuliaExcel.stop_server()` stops the session listening to Excel, without closing Julia itself.
+* `JuliaExcel.server_status()` reports whether a server is currently running, which Excel process id it's serving, on which port, and the current `display_results` setting.
 
 ## Debugging
 Every call to `JuliaCall`/`JuliaCallVBA`/`JuliaEval`/`JuliaEvalVBA` leaves a trace behind in Julia, so a problem can be debugged at the REPL without needing to repeat the call from Excel:
 
 * `JuliaExcel.last_question` is the expression that was evaluated - either the exact string passed to `JuliaEval`/`JuliaEvalVBA`, or, for `JuliaCall`/`JuliaCallVBA`, a reconstructed call such as `myfunction(JuliaExcel.args_from_xl...)`.
-* `JuliaExcel.last_answer` is the value that was (or would have been) returned to Excel.
+* `JuliaExcel.last_answer` is the value that was returned to Excel.
 * `JuliaExcel.args_from_xl` holds the arguments most recently passed from Excel to `JuliaCall`/`JuliaCallVBA`.
-* `JuliaExcel.answer_again()` evaluates `last_question` again, directly - unlike the original call, a failure here raises normally, so tools such as `@enter` or an Infiltrator breakpoint work as expected.
+* `JuliaExcel.answer_again()` evaluates `last_question` again, and you can wrap it with `@enter` or your own debugging tools.
 
 All of these only reflect the most recent call, so debug before making another one. Call `JuliaExcel.display_results(true)` to also have each call and its result echoed to the Julia console as it happens.
 

@@ -323,6 +323,21 @@ End Sub
 'Average time for JuliaEval("collect((1:100000).*pi)") = 4.13354000018444E-02 seconds (averaged over 10 calls)
 'One-way data transport (AbstractRange), Julia to Excel
 'Average time for JuliaEval("(1:100000).*pi") = 1.41443200001959E-02 seconds (averaged over 10 calls)
+'========================================================================================================================
+'Running method PerformanceTest
+'Time now = 2026-08-23 18:51:59
+'JuliaExcel Version = 148
+'Computer = MSI
+'Latency test
+'Average time for JuliaEval("1+1") = 1.10643340006936 miliseconds (averaged over 500 calls)
+'Two-way data transport test
+'Average time for JuliaCall("identity", vector of 100,000 doubles) = 9.43825400026981E-02 seconds (averaged over 10 calls)
+'One-way data transport test, Excel to Julia
+'Average time for JuliaCall("sum", vector of 100,000 doubles) = 5.68173000006936E-02 seconds (averaged over 10 calls)
+'One-way data transport test, Julia to Excel
+'Average time for JuliaEval("collect((1:100000).*pi)") = 4.60276499972679E-02 seconds (averaged over 10 calls)
+'One-way data transport (AbstractRange), Julia to Excel
+'Average time for JuliaEval("(1:100000).*pi") = 1.36371799977496E-02 seconds (averaged over 10 calls)
 
 Function PerformanceTest() As String
           Const NumCallsOnePlusOne As Long = 500

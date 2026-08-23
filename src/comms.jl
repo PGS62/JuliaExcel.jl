@@ -20,6 +20,68 @@ function getxlpid()
 end
 
 """
+    serve_xl(pid::Integer; show_results::Bool=true)
+    serve_xl(; show_results::Bool=true)
+
+Attaches this Julia session to an Excel process, so it responds to `JuliaCall`/`JuliaEval` requests
+from that Excel session exactly as if it had been launched by `JuliaLaunch` - for attaching a Julia
+session that's already running (e.g. one open in VS Code) instead of always launching a fresh one.
+
+With no argument, automatically attaches to the single running Excel process (Windows only). If no
+Excel process is found, or more than one is, throws an error explaining how to call `serve_xl(pid)`
+instead, giving the process id explicitly - get it from Excel's `JuliaExcelPID()` worksheet function.
+
+`show_results` is passed to `display_results` - it defaults to `true` here (unlike calling
+`display_results` directly, which defaults to `false`) since attaching an interactive session like
+this is exactly when seeing each call and its result echoed to the REPL is most useful. Pass
+`show_results=false` to opt out.
+
+`show_results` is a keyword rather than a positional argument to avoid ambiguity with `pid`: in
+Julia, `Bool <: Integer`, so `serve_xl(true)` could otherwise be read as either `pid=true` or
+`show_results=true`.
+
+Equivalent to calling `setxlpid(pid)`, `comms_folder(...)`, `display_results(show_results)` and
+`start_server()` in turn - the same steps `JuliaLaunch`'s generated startup script performs for a
+session it launches itself (aside from `display_results`, which it leaves at its own default).
+"""
+function serve_xl(pid::Integer; show_results::Bool=true)
+    setxlpid(Int64(pid))
+    comms_folder(_default_commsfolder())
+    display_results(show_results)
+    start_server()
+end
+
+function serve_xl(; show_results::Bool=true)
+    pids = _running_excel_pids()
+    if isempty(pids)
+        throw("No running Excel process was found. Open Excel and try again, or call serve_xl(pid)" *
+              " directly, passing the process id from Excel's JuliaExcelPID() worksheet function.")
+    elseif length(pids) > 1
+        throw("Found $(length(pids)) running Excel processes (process ids: $(join(pids, ", "))) -" *
+              " call serve_xl(pid) directly instead, passing the process id of the Excel session to" *
+              " attach to, from its JuliaExcelPID() worksheet function.")
+    end
+    serve_xl(only(pids); show_results=show_results)
+end
+
+"""
+    _running_excel_pids()::Vector{Int}
+Returns the process ids of all running Excel.exe processes, found via the Windows `tasklist`
+utility. Used by `serve_xl()` to find the single Excel process to attach to automatically.
+"""
+function _running_excel_pids()::Vector{Int}
+    Sys.iswindows() || throw("Automatic Excel process detection needs Windows - call serve_xl(pid)" *
+                             " directly instead, passing the process id from Excel's" *
+                             " JuliaExcelPID() worksheet function.")
+    pids = Int[]
+    for line in readlines(`tasklist /FI "IMAGENAME eq EXCEL.EXE" /FO CSV /NH`)
+        fields = split(line, "\",\"")
+        length(fields) >= 2 && push!(pids, parse(Int, fields[2]))
+    end
+    pids
+end
+
+"""
     display_results(switch::Bool)
 Switch on or off display in the REPL of both the incoming expression/function call from Excel
 and the value returned to Excel, for calls via JuliaCall and JuliaEval.
@@ -36,40 +98,39 @@ Returns whether display in the REPL of results of calls from Excel is currently 
 display_results() = _display_results[]
 
 """
-    getcommsfolder()
-Returns the name of the comms folder used by JuliaExcel. See also `setcommsfolder`.
+    comms_folder()
+Returns the name of the comms folder used by JuliaExcel. See also `comms_folder(folder)`.
 """
-function getcommsfolder()
-    if commsfolder[] == ""
-        throw("commsfolder has not been set")
-    else
-        commsfolder[]
-    end
+function comms_folder()
+    commsfolder[] == "" && throw("commsfolder has not been set")
+    commsfolder[]
 end
 
 """
-    setcommsfolder(folder::String="")
-Sets the name of the comms folder used by JuliaExcel. See also `getcommsfolder`.
-Argument folder can be omitted as a convenience when developing this package.
+    comms_folder(folder::String)
+Sets the name of the comms folder used by JuliaExcel to `folder`. See also `comms_folder()`.
 """
-function setcommsfolder(folder::String="")
-    if folder == ""
-        if Sys.iswindows()
-            folder = joinpath(ENV["TEMP"], "@JuliaExcel")
-        elseif Sys.islinux()
-            trythese = ["phili", "philip", "PhilipSwannell"]
-            for trythis = trythese
-                f = joinpath("/mnt/c/Users", trythis, "AppData/Local/Temp/@JuliaExcel")
-                if isdir(f)
-                    return (commsfolder[] = f)
-                end
-            end
-            throw("Cannot find commsfolder")
-        else
-            throw("operating system not supported")
+comms_folder(folder::String) = (commsfolder[] = folder)
+
+"""
+    _default_commsfolder()::String
+Guesses the comms folder JuliaExcel should use when none has been set explicitly - on Windows,
+matches the folder VBA's LocalTemp() computes for a native (non-WSL) session. Used by `serve_xl`,
+as a convenience when developing this package.
+"""
+function _default_commsfolder()
+    if Sys.iswindows()
+        joinpath(ENV["TEMP"], "@JuliaExcel")
+    elseif Sys.islinux()
+        trythese = ["phili", "philip", "PhilipSwannell"]
+        for trythis = trythese
+            f = joinpath("/mnt/c/Users", trythis, "AppData/Local/Temp/@JuliaExcel")
+            isdir(f) && return f
         end
+        throw("Cannot find commsfolder")
+    else
+        throw("operating system not supported")
     end
-    commsfolder[] = folder
 end
 
 function installme()
@@ -84,7 +145,7 @@ function installme()
     nothing
 end
 
-portfile() = joinpath(getcommsfolder(), "Port_$(getxlpid()).txt")
+portfile() = joinpath(comms_folder(), "Port_$(getxlpid()).txt")
 
 """
     _encode_result_for_xl(result)::String
@@ -230,10 +291,9 @@ end
 """
     answer_again()
 
-Evaluates `last_question` again, directly - unlike the original call from Excel, a failure here
-raises normally instead of being caught and summarised, so tools like `@enter` or Infiltrator
-breakpoints work as expected. Useful for interactively debugging a `JuliaCall`/`JuliaEval` that
-failed (or just misbehaved) when called from Excel, without needing to repeat the call from there.
+Evaluates `last_question` again, and you can wrap it with `@enter` or your own debugging tools.
+Useful for interactively debugging a `JuliaCall`/`JuliaEval` that failed (or just misbehaved) when
+called from Excel, without needing to repeat the call from there.
 
 See also `last_question`, `last_answer`, `args_from_xl`.
 """
@@ -251,12 +311,17 @@ even though something else is already listening there. Retrying on the real bind
 avoids relying on that separate check being reliable.
 
 Writes the chosen port to the port file so VBA can discover it during JuliaLaunch.
+
+Closes any server already started by a previous call in this session first - otherwise, calling
+this (or `serve_xl`) more than once would leave each earlier listener still running, each holding
+its own port open indefinitely.
 """
 function start_server(start::Int=2700)
+    _server[] !== nothing && close(_server[])
     port = start
     while true
         try
-            HTTP.serve!("127.0.0.1", port) do req
+            _server[] = HTTP.serve!("127.0.0.1", port) do req
                 handler = req.target == "/call" ? srv_call_inner : srv_eval_inner
                 HTTP.Response(200, ["Content-Type" => "text/plain; charset=utf-8"],
                     handler(String(req.body)))
@@ -274,6 +339,33 @@ function start_server(start::Int=2700)
     settitle()
     println("JuliaExcel HTTP server listening on port $port")
     nothing
+end
+
+"""
+    stop_server()
+Stops this Julia session's HTTP server, if one is running, so it no longer responds to
+`JuliaCall`/`JuliaEval` requests from Excel. No-op if no server is currently running.
+
+Leaves the port file on disk untouched, so Excel will still try the now-dead port on its next
+request - and get a clean "no connection" error rather than reaching this session again.
+"""
+function stop_server()
+    _server[] !== nothing && close(_server[])
+    _server[] = nothing
+    nothing
+end
+
+"""
+    server_status()
+Returns a `NamedTuple` `(running, pid, port, display_results)` describing this Julia session's HTTP
+server: `running` is `true` if a server is currently listening; `pid` is the Excel process id it's
+set up to serve (0 if `setxlpid` has never been called), regardless of whether the server is
+currently running; `port` is the port it's listening on, or 0 if not running; `display_results` is
+the current setting of `display_results()`.
+"""
+function server_status()
+    running = _server[] !== nothing && isopen(_server[])
+    (running=running, pid=xlpid[], port=running ? xlport[] : 0, display_results=display_results())
 end
 
 """

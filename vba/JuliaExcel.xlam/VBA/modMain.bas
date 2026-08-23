@@ -40,6 +40,21 @@ ErrHandler:
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
+' Procedure : JuliaExcelPID
+' Purpose   : Returns the process id of the current Excel session. Pass this to JuliaExcel.serve_xl on the
+'             Julia side to attach Excel to a Julia session that's already running elsewhere (e.g. inside
+'             VS Code) instead of one launched via JuliaLaunch.
+' -----------------------------------------------------------------------------------------------------------------------
+Public Function JuliaExcelPID() As Long
+1         On Error GoTo ErrHandler
+2         JuliaExcelPID = GetCurrentProcessId
+
+3         Exit Function
+ErrHandler:
+4         JuliaExcelPID = ReThrow("JuliaExcelPID", Err, True)
+End Function
+
+' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure : JuliaLaunch
 ' Purpose   : Launches a local Julia session which "listens" to the current Excel session and responds
 '             to calls to JuliaEval etc..
@@ -133,20 +148,27 @@ Attribute JuliaLaunch.VB_ProcData.VB_Invoke_Func = " \n14"
 17        WindowPartialTitle = "serving Excel PID " & CStr(PID) 'Must be in synch with Julia function JuliaExcel.settitle
 18        GetHandleFromPartialCaption HwndJulia, WindowPartialTitle
 
-19        If HwndJulia <> 0 Then
-20            WindowTitle = WindowTitleFromHandle(HwndJulia)
-21            On Error Resume Next
-22            ExistingPort = GetJuliaPort()
-23            On Error GoTo ErrHandler
-24            If ExistingPort > 0 Then
-25                IsListening = JuliaIsListening(ExistingPort)
-26            End If
-27            If IsListening Then
-28                JuliaLaunch = "Julia is already running in window """ & WindowTitle & """"
-29                Exit Function
-30            Else
-31                Throw "A Julia session titled """ & WindowTitle & """ is already running for this Excel session, but it is not responding to HTTP requests. Switch to that window: if it's sitting at a ""julia>"" prompt, its HTTP server has likely crashed - close the window and call JuliaLaunch again. If it's busy running code, either wait for it to finish, or press Ctrl+C to interrupt it, then call JuliaLaunch again."
-32            End If
+19        ExistingPort = ReadJuliaPortFromFile()
+20        If ExistingPort > 0 Then
+21            IsListening = JuliaIsListening(ExistingPort)
+22        End If
+
+23        If IsListening And HwndJulia <> 0 Then
+24            SetJuliaPort ExistingPort
+25            JuliaLaunch = "Julia is already running in window """ & WindowTitleFromHandle(HwndJulia) & """"
+26            Exit Function
+27        ElseIf IsListening Then
+              'No window found, but something is listening and responding on the port recorded on
+              'disk - most likely a session started by calling JuliaExcel.serve_xl directly (e.g.
+              'from a Julia REPL running inside VS Code), which has no dedicated console window for
+              'GetHandleFromPartialCaption to find. Read from disk rather than the (possibly stale)
+              'GetJuliaPort cache, and refresh that cache here, so JuliaLaunch reliably discovers a
+              'session attached this way instead of launching a redundant new one.
+28            SetJuliaPort ExistingPort
+29            JuliaLaunch = "Julia is already running, listening on port " & CStr(ExistingPort) & " with no dedicated console window - most likely a session attached via JuliaExcel.serve_xl"
+30            Exit Function
+31        ElseIf HwndJulia <> 0 Then
+32            Throw "A Julia session titled """ & WindowTitleFromHandle(HwndJulia) & """ is already running for this Excel session, but it is not responding to HTTP requests. Switch to that window: if it's sitting at a ""julia>"" prompt, its HTTP server has likely crashed - close the window and call JuliaLaunch again. If it's busy running code, either wait for it to finish, or press Ctrl+C to interrupt it, then call JuliaLaunch again."
 33        End If
 
           'Now we are not exiting early set JuliaPort to zero so that we can test for the connection having been correctly established.
@@ -222,8 +244,8 @@ Attribute JuliaLaunch.VB_ProcData.VB_Invoke_Func = " \n14"
 83        LoadFileContents = _
               "try" & vbLf & _
               usingStatements & _
-              "    setxlpid(" & CStr(GetCurrentProcessId) & ")" & vbLf & _
-              "    JuliaExcel.setcommsfolder(""" & CommsFolderX & """)" & vbLf & _
+              "    JuliaExcel.setxlpid(" & CStr(GetCurrentProcessId) & ")" & vbLf & _
+              "    JuliaExcel.comms_folder(""" & CommsFolderX & """)" & vbLf & _
               "    println(""Julia $VERSION, using " & gPackageName & " to serve Excel running as process ID " & GetCurrentProcessId() & "."")" & vbLf & _
               "    println(""Julia launched with command: " & LiteralCommand & " "")" & vbLf & _
               "    JuliaExcel.start_server()" & vbLf & _

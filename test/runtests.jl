@@ -263,6 +263,25 @@ end
         @test JuliaExcel.answer_again() == [1, 2, 3]
     end
 
+    # _running_excel_pids (comms.jl) - used by serve_xl() to auto-detect the Excel process to
+    # attach to. Just a smoke test: CI has no Excel installed, so this only checks the Windows
+    # `tasklist` call runs and parses to the right type, not that it finds anything.
+    if Sys.iswindows()
+        @test JuliaExcel._running_excel_pids() isa Vector{Int}
+    end
+
+    # serve_xl(pid) (comms.jl) - defaults show_results to true (unlike display_results itself,
+    # which defaults to false), and passes it through to display_results. Stop the server and reset
+    # display_results afterwards so neither leaks into a later test.
+    JuliaExcel.serve_xl(4321)
+    @test JuliaExcel.display_results() == true
+    @test JuliaExcel.server_status() == (running=true, pid=4321, port=JuliaExcel.xlport[], display_results=true)
+    JuliaExcel.stop_server()
+    @test JuliaExcel.server_status().running == false
+    JuliaExcel.serve_xl(4321; show_results=false)
+    @test JuliaExcel.display_results() == false
+    JuliaExcel.stop_server()
+
 end
 
 # The VBA-side test suite (modTest.RunTests) needs a live Excel/VBA session (via COM automation),

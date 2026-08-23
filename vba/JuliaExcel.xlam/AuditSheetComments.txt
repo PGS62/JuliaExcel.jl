@@ -1,4 +1,5 @@
 ﻿Version	Date	Time	Author	Comment
+148	23-Aug-2026	17:41	Philip Swannell	Changes so that the serve_xl() alternative way to establish the Julia <-> Excel connection works.
 147	23-Aug-2026	16:04	Philip Swannell	Now call SolumAddin's method AuditMenu.
 146	19-Aug-2026	09:33	Philip Swannell	Further performance improvements via bulk processing of arrays of doubles.
 145	18-Aug-2026	20:14	Philip Swannell	Tests now use the default Julia environment.
