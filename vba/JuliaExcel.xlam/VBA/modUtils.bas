@@ -10,11 +10,17 @@ Option Private Module
 Private Declare PtrSafe Function QueryPerformanceFrequency Lib "kernel32" (lpFrequency As Currency) As Long
 Private Declare PtrSafe Function QueryPerformanceCounter Lib "kernel32" (lpPerformanceCount As Currency) As Long
 Private Declare PtrSafe Function GetTempPath Lib "kernel32" Alias "GetTempPathA" (ByVal nBufferLength As Long, ByVal lpBuffer As String) As Long
+Private Declare PtrSafe Function OpenProcess Lib "kernel32" (ByVal dwDesiredAccess As Long, ByVal bInheritHandle As Long, ByVal dwProcessId As Long) As LongPtr
+Private Declare PtrSafe Function CloseHandle Lib "kernel32" (ByVal hObject As LongPtr) As Long
 #Else
 Private Declare Function QueryPerformanceFrequency Lib "kernel32" (lpFrequency As Currency) As Long
 Private Declare Function QueryPerformanceCounter Lib "kernel32" (lpPerformanceCount As Currency) As Long
 Private Declare Function GetTempPath Lib "kernel32" Alias "GetTempPathA" (ByVal nBufferLength As Long, ByVal lpBuffer As String) As Long
+Private Declare Function OpenProcess Lib "kernel32" (ByVal dwDesiredAccess As Long, ByVal bInheritHandle As Long, ByVal dwProcessId As Long) As Long
+Private Declare Function CloseHandle Lib "kernel32" (ByVal hObject As Long) As Long
 #End If
+
+Private Const PROCESS_QUERY_LIMITED_INFORMATION As Long = &H1000
 
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : GetFullTempPath
@@ -191,25 +197,72 @@ ErrHandler:
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
+' Procedure  : TryExtractPidFromFilename
+' Purpose    : Extracts the process id from a file name of the form "<Prefix>_<PID>.<ext>" (e.g.
+'              "Port_60176.txt"), as used for the files JuliaLaunch writes to LocalTemp. Returns
+'              False (leaving PID unchanged) if FileName doesn't match that pattern.
+' -----------------------------------------------------------------------------------------------------------------------
+Function TryExtractPidFromFilename(ByVal FileName As String, ByRef PID As Long) As Boolean
+          Dim DotPos As Long
+          Dim PidStr As String
+          Dim UnderscorePos As Long
+1         On Error GoTo ErrHandler
+2         DotPos = InStrRev(FileName, ".")
+3         If DotPos = 0 Then Exit Function
+4         UnderscorePos = InStrRev(FileName, "_", DotPos - 1)
+5         If UnderscorePos = 0 Then Exit Function
+6         PidStr = Mid$(FileName, UnderscorePos + 1, DotPos - UnderscorePos - 1)
+7         If Not IsNumeric(PidStr) Then Exit Function
+8         PID = CLng(PidStr)
+9         TryExtractPidFromFilename = True
+10        Exit Function
+ErrHandler:
+11        ReThrow "TryExtractPidFromFilename", Err
+End Function
+
+' -----------------------------------------------------------------------------------------------------------------------
+' Procedure  : IsProcessRunning
+' Purpose    : Returns True if a process with the given id is currently running.
+' -----------------------------------------------------------------------------------------------------------------------
+Function IsProcessRunning(ByVal PID As Long) As Boolean
+          Dim hProcess As LongPtr
+1         On Error GoTo ErrHandler
+2         hProcess = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, PID)
+3         IsProcessRunning = (hProcess <> 0)
+4         If hProcess <> 0 Then CloseHandle hProcess
+5         Exit Function
+ErrHandler:
+6         ReThrow "IsProcessRunning", Err
+End Function
+
+' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : CleanLocalTemp
-' Purpose    : Clean out files in the LocalTemp folder that have not been accessed for more than
-'              DeleteFilesOlderThan days.
+' Purpose    : Clean out files in the LocalTemp folder whose name encodes the process id of an Excel
+'              session (e.g. "Port_60176.txt") that is no longer running. Previously deleted files
+'              based on age (not accessed for 3+ days), but NTFS disables last-access-time updates
+'              by default, so that timestamp may not reflect real usage at all - and in any case, an
+'              Excel session (and its attached Julia session) can legitimately stay open for well
+'              over 3 days, so age was never a reliable proxy for "no longer needed". A file whose
+'              name doesn't match the "<Prefix>_<PID>.<ext>" pattern is left alone rather than
+'              guessed at.
 ' -----------------------------------------------------------------------------------------------------------------------
 Sub CleanLocalTemp()
-          Const DeleteFilesOlderThan As Double = 3
           Dim F As Scripting.File
           Dim Fld As Scripting.Folder
           Dim fso As New Scripting.FileSystemObject
+          Dim PID As Long
 1         On Error GoTo ErrHandler
 2         Set Fld = fso.GetFolder(LocalTemp())
 3         For Each F In Fld.Files
-4             If (Now() - F.DateLastAccessed) > DeleteFilesOlderThan Then
-5                 F.Delete
-6             End If
-7         Next
-8         Exit Sub
+4             If TryExtractPidFromFilename(F.Name, PID) Then
+5                 If Not IsProcessRunning(PID) Then
+6                     F.Delete
+7                 End If
+8             End If
+9         Next
+10        Exit Sub
 ErrHandler:
-9         ReThrow "CleanLocalTemp", Err
+11        ReThrow "CleanLocalTemp", Err
 End Sub
 
 ' -----------------------------------------------------------------------------------------------------------------------
@@ -239,38 +292,6 @@ Sub Throw(ByVal ErrorString As String)
 5         End If
 End Sub
 
-' -----------------------------------------------------------------------------------------------------------------------
-' Procedure  : ReThrow
-' Purpose    : Common error handling to be used in the error handler of all methods.
-' Parameters :
-'  FunctionName: The name of the function from which ReThrow is called, typically in the function's error handler.
-'  Error       : Err, the error object.
-'  ReturnString: Pass in True if the method is a "top level" method that's exposed to the user and we wish for the
-'                function to return an error string (starts with #, ends with !).
-'                Pass in False if we want to (re)throw an error, with annotated Description.
-' -----------------------------------------------------------------------------------------------------------------------
-Function ReThrow(FunctionName As String, Error As ErrObject, Optional ReturnString As Boolean = False)
-          Dim ErrorDescription As String
-          Dim ErrorNumber As Long
-          Dim LineDescription As String
-
-1         ErrorDescription = Error.Description
-2         ErrorNumber = Err.Number
-
-          'Build up call stack, i.e. annotate error description by prepending #<FunctionName> and appending !
-3         If Erl = 0 Then
-4             LineDescription = " (line unknown): "
-5         Else
-6             LineDescription = " (line " & CStr(Erl) & "): "
-7         End If
-8         ErrorDescription = "#" & FunctionName & LineDescription & ErrorDescription & "!"
-
-9         If ReturnString Then
-10            ReThrow = ErrorDescription
-11        Else
-12            Err.Raise ErrorNumber, , ErrorDescription
-13        End If
-End Function
 
 'Called from "Menu..." button on sheet Audit.
 Sub MenuButton()

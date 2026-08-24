@@ -8,6 +8,7 @@ VBA\modHttp.bas
 VBA\modJuliaLiteral.bas
 VBA\modMain.bas
 VBA\modPerformance.bas
+VBA\modPrivateMethods.bas
 VBA\modRegister.bas
 VBA\modSerialise.bas
 VBA\modSetGet.bas

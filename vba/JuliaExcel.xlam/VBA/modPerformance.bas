@@ -4,6 +4,7 @@ Attribute VB_Name = "modPerformance"
 ' Document: https://github.com/PGS62/JuliaExcel.jl#readme
 
 Option Explicit
+Option Private Module
 
 '--------------------------------------------------
 '05-Nov-2021 16:18:37        DESKTOP-0VD2AF0

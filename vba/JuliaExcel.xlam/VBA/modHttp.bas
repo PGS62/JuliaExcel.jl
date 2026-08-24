@@ -40,8 +40,8 @@ End Sub
 ' Purpose   : Reads the HTTP port Julia most recently wrote to the port file for this Excel session,
 '             bypassing the gJuliaPort module-level cache entirely. Returns 0 if the file is missing
 '             or its content isn't a positive number. The port file is written by Julia at startup
-'             (or by JuliaExcel.serve_xl) and CleanLocalTemp will not remove it until it is more than
-'             3 days old.
+'             (or by JuliaExcel.serve_xl) and CleanLocalTemp will not remove it while the Excel
+'             process it belongs to is still running.
 ' -----------------------------------------------------------------------------------------------------------------------
 Function ReadJuliaPortFromFile() As Long
           Dim PortFile As String

@@ -668,19 +668,6 @@ Function SingleToHex(ByVal x As Single) As String
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
-' Procedure  : LPad
-' Purpose    : Pad s on the left with p to make it n characters long. If s is already n characters long, an equal string
-'              is returned.
-' -----------------------------------------------------------------------------------------------------------------------
-Function LPad(s As String, n As Long, p As String)
-1         If Len(s) < n Then
-2             LPad = String(n - Len(s), p) & s
-3         Else
-4             LPad = s
-5         End If
-End Function
-
-' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : HexToSingle
 ' Purpose    : Parse an 8-character hex string (uppercase or lowercase) as the IEEE-754
 '              bit pattern of a Single and return the corresponding Single.

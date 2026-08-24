@@ -1,4 +1,9 @@
 ﻿Version	Date	Time	Author	Comment
+153	24-Aug-2026	12:15	Philip Swannell	Changes (Option Private Module etc.) to stop exposing methods to Excel which should not be exposed.
+152	24-Aug-2026	11:26	Philip Swannell	Tweak to method Trim255.
+151	24-Aug-2026	11:13	Philip Swannell	Added TestMakeJuliaLiteral, TestUnserialiseStringTooLong, TestUnserialiseMalformedRank to modTest.bas, and TestConcatenateExpressions to modMain.bas (needs to live there since ConcatenateExpressions is Private to that module). All four registered in RunTests.
+150	24-Aug-2026	10:58	Philip Swannell	Deleted dead code.
+149	24-Aug-2026	10:38	Philip Swannell	Rewrote method CleanLocalTemp. It now deletes files whose names embed a PID that is not a running process.
 148	23-Aug-2026	17:41	Philip Swannell	Changes so that the serve_xl() alternative way to establish the Julia <-> Excel connection works.
 147	23-Aug-2026	16:04	Philip Swannell	Now call SolumAddin's method AuditMenu.
 146	19-Aug-2026	09:33	Philip Swannell	Further performance improvements via bulk processing of arrays of doubles.

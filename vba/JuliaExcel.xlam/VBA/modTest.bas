@@ -4,6 +4,7 @@ Attribute VB_Name = "modTest"
 ' Document: https://github.com/PGS62/JuliaExcel.jl#readme
 
 Option Explicit
+Option Private Module
 
 Function TestExitAndRelaunch()
 
@@ -82,32 +83,37 @@ Function RunTests(Optional SilentMode = False)
 47        AccResult "TestExcelErrorRoundTrip", TestExcelErrorRoundTrip, NumPassed, NumFailed
 48        AccResult "TestByte", TestByte, NumPassed, NumFailed
 49        AccResult "TestVFormatBoundarySizes", TestVFormatBoundarySizes, NumPassed, NumFailed
+50        AccResult "TestMakeJuliaLiteral", TestMakeJuliaLiteral, NumPassed, NumFailed
+51        AccResult "TestUnserialiseStringTooLong", TestUnserialiseStringTooLong, NumPassed, NumFailed
+52        AccResult "TestUnserialiseMalformedRank", TestUnserialiseMalformedRank, NumPassed, NumFailed
+53        AccResult "TestConcatenateExpressions", TestConcatenateExpressions, NumPassed, NumFailed
+54        AccResult "TestTrim255", TestTrim255, NumPassed, NumFailed
 
-50        Prompt = NumPassed & " test(s) passed" & vbLf & _
+55        Prompt = NumPassed & " test(s) passed" & vbLf & _
               NumFailed & " test(s) failed"
 
-51        If NumFailed > 0 Then
-52            Prompt = Prompt & vbLf & vbLf & _
+56        If NumFailed > 0 Then
+57            Prompt = Prompt & vbLf & vbLf & _
                   "See VBA Immediate window for details"
-53        End If
+58        End If
 
-54        PrintTwice NumPassed & " test(s) passed"
-55        PrintTwice NumFailed & " test(s) failed"
-56        PrintTwice String(80, "=")
+59        PrintTwice NumPassed & " test(s) passed"
+60        PrintTwice NumFailed & " test(s) failed"
+61        PrintTwice String(80, "=")
 
-57        If Not SilentMode Then
-58            AppActivate Application.Caption
-59            MsgBox Prompt, IIf(NumFailed = 0, vbInformation, vbCritical), Title
-60        End If
-
-61        RunTests = NumFailed = 0
-
-62        Exit Function
-ErrHandler:
-63        If Not SilentMode Then
-64            MsgBox ReThrow("RunTests", Err, True), vbCritical, Title
+62        If Not SilentMode Then
+63            AppActivate Application.Caption
+64            MsgBox Prompt, IIf(NumFailed = 0, vbInformation, vbCritical), Title
 65        End If
-66        RunTests = False
+
+66        RunTests = NumFailed = 0
+
+67        Exit Function
+ErrHandler:
+68        If Not SilentMode Then
+69            MsgBox ReThrow("RunTests", Err, True), vbCritical, Title
+70        End If
+71        RunTests = False
 End Function
 
 Sub PrintTwice(Text As String)
@@ -999,5 +1005,174 @@ Function TestRangeWireFormat()
 ErrHandler:
 8         PrintTwice ReThrow("TestRangeWireFormat", Err, True)
 9         TestRangeWireFormat = False
+End Function
+
+' Confirms MakeJuliaLiteral's escaping order and coverage: backslash must be escaped first (so later
+' substitutions' own inserted backslashes aren't re-escaped), Trojan-Source bidi control characters
+' (from both guarded ranges, 8234-8238 and 8294-8297) become \uXXXX, and CR/LF/$/an embedded double
+' quote are each escaped. Previously only ever exercised via plain ASCII diagnostic strings passed to
+' PrintTwice, so none of this was actually checked.
+Function TestMakeJuliaLiteral() As Boolean
+          Dim OK As Boolean
+          Dim Res As String
+          Dim x As String
+
+1         On Error GoTo ErrHandler
+2         OK = True
+
+          'One character from each guarded bidi range, plus backslash, CR, LF, $ and an embedded
+          'double quote, all in one string.
+3         x = "a\b" & vbCr & vbLf & "$" & Chr(34) & ChrW(8234) & ChrW(8296)
+4         Res = MakeJuliaLiteral(x)
+
+5         OK = OK And Left$(Res, 1) = Chr(34)                  'outer quoting
+6         OK = OK And Right$(Res, 1) = Chr(34)
+7         OK = OK And InStr(Res, "\\") > 0                     'backslash doubled
+8         OK = OK And InStr(Res, "\r") > 0                     'CR
+9         OK = OK And InStr(Res, "\n") > 0                     'LF
+10        OK = OK And InStr(Res, "\$") > 0                     '$
+11        OK = OK And InStr(Res, "\" & Chr(34)) > 0            'embedded quote
+12        OK = OK And InStr(Res, "\u202a") > 0                 'ChrW(8234), first guarded range
+13        OK = OK And InStr(Res, "\u2068") > 0                 'ChrW(8296), second guarded range
+
+          'A string with none of the above passes through unchanged, just quoted.
+14        OK = OK And MakeJuliaLiteral("hello") = Chr(34) & "hello" & Chr(34)
+
+15        TestMakeJuliaLiteral = OK
+16        Exit Function
+ErrHandler:
+17        PrintTwice ReThrow("TestMakeJuliaLiteral", Err, True)
+18        TestMakeJuliaLiteral = False
+End Function
+
+' Confirms the Case 163 (string) length guard in Unserialise: the 32,767-character Excel-worksheet-
+' string limit always applies at the top level (Depth=1) regardless of StringLengthLimit; a shorter
+' StringLengthLimit only applies to array elements (Depth>1); the message wording differs depending
+' on whether StringLengthLimit is exactly 32768; and the whole check is skipped when
+' StringLengthLimit=0 (called from VBA, not a worksheet formula). None of this was previously
+' exercised - real calls never generate strings this large.
+Function TestUnserialiseStringTooLong() As Boolean
+          Dim d As Long
+          Dim OK As Boolean
+          Dim Threw As Boolean
+
+1         On Error GoTo ErrHandler
+2         OK = True
+
+          'Top level (Depth=1), string just over 32,767 chars, StringLengthLimit=32768 exactly ->
+          'the shorter message variant, mentioning only the worksheet-cell limit.
+3         Threw = False
+4         On Error Resume Next
+5         UnserialiseFromString Chr(163) & String(35000, "x"), False, 32768, False
+6         Threw = InStr(Err.Description, "limit is 32,767") > 0 And _
+                  InStr(Err.Description, "string elements of an array") = 0
+7         On Error GoTo ErrHandler
+8         OK = OK And Threw
+
+          'Top level (Depth=1), same oversized string, but StringLengthLimit=500 (<> 32768) -> the
+          'longer message variant, still triggered by the 32,767 top-level limit, not 500.
+9         Threw = False
+10        On Error Resume Next
+11        UnserialiseFromString Chr(163) & String(35000, "x"), False, 500, False
+12        Threw = InStr(Err.Description, "499 for string elements of an array") > 0
+13        On Error GoTo ErrHandler
+14        OK = OK And Threw
+
+          'Nested (Depth=1 passed in, becomes 2 inside Unserialise), a 601-char string with
+          'StringLengthLimit=500 -> throws, because a non-top-level element is checked against
+          'StringLengthLimit, not the 32,767 top-level limit (601 alone would not throw at Depth=1).
+15        Threw = False
+16        d = 1
+17        On Error Resume Next
+18        Unserialise Chr(163) & String(600, "x"), False, d, 500, False
+19        Threw = InStr(Err.Description, "499 for string elements of an array") > 0
+20        On Error GoTo ErrHandler
+21        OK = OK And Threw
+
+          'Same 601-char string at top level (Depth=1) does not throw - it's under the 32,767 limit.
+22        OK = OK And UnserialiseFromString(Chr(163) & String(600, "x"), False, 500, False) = String(600, "x")
+
+          'StringLengthLimit=0 means "not called from a worksheet formula" - the check is skipped
+          'entirely, however long the string.
+23        OK = OK And Len(UnserialiseFromString(Chr(163) & String(40000, "x"), False, 0, False)) = 40000
+
+24        TestUnserialiseStringTooLong = OK
+25        Exit Function
+ErrHandler:
+26        PrintTwice ReThrow("TestUnserialiseStringTooLong", Err, True)
+27        TestUnserialiseStringTooLong = False
+End Function
+
+' Confirms Unserialise rejects a wire-format array header with a multi-digit rank (e.g. "*10,...") -
+' the rank digit is assumed to be a single character elsewhere in the parsing, so a malformed or
+' out-of-range rank should be caught here rather than silently misparsed. Never previously exercised
+' - a genuine 10+ dimensional array is never actually produced by encode_for_xl (Julia's own side
+' caps out at 9 dimensions), so this simulates a corrupted/malformed header directly.
+Function TestUnserialiseMalformedRank() As Boolean
+          Dim d As Long
+          Dim OK As Boolean
+          Dim Threw As Boolean
+
+1         On Error GoTo ErrHandler
+2         d = 0
+3         Threw = False
+4         On Error Resume Next
+5         Unserialise "*10,1,1;1;x", False, d, 0, False
+6         Threw = InStr(Err.Description, "10 dimensions (max supported: 9)") > 0
+7         On Error GoTo ErrHandler
+8         OK = Threw
+
+9         TestUnserialiseMalformedRank = OK
+10        Exit Function
+ErrHandler:
+11        PrintTwice ReThrow("TestUnserialiseMalformedRank", Err, True)
+12        TestUnserialiseMalformedRank = False
+End Function
+
+' Confirms ConcatenateExpressions' handling of each accepted input shape (scalar, 1-D array, single-
+' column 2-D array) and its two rejection paths (multi-column 2-D array, rank 3+) - previously
+' unexercised, since every existing call to JuliaEval/JuliaCall in the test suite passes a plain
+' string.
+Function TestConcatenateExpressions() As Boolean
+          Dim Arr1Col() As Variant
+          Dim Arr2Col() As Variant
+          Dim Arr3D() As Variant
+          Dim OK As Boolean
+          Dim Threw As Boolean
+
+1         On Error GoTo ErrHandler
+2         OK = True
+
+3         OK = OK And ConcatenateExpressions("a=1") = "a=1"
+4         OK = OK And ConcatenateExpressions(Array("a=1", "b=2")) = "a=1;b=2"
+
+5         ReDim Arr1Col(1 To 2, 1 To 1)
+6         Arr1Col(1, 1) = "a=1"
+7         Arr1Col(2, 1) = "b=2"
+8         OK = OK And ConcatenateExpressions(Arr1Col) = "a=1;b=2"
+
+9         ReDim Arr2Col(1 To 1, 1 To 2)
+10        Arr2Col(1, 1) = "a=1"
+11        Arr2Col(1, 2) = "b=2"
+12        Threw = False
+13        On Error Resume Next
+14        ConcatenateExpressions Arr2Col
+15        Threw = InStr(Err.Description, "2 columns") > 0
+16        On Error GoTo ErrHandler
+17        OK = OK And Threw
+
+18        ReDim Arr3D(1 To 1, 1 To 1, 1 To 1)
+19        Threw = False
+20        On Error Resume Next
+21        ConcatenateExpressions Arr3D
+22        Threw = InStr(Err.Description, "Too many dimensions") > 0
+23        On Error GoTo ErrHandler
+24        OK = OK And Threw
+
+25        TestConcatenateExpressions = OK
+26        Exit Function
+ErrHandler:
+27        PrintTwice ReThrow("TestConcatenateExpressions", Err, True)
+28        TestConcatenateExpressions = False
 End Function
 

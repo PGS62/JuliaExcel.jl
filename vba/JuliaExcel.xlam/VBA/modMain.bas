@@ -46,6 +46,8 @@ End Function
 '             VS Code) instead of one launched via JuliaLaunch.
 ' -----------------------------------------------------------------------------------------------------------------------
 Public Function JuliaExcelPID() As Long
+Attribute JuliaExcelPID.VB_Description = "Returns the process id of the current Excel session. Only needed if more than one Excel instance is running - pass it to `serve_xl(pid)` to say which one to attach to."
+Attribute JuliaExcelPID.VB_ProcData.VB_Invoke_Func = " \n14"
 1         On Error GoTo ErrHandler
 2         JuliaExcelPID = GetCurrentProcessId
 
@@ -574,58 +576,6 @@ Sub Assign(ByRef A, B)
 End Sub
 
 ' -----------------------------------------------------------------------------------------------------------------------
-' Procedure : ThrowIfError
-' Purpose   : In the event of an error, methods intended to be callable from spreadsheets
-'             return an error string (starts with "#", ends with "!"). ThrowIfError allows such
-'             methods to be used from VBA code while keeping error handling robust
-'             MyVariable = ThrowIfError(MyFunctionThatReturnsAStringIfAnErrorHappens(...))
-' -----------------------------------------------------------------------------------------------------------------------
-Function ThrowIfError(Data As Variant)
-1         ThrowIfError = Data
-2         If VarType(Data) = vbString Then
-3             If Left$(Data, 1) = "#" Then
-4                 If Right$(Data, 1) = "!" Then
-5                     Throw CStr(Data)
-6                 End If
-7             End If
-8         End If
-End Function
-
-' -----------------------------------------------------------------------------------------------------------------------
-' Procedure  : ConcatenateExpressions
-' Purpose    : It's convenient to be able to pass in a multi-line expression, which we first concatenate with semi-colon
-'              delimiter before passing to Julia for evaluation
-' -----------------------------------------------------------------------------------------------------------------------
-Private Function ConcatenateExpressions(JuliaExpression As Variant) As String
-          Dim i As Long
-          Dim NC As Long
-          Dim Tmp() As String
-1         On Error GoTo ErrHandler
-2         If TypeName(JuliaExpression) = "Range" Then
-3             JuliaExpression = JuliaExpression.Value
-4         End If
-5         Select Case NumDimensions(JuliaExpression)
-              Case 0
-6                 ConcatenateExpressions = CStr(JuliaExpression)
-7             Case 1
-8                 ConcatenateExpressions = VBA.Join(JuliaExpression, ";")
-9             Case 2
-10                NC = UBound(JuliaExpression, 2) - LBound(JuliaExpression, 1) + 1
-11                If NC > 1 Then Throw "When passed as an array or a Range, JuliaExpression should have only one column, but got " + CStr(NC) + " columns"
-12                ReDim Tmp(LBound(JuliaExpression, 1) To UBound(JuliaExpression, 1))
-13                For i = LBound(Tmp) To UBound(Tmp)
-14                    Tmp(i) = JuliaExpression(i, LBound(JuliaExpression, 2))
-15                Next
-16                ConcatenateExpressions = VBA.Join(Tmp, ";")
-17            Case Else
-18                Throw "Too many dimensions in JuliaExpression"
-19        End Select
-20        Exit Function
-ErrHandler:
-21        ReThrow "ConcatenateExpressions", Err
-End Function
-
-' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : JuliaCall_LowLevel
 ' Purpose    : Shared dispatch for JuliaCall and JuliaCallVBA. POSTs EncodedArgs (a 1D array in the
 '              JuliaExcel wire format whose first element is a function name and remaining elements
@@ -716,7 +666,7 @@ End Function
 '             or Range. Ranges are expanded to their .Value2 before encoding.
 ' -----------------------------------------------------------------------------------------------------------------------
 Public Function JuliaCallVBA(JuliaFunction As String, ParamArray Args())
-Attribute JuliaCallVBA.VB_Description = "Call a named Julia function from VBA. Differs from JuliaCall in handling of 1-d arrays and strings longer than 32,767 characters. May return data of types that cannot be displayed on a worksheet, such as a dictionary, an array of arrays, or arrays of dim�"
+Attribute JuliaCallVBA.VB_Description = "Call a named Julia function from VBA. Differs from JuliaCall in handling of 1-d arrays and strings longer than 32,767 characters. May return data of types that cannot be displayed on a worksheet, such as a dictionary, an array of arrays, or arrays of d..."
 Attribute JuliaCallVBA.VB_ProcData.VB_Invoke_Func = " \n14"
           Dim Arg As Variant
           Dim ContentsSection As String
