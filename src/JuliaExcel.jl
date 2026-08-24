@@ -16,20 +16,21 @@ const global _server = Ref{Any}(nothing)
 """
     ExcelError(code::Int)
 
-Represents an Excel error value (e.g. `#DIV/0!`, `#N/A`) received from VBA. Decoded from the wire
-format's `!` type indicator (see `decode_from_xl` in decode.jl) and re-encoded the same way by
-`encode_for_xl` (encode.jl), so an Excel error genuinely round-trips through Julia unchanged - e.g.
-`JuliaCall("identity", SomeErrorCell)` returns the same error.
+Represents an Excel error value (e.g. `#DIV/0!`, `#N/A`) received from Excel. Decoded from
+the wire format's `!` type indicator (see `decode_from_xl` in decode.jl) and re-encoded the
+same way by `encode_for_xl` (encode.jl), so an Excel error round-trips through Julia
+unchanged - e.g. `JuliaCall("identity", SomeErrorCell)` returns the same error.
 
-Deliberately a distinct type rather than a `String`: a Julia function that isn't written to expect
-an Excel error, and receives one where it expects an ordinary value, fails immediately with a
-`MethodError` - rather than silently treating error text as ordinary string data. Functions that
-want to handle Excel errors explicitly can dispatch on this type, e.g. `myfunc(::ExcelError) =
-missing` to swallow them, or `myfunc(e::ExcelError) = e` to propagate them onward unchanged.
+A Julia function that isn't written to expect an Excel error, and receives one where it
+expects an ordinary value, fails immediately with a `MethodError`. Functions that want to
+handle Excel errors explicitly can dispatch on this type, e.g. `myfunc(::ExcelError) =
+missing` to swallow them, or `myfunc(e::ExcelError) = e` to propagate them onward
+unchanged.
 
-The numeric code is stored as-is, with no validation against the current list of known Excel error
-codes - Excel could add new ones in future versions, and any code decodes/re-encodes identically
-regardless of whether it's recognised (see `EXCEL_ERROR_NAMES` below, used only for display).
+The numeric code is stored as-is, with no validation against the current list of known
+Excel error codes - Excel could add new ones in future versions, and any code
+decodes/re-encodes identically regardless of whether it's recognised (see
+`EXCEL_ERROR_NAMES` below, used only for display).
 """
 struct ExcelError
     code::Int

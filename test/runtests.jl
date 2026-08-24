@@ -270,16 +270,34 @@ end
         @test JuliaExcel._running_excel_pids() isa Vector{Int}
     end
 
-    # serve_xl(pid) (comms.jl) - defaults show_results to true (unlike display_results itself,
-    # which defaults to false), and passes it through to display_results. Stop the server and reset
+    # serve_xl (comms.jl) - given an explicit pid, throws unless it matches a real running Excel
+    # process (Windows only) - CI has no Excel installed, so any pid is rejected there.
+    if Sys.iswindows()
+        @test_throws String JuliaExcel.serve_xl(true, 999999999)
+    end
+
+    # _attach_to_excel (comms.jl) - the actual attach logic serve_xl delegates to once it has a
+    # validated pid; tested directly since CI has no real Excel process for serve_xl's own
+    # validation to accept. Clears any stale port file left over from a previous local run first -
+    # otherwise, if it happens to reference a port still genuinely listening (e.g. an orphaned
+    # process from an earlier interrupted test run), the new already-listening check below would
+    # spuriously reject this pid. show_results defaults to true (unlike display_results itself,
+    # which defaults to false), and is passed through to display_results. Stop the server and reset
     # display_results afterwards so neither leaks into a later test.
-    JuliaExcel.serve_xl(4321)
+    JuliaExcel.setxlpid(4321)
+    JuliaExcel.comms_folder(JuliaExcel._default_commsfolder())
+    isfile(JuliaExcel.portfile()) && rm(JuliaExcel.portfile())
+    JuliaExcel._attach_to_excel(true, 4321)
     @test JuliaExcel.display_results() == true
     @test JuliaExcel.server_status() == (running=true, pid=4321, port=JuliaExcel.xlport[], display_results=true)
     JuliaExcel.stop_server()
     @test JuliaExcel.server_status().running == false
-    JuliaExcel.serve_xl(4321; show_results=false)
+    JuliaExcel._attach_to_excel(false, 4321)
     @test JuliaExcel.display_results() == false
+
+    # _attach_to_excel refuses to start a second, useless listener when one is already serving the
+    # same pid - starting a fresh session again for 4321 without stopping the previous one first.
+    @test_throws String JuliaExcel._attach_to_excel(true, 4321)
     JuliaExcel.stop_server()
 
 end

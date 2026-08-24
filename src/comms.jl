@@ -20,59 +20,100 @@ function getxlpid()
 end
 
 """
-    serve_xl(pid::Integer; show_results::Bool=true)
-    serve_xl(; show_results::Bool=true)
+    serve_xl(show_results::Bool=true, pid::Integer=0)
 
-Attaches this Julia session to an Excel process, so it responds to `JuliaCall`/`JuliaEval` requests
-from that Excel session exactly as if it had been launched by `JuliaLaunch` - for attaching a Julia
-session that's already running (e.g. one open in VS Code) instead of always launching a fresh one.
+Attaches this Julia session to an Excel process, so it responds to `JuliaCall`/`JuliaEval`
+requests from that Excel session exactly as if it had been launched by the `JuliaLaunch()`
+worksheet function.
 
-With no argument, automatically attaches to the single running Excel process (Windows only). If no
-Excel process is found, or more than one is, throws an error explaining how to call `serve_xl(pid)`
-instead, giving the process id explicitly - get it from Excel's `JuliaExcelPID()` worksheet function.
+`show_results` is passed to `display_results` - it defaults to `true` here, since attaching
+an interactive session like this is exactly when seeing each call and its result echoed to
+the REPL is most useful.
 
-`show_results` is passed to `display_results` - it defaults to `true` here (unlike calling
-`display_results` directly, which defaults to `false`) since attaching an interactive session like
-this is exactly when seeing each call and its result echoed to the REPL is most useful. Pass
-`show_results=false` to opt out.
+`pid` identifies the Excel process to attach to. Leave it at its default of `0` to attach
+to the single running Excel process automatically - if none is found, or more than one is,
+throws an error explaining how to call `serve_xl` with `pid` given explicitly. Get `pid`
+from Excel's `JuliaExcelPID()` worksheet function.
 
-`show_results` is a keyword rather than a positional argument to avoid ambiguity with `pid`: in
-Julia, `Bool <: Integer`, so `serve_xl(true)` could otherwise be read as either `pid=true` or
-`show_results=true`.
+Given explicitly, `pid` is checked against the running Excel processes (Windows only - this check
+is skipped, not enforced, when Julia itself is running under WSL) and an error thrown if it doesn't
+match one, rather than silently starting a server nothing will ever connect to.
 
-Equivalent to calling `setxlpid(pid)`, `comms_folder(...)`, `display_results(show_results)` and
-`start_server()` in turn - the same steps `JuliaLaunch`'s generated startup script performs for a
-session it launches itself (aside from `display_results`, which it leaves at its own default).
+Also throws if Excel already has another Julia session listening for it (e.g. one launched via
+`JuliaLaunch`, or attached earlier with `serve_xl` itself) - starting a second one wouldn't do
+anything useful, since Excel would keep talking to whichever session it's already connected to.
+Stop that session first (e.g. call `stop_server()` there, or close it) before attaching this one.
 """
-function serve_xl(pid::Integer; show_results::Bool=true)
+function serve_xl(show_results::Bool=true, pid::Integer=0)
+    if pid == 0
+        pids = _running_excel_pids()
+        if isempty(pids)
+            throw("No running Excel process was found. Open Excel and try again, or call" *
+                  " serve_xl(show_results, pid) directly, passing the process id from Excel's" *
+                  " JuliaExcelPID() worksheet function.")
+        elseif length(pids) > 1
+            throw("Found $(length(pids)) running Excel processes (process ids: $(join(pids, ", "))) -" *
+                  " call serve_xl(show_results, pid) directly instead, passing the process id of the" *
+                  " Excel session to attach to, from its JuliaExcelPID() worksheet function.")
+        end
+        pid = only(pids)
+    elseif Sys.iswindows() && !(pid in _running_excel_pids())
+        throw("No running Excel process has process id $pid. Check the value returned by Excel's" *
+              " JuliaExcelPID() worksheet function.")
+    end
+    _attach_to_excel(show_results, pid)
+end
+
+"""
+    _attach_to_excel(show_results::Bool, pid::Integer)
+Does the actual work of attaching to Excel process `pid`, once `serve_xl` has decided (or
+validated) it. Split out from `serve_xl` so it can be tested directly, without needing a real
+Excel process for `serve_xl`'s own validation to accept.
+
+Throws if a Julia session is already listening on the port last recorded for `pid` - starting a
+second server in that case wouldn't do anything useful: Excel would keep talking to whichever
+session it's already connected to, and this one would just sit there receiving nothing. Stop the
+other session first (e.g. call `stop_server()` there, or close it) before attaching this one.
+"""
+function _attach_to_excel(show_results::Bool, pid::Integer)
     setxlpid(Int64(pid))
     comms_folder(_default_commsfolder())
+    if isfile(portfile())
+        existing_port = tryparse(Int, strip(read(portfile(), String)))
+        if existing_port !== nothing && existing_port > 0 && _port_is_listening(existing_port)
+            throw("Excel (process id $pid) already has a Julia session listening on port" *
+                  " $existing_port - stop that session first (e.g. call stop_server() there, or" *
+                  " close it), then call serve_xl again.")
+        end
+    end
     display_results(show_results)
     start_server()
 end
 
-function serve_xl(; show_results::Bool=true)
-    pids = _running_excel_pids()
-    if isempty(pids)
-        throw("No running Excel process was found. Open Excel and try again, or call serve_xl(pid)" *
-              " directly, passing the process id from Excel's JuliaExcelPID() worksheet function.")
-    elseif length(pids) > 1
-        throw("Found $(length(pids)) running Excel processes (process ids: $(join(pids, ", "))) -" *
-              " call serve_xl(pid) directly instead, passing the process id of the Excel session to" *
-              " attach to, from its JuliaExcelPID() worksheet function.")
+"""
+    _port_is_listening(port::Integer)::Bool
+Returns whether something is currently listening on the given local port. Used by
+`_attach_to_excel` to detect a live Julia session already serving the target Excel process before
+starting a new one.
+"""
+function _port_is_listening(port::Integer)::Bool
+    try
+        close(Sockets.connect("127.0.0.1", port))
+        true
+    catch
+        false
     end
-    serve_xl(only(pids); show_results=show_results)
 end
 
 """
     _running_excel_pids()::Vector{Int}
 Returns the process ids of all running Excel.exe processes, found via the Windows `tasklist`
-utility. Used by `serve_xl()` to find the single Excel process to attach to automatically.
+utility. Used by `serve_xl` to find the single Excel process to attach to automatically.
 """
 function _running_excel_pids()::Vector{Int}
-    Sys.iswindows() || throw("Automatic Excel process detection needs Windows - call serve_xl(pid)" *
-                             " directly instead, passing the process id from Excel's" *
-                             " JuliaExcelPID() worksheet function.")
+    Sys.iswindows() || throw("Automatic Excel process detection needs Windows - call" *
+                             " serve_xl(show_results, pid) directly instead, passing the process id" *
+                             " from Excel's JuliaExcelPID() worksheet function.")
     pids = Int[]
     for line in readlines(`tasklist /FI "IMAGENAME eq EXCEL.EXE" /FO CSV /NH`)
         fields = split(line, "\",\"")
@@ -83,8 +124,9 @@ end
 
 """
     display_results(switch::Bool)
-Switch on or off display in the REPL of both the incoming expression/function call from Excel
-and the value returned to Excel, for calls via JuliaCall and JuliaEval.
+Switch on or off display in the REPL of both the incoming expression/function call from
+Excel and the value returned to Excel, for calls via `JuliaCall` and `JuliaEval`.
+
 """
 function display_results(switch::Bool)
     _display_results[] = switch
@@ -346,12 +388,20 @@ end
 Stops this Julia session's HTTP server, if one is running, so it no longer responds to
 `JuliaCall`/`JuliaEval` requests from Excel. No-op if no server is currently running.
 
+Also clears the port from this session's window title (via `settitle`) - otherwise the title would
+keep claiming a port this session no longer serves, which could wrongly look like a match for
+whichever port a *different* session (e.g. one started with `serve_xl`) happens to pick up next.
+
 Leaves the port file on disk untouched, so Excel will still try the now-dead port on its next
 request - and get a clean "no connection" error rather than reaching this session again.
 """
 function stop_server()
-    _server[] !== nothing && close(_server[])
-    _server[] = nothing
+    if _server[] !== nothing
+        close(_server[])
+        _server[] = nothing
+        xlport[] = 0
+        settitle()
+    end
     nothing
 end
 

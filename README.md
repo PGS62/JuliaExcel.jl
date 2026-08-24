@@ -59,7 +59,7 @@ JuliaExcel makes the following functions available from Excel worksheets and fro
 |[JuliaEvalVBA](#juliaevalvba)|Evaluate a Julia expression from VBA . Differs from `JuliaCall` in handling of 1-d arrays and strings longer than 32,767 characters. May return data of types that cannot be displayed on a worksheet, such as a dictionary or an array of arrays.|
 |[JuliaCallVBA](#juliacallvba)|Call a named Julia function from VBA. Differs from `JuliaCall` in handling of 1-d arrays and strings longer than 32,767 characters. May return data of types that cannot be displayed on a worksheet, such as a dictionary, an array of arrays, or arrays of dimension up to 9.|
 |[JuliaIsRunning](#juliaisrunning)|Returns TRUE if an instance of Julia is running and "listening" to the current Excel session, or FALSE otherwise.|
-|[JuliaExcelPID](#juliaexcelpid)|Returns the process id of the current Excel session. Only needed if more than one Excel instance is running - pass it to `serve_xl(pid)` to say which one to attach to.|
+|[JuliaExcelPID](#juliaexcelpid)|Returns the process id of the current Excel session. Only needed if more than one Excel instance is running - pass it to `serve_xl` to say which one to attach to.|
 
 ## Demo
 Here's a quick demonstration of the functions in action.
@@ -178,7 +178,7 @@ Public Function JuliaIsRunning() As Boolean
 ```
 
 ### `JuliaExcelPID`
-Returns the process id of the current Excel session. You'll rarely need this directly: `JuliaExcel.serve_xl()` finds the running Excel process automatically when only one is open. It's only when more than one Excel instance is running that you need it, to tell `JuliaExcel.serve_xl(pid)` explicitly which one to attach to - see [Attaching to a Julia session already running elsewhere](#attaching-to-a-julia-session-already-running-elsewhere).
+Returns the process id of the current Excel session. You'll rarely need this directly: `JuliaExcel.serve_xl()` finds the running Excel process automatically when only one is open. It's only when more than one Excel instance is running that you need it, to tell `JuliaExcel.serve_xl` explicitly which one to attach to - see [Attaching to a Julia session already running elsewhere](#attaching-to-a-julia-session-already-running-elsewhere).
 ```vba
 Public Function JuliaExcelPID() As Long
 ```
@@ -191,9 +191,13 @@ using JuliaExcel
 serve_xl()
 ```
 
-With no argument, `serve_xl` finds the single running Excel process automatically and attaches to it. If more than one Excel process is running, it won't guess - it throws, telling you to call `JuliaExcel.serve_xl(pid)` instead, giving the process id explicitly (get it from Excel via the `JuliaExcelPID()` worksheet function). Back in Excel, `JuliaCall`/`JuliaEval`/etc. now talk to that session directly - there's no need to call `JuliaLaunch` at all, though if you do (e.g. from existing VBA code), it will detect the attached session and use it rather than starting a new one.
+With no argument, `serve_xl` finds the single running Excel process automatically and attaches to it, also switching `display_results` on - since seeing each call arrive is exactly what you want when attached like this for interactive debugging. Pass `false` to leave `display_results` off: `serve_xl(false)`.
 
-`serve_xl` also switches `display_results` on by default, since seeing each call arrive is exactly what you want when attached like this for interactive debugging - pass `show_results=false` to opt out.
+If more than one Excel process is running, `serve_xl` won't guess - it throws, telling you to pass the process id explicitly instead: `serve_xl(true, pid)`, getting `pid` from Excel's `JuliaExcelPID()` worksheet function.
+
+Back in Excel, `JuliaCall`/`JuliaEval`/etc. now talk to the attached session directly - there's no need to call `JuliaLaunch` at all, though if you do (e.g. from existing VBA code), it will detect the attached session and use it rather than starting a new one.
+
+If Excel is already being served by another Julia session (e.g. one launched via `JuliaLaunch`, or attached earlier with `serve_xl` itself), `serve_xl` throws rather than starting a second, useless listener - stop the other session first (e.g. call `stop_server()` there, or close it).
 
 Other functions for managing a session started this way:
 * `JuliaExcel.stop_server()` stops the session listening to Excel, without closing Julia itself.

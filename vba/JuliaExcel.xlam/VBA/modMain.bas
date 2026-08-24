@@ -153,17 +153,23 @@ Attribute JuliaLaunch.VB_ProcData.VB_Invoke_Func = " \n14"
 21            IsListening = JuliaIsListening(ExistingPort)
 22        End If
 
-23        If IsListening And HwndJulia <> 0 Then
+              'A window matching the PID alone isn't enough to trust it's the one currently listening:
+              'it could be a stale window from a session that's since stopped serving (e.g. via
+              'JuliaExcel.stop_server), left open while a different, windowless session (e.g. one
+              'attached via JuliaExcel.serve_xl) has since taken over the port. Require the window's
+              'own title to also mention this specific port - JuliaExcel.settitle clears the port from
+              'the title when a session stops serving, so a stale window won't falsely match here.
+23        If IsListening And HwndJulia <> 0 And InStr(WindowTitleFromHandle(HwndJulia), ", port " & CStr(ExistingPort)) > 0 Then
 24            SetJuliaPort ExistingPort
 25            JuliaLaunch = "Julia is already running in window """ & WindowTitleFromHandle(HwndJulia) & """"
 26            Exit Function
 27        ElseIf IsListening Then
-              'No window found, but something is listening and responding on the port recorded on
-              'disk - most likely a session started by calling JuliaExcel.serve_xl directly (e.g.
-              'from a Julia REPL running inside VS Code), which has no dedicated console window for
-              'GetHandleFromPartialCaption to find. Read from disk rather than the (possibly stale)
-              'GetJuliaPort cache, and refresh that cache here, so JuliaLaunch reliably discovers a
-              'session attached this way instead of launching a redundant new one.
+              'Either no window was found, or the one found doesn't match the currently listening
+              'port (see above) - most likely a session started by calling JuliaExcel.serve_xl
+              'directly (e.g. from a Julia REPL running inside VS Code), which has no dedicated
+              'console window for GetHandleFromPartialCaption to find. Read from disk rather than the
+              '(possibly stale) GetJuliaPort cache, and refresh that cache here, so JuliaLaunch
+              'reliably discovers a session attached this way instead of launching a redundant new one.
 28            SetJuliaPort ExistingPort
 29            JuliaLaunch = "Julia is already running, listening on port " & CStr(ExistingPort) & " with no dedicated console window - most likely a session attached via JuliaExcel.serve_xl"
 30            Exit Function
