@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-08-24
+
 ### New features
 
 - New `display_results` function: switch it on to echo, in the Julia console, both the expression or function call arriving from Excel (`question>`) and the value being returned to it (`answer>`) - useful for seeing exactly what `JuliaCall`/`JuliaEval` are doing. Example [here](README.md#demo).
