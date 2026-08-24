@@ -9,7 +9,6 @@
 - `JuliaExcel.last_question` and `JuliaExcel.last_answer` record the most recent expression or function call from Excel and the value returned to it, whichever of `JuliaCall`/`JuliaEval` was used. A new `JuliaExcel.answer_again()` re-evaluates `last_question`, and you can wrap it with `@enter` or your own debugging tools.
 - New `JuliaExcel.serve_xl` function: attaches a Julia session that's already running (e.g. one open in VS Code) to Excel, instead of always launching a fresh process via `JuliaLaunch`. Call `JuliaExcel.serve_xl()` to attach to the single running Excel process automatically, or give the process id explicitly if more than one is running - get it from Excel's new `JuliaExcelPID()` worksheet function. Also adds `JuliaExcel.stop_server()` and `JuliaExcel.server_status()` for managing a session attached this way.
 - `JuliaLaunch` and `JuliaCall`/`JuliaEval` are more resilient to the Julia session behind them changing or disappearing mid-session, e.g. after `JuliaExcel.stop_server()`, or a session attached via `JuliaExcel.serve_xl` on a different port.
-- `JuliaExcel.serve_xl` now refuses to attach when Excel already has another Julia session listening for it, instead of silently starting a second, useless one - stop the other session first.
 
 ## [2.0.0] - 2026-08-19
 
