@@ -15,7 +15,10 @@ Private Declare Function IsWindow Lib "user32" (ByVal hwnd As Long) As Long
 #End If
 
 Public Const gPackageName As String = "JuliaExcel"
-Public Const gTestCommandOptions = "" 'So we use the default Julia environment
+Public Const gTestCommandOptions = "--project=C:\Projects\JuliaExcel" 'Forces the Julia process
+    'launched for RunTests/PerformanceTest/SimpleSpeedTest to activate this repo's own environment,
+    'so "using JuliaExcel" always loads the local working copy under test, regardless of what the
+    'default (non-project-specific) Julia environment happens to have installed/dev'd.
 
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure : JuliaIsRunning

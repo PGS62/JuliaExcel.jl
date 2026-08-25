@@ -322,10 +322,17 @@ end
 # currently runs on windows-latest, so checking Sys.iswindows() alone wouldn't distinguish CI from
 # a local run). Locally, run scripts\Run-VbaTests.ps1, which expects workbooks\JuliaExcel.xlam to
 # already be open in Excel and fails clearly (rather than skipping silently) if it isn't.
+#
+# Passes "--project=" & pkgdir(JuliaExcel) through to RunTests (and from there to JuliaLaunch), so
+# the Julia process RunTests launches to actually serve the VBA-side tests is always this exact
+# working copy - not whatever package version happens to be in the machine's default Julia
+# environment, which could silently differ from the code under test here. pkgdir gives the correct
+# folder on any machine, unlike a hard-coded path.
 if get(ENV, "CI", "false") != "true" && Sys.iswindows()
     @testset "VBA test suite (modTest.RunTests, requires Excel open locally)" begin
         script = joinpath(@__DIR__, "..", "scripts", "Run-VbaTests.ps1")
-        proc = run(ignorestatus(`powershell -ExecutionPolicy Bypass -File $script`))
+        project_options = "--project=$(pkgdir(JuliaExcel))"
+        proc = run(ignorestatus(`powershell -ExecutionPolicy Bypass -File $script -CommandLineOptions $project_options`))
         @test proc.exitcode == 0
     end
 end

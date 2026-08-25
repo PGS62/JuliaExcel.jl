@@ -10,6 +10,16 @@
 #     [x] Trust access to the VBA project object model
 #
 # Run from VSCode via Terminal -> Run Task -> "VBA: Run Tests".
+#
+# -CommandLineOptions is passed straight through to RunTests (and from there to JuliaLaunch) -
+# e.g. test/runtests.jl calls this script with "--project=" & pkgdir(JuliaExcel), so the Julia
+# process RunTests launches is always the local working copy under test, not whatever the
+# machine's default Julia environment happens to have. Defaults to "" (JuliaLaunch's own default
+# environment) when omitted, e.g. for a plain manual run of this script.
+
+param(
+    [string]$CommandLineOptions = ""
+)
 
 $ErrorActionPreference = "Stop"
 
@@ -39,9 +49,12 @@ Write-Host "Found workbook: $($book.FullName)"
 
 Write-Host ""
 Write-Host "Running RunTests (SilentMode) ..."
+if ($CommandLineOptions -ne "") {
+    Write-Host "CommandLineOptions: $CommandLineOptions"
+}
 # SilentMode:=True suppresses the MsgBox summary and Function Wizard checks that would otherwise
 # block this script waiting for user input; results still go to the VBA Immediate window as usual.
-$result = $excel.Run("'$xlPath'!modTest.RunTests", $true)
+$result = $excel.Run("'$xlPath'!modTest.RunTests", $true, $CommandLineOptions)
 
 Write-Host ""
 if ($result) {

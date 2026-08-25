@@ -23,19 +23,25 @@ End Function
 ' Purpose    : Test JuliaCall for a variety of data types. For each data type we check that x is identical to
 '              JuliaCall("identity", x). Prints results to Immediate window and to a MsgBox. Assigned to button
 '              "Run Tests!" on worksheet Audit.
+' Parameters :
+'  CommandLineOptions: Passed straight through to JuliaLaunch. Defaults to "", i.e. JuliaLaunch's own
+'                       default environment. test/runtests.jl (Julia side) calls this indirectly via
+'                       scripts\Run-VbaTests.ps1, passing "--project=" & pkgdir(JuliaExcel) so the
+'                       Julia process under test is always the local working copy, on any machine -
+'                       not whatever the machine's default Julia environment happens to have.
 ' -----------------------------------------------------------------------------------------------------------------------
-Function RunTests(Optional SilentMode = False)
+Function RunTests(Optional SilentMode = False, Optional CommandLineOptions As String = "")
 
           Const Title = "JuliaExcel RunTests"
           Dim NumFailed As Long
           Dim NumPassed As Long
           Dim Prompt As String
-          
+
 1         On Error GoTo ErrHandler
 
 2         JuliaEval "exit()"
 3         PreciseSleep 1000 'Give time to shut down properly, otherwise launch can fail thinking Julia still running but unresponsive
-4         ThrowIfError JuliaLaunch(, , gTestCommandOptions)
+4         ThrowIfError JuliaLaunch(, , CommandLineOptions)
 
 5         PrintTwice vbLf & String(80, "=")
 6         PrintTwice "JuliaExcel RunTests"

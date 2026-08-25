@@ -2,9 +2,10 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "VBA: Push to Excel",
+            "label": "VBA: Push to Excel (JuliaExcel)",
+            "detail": "Have a .bas/.cls/.frm file open/focused for the workbook you want to push to.",
             "type": "shell",
-            "command": "powershell -File \"${workspaceFolder}/scripts/Push-VbaModules.ps1\"",
+            "command": "powershell -File \"${workspaceFolder}/../SolumAddins/scripts/Sync-VbaModules.ps1\" -Action Push -ActiveFile \"${file}\"",
             "group": {
                 "kind": "build",
                 "isDefault": true
@@ -18,9 +19,24 @@
             "problemMatcher": []
         },
         {
-            "label": "VBA: Pull from Excel",
+            "label": "VBA: Push Changed Modules to Excel (JuliaExcel)",
+            "detail": "Push only modules changed since the last Pull. Have a .bas/.cls/.frm file open/focused for the workbook you want to push to.",
             "type": "shell",
-            "command": "powershell -File \"${workspaceFolder}/scripts/Pull-VbaModules.ps1\"",
+            "command": "powershell -File \"${workspaceFolder}/../SolumAddins/scripts/Sync-VbaModules.ps1\" -Action Push -ActiveFile \"${file}\" -ChangedOnly",
+            "group": "build",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared",
+                "clear": true,
+                "focus": true
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "VBA: Pull from Excel (JuliaExcel)",
+            "detail": "Have a .bas/.cls/.frm file open/focused for the workbook you want to pull from.",
+            "type": "shell",
+            "command": "powershell -File \"${workspaceFolder}/../SolumAddins/scripts/Sync-VbaModules.ps1\" -Action Pull -ActiveFile \"${file}\"",
             "group": "build",
             "presentation": {
                 "reveal": "always",

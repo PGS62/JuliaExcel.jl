@@ -1,6 +1,7 @@
 ﻿AuditSheetComments.txt
 FilesInProject.txt
 Intellisense.txt
+JuliaExcel.xlam
 Values\_IntelliSense_.csv
 Values\Audit.csv
 VBA\modHttp.bas
