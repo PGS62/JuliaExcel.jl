@@ -11,7 +11,8 @@ Option Private Module
 ' here from autocomplete, the Insert Function dialog and the Macro list. Two kinds of procedure end
 ' up here: widely-used internal helpers (ThrowIfError, ReThrow) called from many other modules, and
 ' otherwise-Private-in-spirit procedures that a test living in a different module needs to call
-' directly (ConcatenateExpressions, tested by TestConcatenateExpressions in modTest.bas).
+' directly (ConcatenateExpressions and Trim255, tested by TestConcatenateExpressions and
+' TestTrim255, both in modTest.bas).
 
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure : ThrowIfError
@@ -96,5 +97,41 @@ Function ConcatenateExpressions(JuliaExpression As Variant) As String
 20        Exit Function
 ErrHandler:
 21        ReThrow "ConcatenateExpressions", Err
+End Function
+
+' -----------------------------------------------------------------------------------------------------------------------
+' Procedure  : Trim255
+' Purpose    : Truncates help text (from the _Intellisense worksheet) to a length the old-fashioned
+'              Excel Function Wizard accepts, and replaces any non-ASCII character with an ASCII
+'              equivalent (or, failing that, an underscore) - the Function Wizard's registration
+'              mechanism is ASCII-only, and text typed or pasted into a worksheet cell (e.g. from
+'              Word or Outlook) commonly picks up "smart" typographic characters - curly quotes,
+'              en/em dashes, an ellipsis - that would otherwise corrupt the exported .bas source.
+' -----------------------------------------------------------------------------------------------------------------------
+Function Trim255(Text As String) As String
+          Dim i As Long
+          Dim Res As String
+
+          'Common "smart" typographic substitutions, handled before the generic per-character
+          'fallback below so they read naturally rather than as underscores.
+1         Res = Text
+2         Res = Replace(Res, ChrW(8216), "'")       'left single quotation mark
+3         Res = Replace(Res, ChrW(8217), "'")       'right single quotation mark
+4         Res = Replace(Res, ChrW(8220), Chr(34))   'left double quotation mark
+5         Res = Replace(Res, ChrW(8221), Chr(34))   'right double quotation mark
+6         Res = Replace(Res, ChrW(8211), "-")       'en dash
+7         Res = Replace(Res, ChrW(8212), "-")       'em dash
+8         Res = Replace(Res, ChrW(8230), "...")     'ellipsis
+
+          'Anything else non-ASCII becomes an underscore.
+9         For i = 1 To Len(Res)
+10            If AscW(Mid$(Res, i, 1)) > 127 Then Mid$(Res, i, 1) = "_"
+11        Next i
+
+12        If Len(Res) < 255 Then
+13            Trim255 = Res
+14        Else
+15            Trim255 = Left$(Res, 252) & "..."
+16        End If
 End Function
 

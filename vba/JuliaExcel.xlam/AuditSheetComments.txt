@@ -1,4 +1,5 @@
 ﻿Version	Date	Time	Author	Comment
+154	25-Aug-2026	12:07	Philip Swannell	Corrected bug in TestWideString and added test TestArrayOfSingleCharacters.
 153	24-Aug-2026	12:15	Philip Swannell	Changes (Option Private Module etc.) to stop exposing methods to Excel which should not be exposed.
 152	24-Aug-2026	11:26	Philip Swannell	Tweak to method Trim255.
 151	24-Aug-2026	11:13	Philip Swannell	Added TestMakeJuliaLiteral, TestUnserialiseStringTooLong, TestUnserialiseMalformedRank to modTest.bas, and TestConcatenateExpressions to modMain.bas (needs to live there since ConcatenateExpressions is Private to that module). All four registered in RunTests.

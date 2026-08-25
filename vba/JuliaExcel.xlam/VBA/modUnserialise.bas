@@ -318,8 +318,8 @@ Function Unserialise(Chars As String, AllowNesting As Boolean, ByRef Depth As Lo
                           ' None of the dims may be zero
                           Dim q As Long
                           Dim Total As Long
-100                        Total = 1
-101                        For q = 1 To Rank
+100                       Total = 1
+101                       For q = 1 To Rank
 102                           If Dims(q) <= 0 Then Throw "Cannot create array of size zero"
 103                           Total = Total * Dims(q)
 104                       Next q
@@ -431,40 +431,40 @@ Function Unserialise(Chars As String, AllowNesting As Boolean, ByRef Depth As Lo
 180                           Next i
 181                       Next j
 
-                      Case Else
+182                   Case Else
                           ' Rank 3-9, reusing the same ParseDims/ReDimVariantArray/AssignByRank
                           ' helpers, and the same column-major index-walking scheme, as the general
                           ' "*" array format's own >=2-dimensional handling above - just without any
                           ' per-element length lookup, since every element is always exactly
                           ' VBytesPerElement hex characters.
-182                       Dims = ParseDims(Mid$(Chars, 4, p1 - 4), Rank)
-183                       If Not AllowNesting Then Throw "Excel cannot display arrays with more than 2 dimensions"
-184                       Total = 1
-185                       For q = 1 To Rank
-186                           If Dims(q) <= 0 Then Throw "Cannot create array of size zero"
-187                           Total = Total * Dims(q)
-188                       Next q
-189                       If Len(Chars) - k + 1 <> Total * VBytesPerElement Then Throw _
+183                       Dims = ParseDims(Mid$(Chars, 4, p1 - 4), Rank)
+184                       If Not AllowNesting Then Throw "Excel cannot display arrays with more than 2 dimensions"
+185                       Total = 1
+186                       For q = 1 To Rank
+187                           If Dims(q) <= 0 Then Throw "Cannot create array of size zero"
+188                           Total = Total * Dims(q)
+189                       Next q
+190                       If Len(Chars) - k + 1 <> Total * VBytesPerElement Then Throw _
                               "'V'-format string has the wrong number of hex characters for a " & Rank & "-D array"
-190                       Buf = BulkDoublesFromHex(Chars, k, Total)
-191                       ReDimVariantArray Ret, Dims
-192                       ReDim Idx(1 To Rank)
-193                       For q = 1 To Rank: Idx(q) = 1: Next q
-194                       For Count = 1 To Total
-195                           AssignByRank Ret, Idx, Buf(Count)
-196                           q = 1
-197                           Do While q <= Rank
-198                               Idx(q) = Idx(q) + 1
-199                               If Idx(q) <= Dims(q) Then Exit Do
-200                               Idx(q) = 1
-201                               q = q + 1
-202                           Loop
-203                           If q > Rank Then Exit For
-204                       Next Count
-205               End Select
-206               Unserialise = Ret
+191                       Buf = BulkDoublesFromHex(Chars, k, Total)
+192                       ReDimVariantArray Ret, Dims
+193                       ReDim Idx(1 To Rank)
+194                       For q = 1 To Rank: Idx(q) = 1: Next q
+195                       For Count = 1 To Total
+196                           AssignByRank Ret, Idx, Buf(Count)
+197                           q = 1
+198                           Do While q <= Rank
+199                               Idx(q) = Idx(q) + 1
+200                               If Idx(q) <= Dims(q) Then Exit Do
+201                               Idx(q) = 1
+202                               q = q + 1
+203                           Loop
+204                           If q > Rank Then Exit For
+205                       Next Count
+206               End Select
+207               Unserialise = Ret
 
-              Case 82 'R Range (UnitRange/StepRange/StepRangeLen/LinRange etc.) - reconstructed via
+208           Case 82 'R Range (UnitRange/StepRange/StepRangeLen/LinRange etc.) - reconstructed via
                   'arithmetic (first + (i-1)*step), no per-element wire data at all; see
                   'encode_for_xl(::AbstractRange{Float64})/(::AbstractRange{<:Integer}) in
                   'src/encode.jl. Julia -> Excel only - VBA has no lazy "range" concept to send
@@ -472,39 +472,39 @@ Function Unserialise(Chars As String, AllowNesting As Boolean, ByRef Depth As Lo
                   Dim HeaderParts() As String
                   Dim RFirst As Variant
                   Dim RStep As Variant
-207               p1 = InStr(Chars, ";")
-208               If Mid$(Chars, 2, 1) = "I" Then
-209                   HeaderParts = Split(Mid$(Chars, 4, p1 - 4), ",")
-210                   n = CLng(HeaderParts(0))
-211                   RFirst = parseInt64(HeaderParts(1))
-212                   RStep = parseInt64(HeaderParts(2))
-213               ElseIf Mid$(Chars, 2, 1) = "F" Then
-214                   n = CLng(Mid$(Chars, 4, p1 - 4))
-215                   RFirst = HexToDouble(Mid$(Chars, p1 + 1, 16))
-216                   RStep = HexToDouble(Mid$(Chars, p1 + 17, 16))
-217               Else
-218                   Throw "Character '" & Mid$(Chars, 2, 1) & "' is not a recognised 'R'-format sub-type (expected 'I' or 'F')"
-219               End If
-220               If JuliaVectorToXLColumn Then
-221                   ReDim Ret(1 To n, 1 To 1)
-222                   For i = 1 To n
-223                       Ret(i, 1) = RFirst + (i - 1) * RStep
-224                   Next i
-225               Else
-226                   ReDim Ret(1 To n)
-227                   For i = 1 To n
-228                       Ret(i) = RFirst + (i - 1) * RStep
-229                   Next i
-230               End If
-231               Unserialise = Ret
+209               p1 = InStr(Chars, ";")
+210               If Mid$(Chars, 2, 1) = "I" Then
+211                   HeaderParts = Split(Mid$(Chars, 4, p1 - 4), ",")
+212                   n = CLng(HeaderParts(0))
+213                   RFirst = parseInt64(HeaderParts(1))
+214                   RStep = parseInt64(HeaderParts(2))
+215               ElseIf Mid$(Chars, 2, 1) = "F" Then
+216                   n = CLng(Mid$(Chars, 4, p1 - 4))
+217                   RFirst = HexToDouble(Mid$(Chars, p1 + 1, 16))
+218                   RStep = HexToDouble(Mid$(Chars, p1 + 17, 16))
+219               Else
+220                   Throw "Character '" & Mid$(Chars, 2, 1) & "' is not a recognised 'R'-format sub-type (expected 'I' or 'F')"
+221               End If
+222               If JuliaVectorToXLColumn Then
+223                   ReDim Ret(1 To n, 1 To 1)
+224                   For i = 1 To n
+225                       Ret(i, 1) = RFirst + (i - 1) * RStep
+226                   Next i
+227               Else
+228                   ReDim Ret(1 To n)
+229                   For i = 1 To n
+230                       Ret(i) = RFirst + (i - 1) * RStep
+231                   Next i
+232               End If
+233               Unserialise = Ret
 
-232           Case Else
-233               Throw "Character '" & Left$(Chars, 1) & "' is not recognised as a type identifier"
-234       End Select
+234           Case Else
+235               Throw "Character '" & Left$(Chars, 1) & "' is not recognised as a type identifier"
+236       End Select
 
-235       Exit Function
+237       Exit Function
 ErrHandler:
-236       ReThrow "Unserialise", Err
+238       ReThrow "Unserialise", Err
 End Function
 
 'Values of type Int64 in Julia must be handled differently on Excel 32-bit and Excel 64bit

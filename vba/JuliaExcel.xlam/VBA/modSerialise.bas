@@ -302,41 +302,41 @@ Function TrySerialiseArrayAsV(ByVal x As Variant, ByRef EncodedV As String) As B
 30                End If
 31                TrySerialiseArrayAsV = True
 
-              Case Else
-32                Rank = NumDimensions(x)
-33                ReDim Dims(1 To Rank)
-34                ReDim DimStr(1 To Rank)
-35                ReDim Idx(1 To Rank)
-36                Total = 1
-37                For q = 1 To Rank
-38                    Dims(q) = UBound(x, q) - LBound(x, q) + 1
-39                    DimStr(q) = CStr(Dims(q))
-40                    Idx(q) = LBound(x, q)
-41                    Total = Total * Dims(q)
-42                Next q
-43                ReDim Buf(1 To Total)
-44                k = 1
-45                Do
-46                    El = GetAt(x, Idx)
-47                    If VarType(El) <> vbDouble Then Exit Function
-48                    Buf(k) = CDbl(El)
-49                    k = k + 1
-50                    q = 1
-51                    Do While q <= Rank
-52                        Idx(q) = Idx(q) + 1
-53                        If Idx(q) <= UBound(x, q) Then Exit Do
-54                        Idx(q) = LBound(x, q)
-55                        q = q + 1
-56                    Loop
-57                    If q > Rank Then Exit Do
-58                Loop
-59                EncodedV = "V" & CStr(Rank) & "," & VBA.Join$(DimStr, ",") & ";" & BulkHexOfDoubleArray(Buf)
-60                TrySerialiseArrayAsV = True
-61        End Select
+32            Case Else
+33                Rank = NumDimensions(x)
+34                ReDim Dims(1 To Rank)
+35                ReDim DimStr(1 To Rank)
+36                ReDim Idx(1 To Rank)
+37                Total = 1
+38                For q = 1 To Rank
+39                    Dims(q) = UBound(x, q) - LBound(x, q) + 1
+40                    DimStr(q) = CStr(Dims(q))
+41                    Idx(q) = LBound(x, q)
+42                    Total = Total * Dims(q)
+43                Next q
+44                ReDim Buf(1 To Total)
+45                k = 1
+46                Do
+47                    El = GetAt(x, Idx)
+48                    If VarType(El) <> vbDouble Then Exit Function
+49                    Buf(k) = CDbl(El)
+50                    k = k + 1
+51                    q = 1
+52                    Do While q <= Rank
+53                        Idx(q) = Idx(q) + 1
+54                        If Idx(q) <= UBound(x, q) Then Exit Do
+55                        Idx(q) = LBound(x, q)
+56                        q = q + 1
+57                    Loop
+58                    If q > Rank Then Exit Do
+59                Loop
+60                EncodedV = "V" & CStr(Rank) & "," & VBA.Join$(DimStr, ",") & ";" & BulkHexOfDoubleArray(Buf)
+61                TrySerialiseArrayAsV = True
+62        End Select
 
-62        Exit Function
+63        Exit Function
 ErrHandler:
-63        ReThrow "TrySerialiseArrayAsV", Err
+64        ReThrow "TrySerialiseArrayAsV", Err
 End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------

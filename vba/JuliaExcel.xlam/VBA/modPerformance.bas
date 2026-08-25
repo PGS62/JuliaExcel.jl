@@ -63,41 +63,41 @@ Private Sub SimpleSpeedTest()
 8         Debug.Print "'Expression = " & Expression
 9         Debug.Print "'Average time in JuliaEval", (t2 - t1) / NumCalls, "Averaged over " & CStr(NumCalls) & " calls"
 10        Debug.Print "'--------------------------------------------------"
-End Sub
+11    End Sub
 
-'--------------------------------------------------
-'29-Oct-2025 18:37:22       PHILIP-HPZ1
-'Expression = 1+1
-'Average time in JuliaEval   6.16188229999898E-03       Averaged over 1000 calls
-'--------------------------------------------------
-'22-Dec-2025 15:58:22       MSI
-'Expression = 1+1
-'Average time in JuliaEval   0.015039338300001          Averaged over 1000 calls
-'--------------------------------------------------
-'18-Aug-2026 20:09:02       MSI
-'Expression = 1+1
-'Average time in JuliaEval   1.32635509999818E-03       Averaged over 1000 calls
-'--------------------------------------------------
+      '--------------------------------------------------
+      '29-Oct-2025 18:37:22       PHILIP-HPZ1
+      'Expression = 1+1
+      'Average time in JuliaEval   6.16188229999898E-03       Averaged over 1000 calls
+      '--------------------------------------------------
+      '22-Dec-2025 15:58:22       MSI
+      'Expression = 1+1
+      'Average time in JuliaEval   0.015039338300001          Averaged over 1000 calls
+      '--------------------------------------------------
+      '18-Aug-2026 20:09:02       MSI
+      'Expression = 1+1
+      'Average time in JuliaEval   1.32635509999818E-03       Averaged over 1000 calls
+      '--------------------------------------------------
 
-'========================================================================================================================
-'Running method PerformanceTest
-'Time now = 2026-08-03 18:01:11
-'JuliaExcel Version = 107
-'Computer = MSI
-'Latency test
-'Average time for JuliaEval("1+1") = 7.96316399984062 miliseconds (averaged over 500 calls)
-'Two-way data transport test
-'Average time for JuliaCall("identity", vector of length 100,000) = 1.48447485999204 seconds (averaged over 10 calls)
-'One-way data transport test, Excel to Julia
-'Average time for JuliaCall("sum", vector of length 100,000) = 1.27661278001033 seconds (averaged over 10 calls)
-'One-way data transport test, Julia to Excel
-'Average time for JuliaEval("collect((1:100000).*pi)") = 0.294781249994412 seconds (averaged over 10 calls)
+      '========================================================================================================================
+      'Running method PerformanceTest
+      'Time now = 2026-08-03 18:01:11
+      'JuliaExcel Version = 107
+      'Computer = MSI
+      'Latency test
+      'Average time for JuliaEval("1+1") = 7.96316399984062 miliseconds (averaged over 500 calls)
+      'Two-way data transport test
+      'Average time for JuliaCall("identity", vector of length 100,000) = 1.48447485999204 seconds (averaged over 10 calls)
+      'One-way data transport test, Excel to Julia
+      'Average time for JuliaCall("sum", vector of length 100,000) = 1.27661278001033 seconds (averaged over 10 calls)
+      'One-way data transport test, Julia to Excel
+      'Average time for JuliaEval("collect((1:100000).*pi)") = 0.294781249994412 seconds (averaged over 10 calls)
 
-'========================================================================================================================
-'Running method PerformanceTest
-'Time now = 2026-08-04 15:53:30
-'JuliaExcel Version = 109 <- Version 109 had experimental code to use UTF-8 for Excel-> Julia and Julia->Excel _
- communication.Julia To Excel gets faster Excel To Julia gets slower.
+      '========================================================================================================================
+      'Running method PerformanceTest
+      'Time now = 2026-08-04 15:53:30
+      'JuliaExcel Version = 109 <- Version 109 had experimental code to use UTF-8 for Excel-> Julia and Julia->Excel _
+       communication.Julia To Excel gets faster Excel To Julia gets slower.
 'Computer = MSI
 'Latency test
 'Average time for JuliaEval("1+1") = 8.14005120001093 miliseconds (averaged over 500 calls)
@@ -401,44 +401,44 @@ Function PerformanceTest() As String
 32                    WhatWasExecuted = "JuliaCall(""identity"", vector of " & Format(VectorLength, "###,###") & " doubles)"
 33                    Report = Report & "Two-way data transport test" & vbLf
 
-                  Case "sum"
-34                    t1 = ElapsedTime()
-35                    For i = 1 To NumCallsVectors
-36                        Res = JuliaCall(JuliaFunction, InputData)
-37                    Next i
-38                    t2 = ElapsedTime()
-39                    WhatWasExecuted = "JuliaCall(""sum"", vector of " & Format(VectorLength, "###,###") & " doubles)"
-40                    Report = Report & "One-way data transport test, Excel to Julia" & vbLf
+34                Case "sum"
+35                    t1 = ElapsedTime()
+36                    For i = 1 To NumCallsVectors
+37                        Res = JuliaCall(JuliaFunction, InputData)
+38                    Next i
+39                    t2 = ElapsedTime()
+40                    WhatWasExecuted = "JuliaCall(""sum"", vector of " & Format(VectorLength, "###,###") & " doubles)"
+41                    Report = Report & "One-way data transport test, Excel to Julia" & vbLf
 
-                  Case "collect"
-41                    t1 = ElapsedTime()
-42                    For i = 1 To NumCallsVectors
-43                        Res = JuliaEval("collect((1:" & VectorLength & ").*pi)")
-44                    Next i
-45                    t2 = ElapsedTime()
-46                    WhatWasExecuted = "JuliaEval(""collect((1:" & CStr(VectorLength) & ").*pi)"")"
-47                    Report = Report & "One-way data transport test, Julia to Excel" & vbLf
+42                Case "collect"
+43                    t1 = ElapsedTime()
+44                    For i = 1 To NumCallsVectors
+45                        Res = JuliaEval("collect((1:" & VectorLength & ").*pi)")
+46                    Next i
+47                    t2 = ElapsedTime()
+48                    WhatWasExecuted = "JuliaEval(""collect((1:" & CStr(VectorLength) & ").*pi)"")"
+49                    Report = Report & "One-way data transport test, Julia to Excel" & vbLf
 
-                  Case "range"
-48                    t1 = ElapsedTime()
-49                    For i = 1 To NumCallsVectors
-50                        Res = JuliaEval("(1:" & VectorLength & ").*pi")
-51                    Next i
-52                    t2 = ElapsedTime()
-53                    WhatWasExecuted = "JuliaEval(""(1:" & CStr(VectorLength) & ").*pi"")"
-54                    Report = Report & "One-way data transport (AbstractRange), Julia to Excel" & vbLf
-              End Select
+50                Case "range"
+51                    t1 = ElapsedTime()
+52                    For i = 1 To NumCallsVectors
+53                        Res = JuliaEval("(1:" & VectorLength & ").*pi")
+54                    Next i
+55                    t2 = ElapsedTime()
+56                    WhatWasExecuted = "JuliaEval(""(1:" & CStr(VectorLength) & ").*pi"")"
+57                    Report = Report & "One-way data transport (AbstractRange), Julia to Excel" & vbLf
+58            End Select
 
-55            Report = Report & "Average time for " & WhatWasExecuted & " = " & _
+59            Report = Report & "Average time for " & WhatWasExecuted & " = " & _
                   CStr((t2 - t1) / NumCallsVectors) & " seconds (averaged over " & CStr(NumCallsVectors) & " calls)" & vbLf
-56        Next j
+60        Next j
 
-57        Debug.Print "'" & Replace(Report, vbLf, vbLf & "'")
-58        AppActivate Application.Caption
-59        PerformanceTest = Report
-60        Exit Function
+61        Debug.Print "'" & Replace(Report, vbLf, vbLf & "'")
+62        AppActivate Application.Caption
+63        PerformanceTest = Report
+64        Exit Function
 ErrHandler:
-61        PerformanceTest = ReThrow("PerformanceTest", Err, True)
+65        PerformanceTest = ReThrow("PerformanceTest", Err, True)
 End Function
 
 '--------------------------------------------------

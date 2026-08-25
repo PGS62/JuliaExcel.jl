@@ -92,8 +92,6 @@ End Function
 Public Function JuliaLaunch(Optional UseLinux As Boolean, Optional MinimiseWindow As Boolean, _
           Optional ByVal CommandLineOptions As String, Optional ByVal Packages As String, _
           Optional ByVal BashStatements As String, Optional TimeOut As Long = 30)
-Attribute JuliaLaunch.VB_Description = "Launches a local Julia session which listens to the current Excel session and responds to calls to JuliaEval etc.."
-Attribute JuliaLaunch.VB_ProcData.VB_Invoke_Func = " \n14"
 
           Const WSLExecutable = "C:\Windows\System32\wsl.exe"
           Dim Command As String
@@ -155,12 +153,12 @@ Attribute JuliaLaunch.VB_ProcData.VB_Invoke_Func = " \n14"
 21            IsListening = JuliaIsListening(ExistingPort)
 22        End If
 
-              'A window matching the PID alone isn't enough to trust it's the one currently listening:
-              'it could be a stale window from a session that's since stopped serving (e.g. via
-              'JuliaExcel.stop_server), left open while a different, windowless session (e.g. one
-              'attached via JuliaExcel.serve_xl) has since taken over the port. Require the window's
-              'own title to also mention this specific port - JuliaExcel.settitle clears the port from
-              'the title when a session stops serving, so a stale window won't falsely match here.
+          'A window matching the PID alone isn't enough to trust it's the one currently listening:
+          'it could be a stale window from a session that's since stopped serving (e.g. via
+          'JuliaExcel.stop_server), left open while a different, windowless session (e.g. one
+          'attached via JuliaExcel.serve_xl) has since taken over the port. Require the window's
+          'own title to also mention this specific port - JuliaExcel.settitle clears the port from
+          'the title when a session stops serving, so a stale window won't falsely match here.
 23        If IsListening And HwndJulia <> 0 And InStr(WindowTitleFromHandle(HwndJulia), ", port " & CStr(ExistingPort)) > 0 Then
 24            SetJuliaPort ExistingPort
 25            JuliaLaunch = "Julia is already running in window """ & WindowTitleFromHandle(HwndJulia) & """"
@@ -309,9 +307,9 @@ Attribute JuliaLaunch.VB_ProcData.VB_Invoke_Func = " \n14"
                   'signalled completion (JuliaFlagFile still exists) - the process must have died before
                   'finishing startup, typically because CommandLineOptions was invalid.
 99                ErrDescription = "Julia's console window closed before start-up finished."
-100                If UserSuppliedCommandLineOptions <> "" Then
-101                    ErrDescription = ErrDescription & " Check the CommandLineOptions are valid (https://docs.julialang.org/en/v1/manual/command-line-options/)"
-102                End If
+100               If UserSuppliedCommandLineOptions <> "" Then
+101                   ErrDescription = ErrDescription & " Check the CommandLineOptions are valid (https://docs.julialang.org/en/v1/manual/command-line-options/)"
+102               End If
 103               Throw ErrDescription
 104           ElseIf ElapsedTime() - StartTime > LaunchDetectionSecs Then
 105               ErrDescription = "Julia failed to launch after " & CStr(LaunchDetectionSecs) & " seconds."
