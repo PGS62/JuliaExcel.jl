@@ -82,6 +82,20 @@ end
     # decode_xl_array's own dynamic fallback for a Vector{Any} with mixed element types.
     @test JuliaExcel.decode_from_xl(JuliaExcel.encode_for_xl(Dict("a"=>1, "b"=>"x"))) isa Dict{Any,Any}
 
+    # Regression: a string ending in a multi-byte character, as an array/dict element, used to
+    # throw a StringIndexError on decode. decode_xl_array/decode_xl_dict computed each element's
+    # end as (start of next element) - 1, which lands on a UTF-8 continuation byte whenever the
+    # element's own last character is multi-byte - String's getindex/SubString require both range
+    # endpoints to be valid character-start indices, even though that continuation byte genuinely
+    # is the element's last byte. Fixed by using prevind instead of a raw -1. "£" (2 bytes) and
+    # "𝔍" (a supplementary-plane character, 4 bytes / 2 UTF-16 units) both exercise this - as the
+    # last array element, a non-last array element, a dict value and a dict key.
+    @test round_trip(["identity", "£"])
+    @test round_trip(["£", "identity"])
+    @test round_trip(["identity", "𝔍"])
+    @test round_trip(Dict("a" => "£"))
+    @test round_trip(Dict("£" => "x"))
+
     # ExcelError - unlike Inf/NaN above (which only ever produce 2036/2042 from Julia's own
     # numeric values), every documented Excel error code round-trips exactly through Julia when it
     # originates as a genuine VBA error - see ExcelError's docstring (JuliaExcel.jl) for why this is

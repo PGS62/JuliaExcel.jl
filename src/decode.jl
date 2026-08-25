@@ -83,21 +83,17 @@ Starting at byte position `start` in `s`, advance `xl_len` xl-length units and r
 byte index of the first character past the advanced region. An xl-length unit is one per
 BMP character (< U+10000) and two per supplementary character (≥ U+10000), matching VBA's
 `Len()` and Julia's `xl_length()`.
+
+UTF-8 character-boundary finding itself is left entirely to `nextind` - the only thing
+genuinely specific to this function is converting "how many bytes did that character take"
+into "how many xl-units does it represent", which Julia has no builtin for.
 """
 function xl_advance(s::String, start::Int, xl_len::Int)::Int
     pos = start
     remaining = xl_len
     while remaining > 0
-        b = codeunit(s, pos)
-        if b < 0x80
-            pos += 1; remaining -= 1            # ASCII: 1 byte, 1 xl-unit
-        elseif b < 0xE0
-            pos += 2; remaining -= 1            # 2-byte UTF-8: BMP char, 1 xl-unit
-        elseif b < 0xF0
-            pos += 3; remaining -= 1            # 3-byte UTF-8: BMP char, 1 xl-unit
-        else
-            pos += 4; remaining -= 2            # 4-byte UTF-8: supplementary, 2 xl-units
-        end
+        remaining -= codepoint(s[pos]) >= 0x10000 ? 2 : 1   # BMP: 1 xl-unit, supplementary: 2
+        pos = nextind(s, pos)
     end
     pos
 end
@@ -137,7 +133,13 @@ function decode_xl_array(s::String)
     pos = p2 + 1
     for i in 1:n
         next_pos = xl_advance(s, pos, lengths[i])
-        elements[i] = decode_from_xl(s[pos:next_pos-1])
+        # next_pos is the byte index of the start of the *next* character (or one past the end
+        # of s) - a valid character-boundary index, but next_pos-1 is not necessarily one: if
+        # this element's last character is multi-byte, next_pos-1 lands on a continuation byte,
+        # which String's getindex/SubString reject even though it's genuinely the last byte of a
+        # complete character. prevind(s, next_pos) gives the start index of that same last
+        # character instead, which is what a String range's end must be.
+        elements[i] = decode_from_xl(s[pos:prevind(s, next_pos)])
         pos = next_pos
     end
 
@@ -206,9 +208,11 @@ function decode_xl_dict(s::String)
     pos = p2 + 1
     for i in 1:n
         key_end = xl_advance(s, pos, lengths[2i-1])
-        key     = decode_from_xl(s[pos:key_end-1])
+        # See the matching comment in decode_xl_array: prevind, not -1, since a multi-byte last
+        # character would otherwise leave the range ending on a continuation byte.
+        key     = decode_from_xl(s[pos:prevind(s, key_end)])
         val_end = xl_advance(s, key_end, lengths[2i])
-        val     = decode_from_xl(s[key_end:val_end-1])
+        val     = decode_from_xl(s[key_end:prevind(s, val_end)])
         result[key] = val
         pos = val_end
     end
