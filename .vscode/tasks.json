@@ -3,9 +3,14 @@
     "tasks": [
         {
             "label": "VBA: Push to Excel (JuliaExcel)",
-            "detail": "Have a .bas/.cls/.frm file open/focused for the workbook you want to push to.",
+            "detail": "Have a file open/focused inside the workbook's export folder (VBA/Formulas/Values) you want to push to.",
             "type": "shell",
-            "command": "powershell -File \"${workspaceFolder}/../SolumAddins/scripts/Sync-VbaModules.ps1\" -Action Push -ActiveFile \"${file}\"",
+            "command": "powershell",
+            "args": [
+                "-File", "${workspaceFolder}/../SolumAddins/scripts/Sync-VbaModules.ps1",
+                "-Action", "Push",
+                "-ActiveFile", "${file}"
+            ],
             "group": {
                 "kind": "build",
                 "isDefault": true
@@ -20,9 +25,15 @@
         },
         {
             "label": "VBA: Push Changed Modules to Excel (JuliaExcel)",
-            "detail": "Push only modules changed since the last Pull. Have a .bas/.cls/.frm file open/focused for the workbook you want to push to.",
+            "detail": "Push only modules changed since the last Pull. Have a file open/focused inside the workbook's export folder (VBA/Formulas/Values) you want to push to.",
             "type": "shell",
-            "command": "powershell -File \"${workspaceFolder}/../SolumAddins/scripts/Sync-VbaModules.ps1\" -Action Push -ActiveFile \"${file}\" -ChangedOnly",
+            "command": "powershell",
+            "args": [
+                "-File", "${workspaceFolder}/../SolumAddins/scripts/Sync-VbaModules.ps1",
+                "-Action", "Push",
+                "-ActiveFile", "${file}",
+                "-ChangedOnly"
+            ],
             "group": "build",
             "presentation": {
                 "reveal": "always",
@@ -34,9 +45,14 @@
         },
         {
             "label": "VBA: Pull from Excel (JuliaExcel)",
-            "detail": "Have a .bas/.cls/.frm file open/focused for the workbook you want to pull from.",
+            "detail": "Have a file open/focused inside the workbook's export folder (VBA/Formulas/Values) you want to pull from.",
             "type": "shell",
-            "command": "powershell -File \"${workspaceFolder}/../SolumAddins/scripts/Sync-VbaModules.ps1\" -Action Pull -ActiveFile \"${file}\"",
+            "command": "powershell",
+            "args": [
+                "-File", "${workspaceFolder}/../SolumAddins/scripts/Sync-VbaModules.ps1",
+                "-Action", "Pull",
+                "-ActiveFile", "${file}"
+            ],
             "group": "build",
             "presentation": {
                 "reveal": "always",
