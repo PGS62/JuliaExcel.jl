@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [2.1.1] - 2026-08-25
+
+### Bug fixes
+
+- Fixed a `StringIndexError` when strings terminating in a multi-byte character were passed from Excel to Julia, e.g. `JuliaCall("identity", "xxx£")`. Present since v0.2.17, the first version to use the wire format for the Excel -> Julia direction.
+
 ## [2.1.0] - 2026-08-24
 
 ### New features
