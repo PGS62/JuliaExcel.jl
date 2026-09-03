@@ -39,7 +39,7 @@ Installation does not require admin rights on the PC.
 
 The process is illustrated in the GIF below. F5 to replay.
 
-![installation](images/install-take3.gif)
+![installation](images/install-take4.gif)
 
 ## Installation (Linux)
 As an alternative to calling Julia running in a Windows process, JuliaExcel can call Julia running in a Linux process under Windows Subsystem for Linux (WSL). If that's your preference, then in addition to the steps described above, you need to:
