@@ -32,7 +32,9 @@ Installation does not require admin rights on the PC.
    Pkg.add(url="https://github.com/PGS62/JuliaExcel.jl")
    ```
    (paste into the REPL is via mouse right-click).
- * Partway through, a Windows dialog will pop up to install the Excel add-in - `Pkg.add` will pause until you've clicked through it. If you ever need to reinstall or repair the add-in later, run `using JuliaExcel;JuliaExcel.installme()`.
+ * Partway through, a Windows dialog will pop up to install the Excel add-in - `Pkg.add` will pause until you've clicked through it.
+ * Don't see the Windows dialog?<br/>
+  Pkg only builds a given version of JuliaExcel once per PC. If you've since uninstalled the add-in, run `] build JuliaExcel` at the REPL to reinstall it.
  * Launch Excel. Check that the JuliaExcel functions are available by typing `=Julia` into a worksheet cell and checking that the auto-complete offers `JuliaCall`, `JuliaEval`, `JuliaInclude` etc.
 
 The process is illustrated in the GIF below. F5 to replay.
