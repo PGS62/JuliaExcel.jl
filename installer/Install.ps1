@@ -297,13 +297,12 @@ if ($args.Count -eq 0 -and $ElevateToAdmin) {
     exit 0
 }
 
-$GIFRecordingMode = $null   # Not yet known - see note below
+$GIFRecordingMode = Test-Path -Path $GIFRecordingFlagFile -PathType Leaf
 
-# CheckExcel/Confirm-ExcelClosed must be called BEFORE Get-OfficeVersionAndBitness. Also called
-# before GIFRecordingMode is actually determined (a few lines down) - this ordering is inherited
-# from the now-deleted Install.vbs (see git history), where the equivalent check ran before its
-# own recording-flag-file test too, so GIF-recording mode still shows the "please close Excel"
-# flow; only the actual file copy is skipped for it below.
+# CheckExcel/Confirm-ExcelClosed must be called BEFORE Get-OfficeVersionAndBitness (which also
+# launches Excel, via COM). Skipped entirely in GIF-recording mode, so that the installation can
+# be recorded with Excel already open, rather than blocking on it - the actual file copy is
+# skipped for the same reason, below.
 if (-not $GIFRecordingMode) {
     Confirm-ExcelClosed
 }
@@ -311,8 +310,6 @@ if (-not $GIFRecordingMode) {
 $officeInfo = Get-OfficeVersionAndBitness
 $gOfficeVersion = $officeInfo.Version
 $gOfficeBitness = $officeInfo.Bitness
-
-$GIFRecordingMode = Test-Path -Path $GIFRecordingFlagFile -PathType Leaf
 
 if ($gOfficeVersion -eq "Office Not found") {
     $prompt = "Installation cannot proceed because no version of Microsoft Office has been " + `
@@ -374,12 +371,6 @@ if ($script:gErrorsEncountered) {
     $prompt = "JuliaExcel is installed, and its functions such as JuliaEval and JuliaCall will " + `
         "be available the next time you start Excel.`n`n$Website"
     Show-MsgBox -Prompt $prompt -Title $MsgBoxTitle -Buttons OK -Icon Info | Out-Null
-}
-
-# Don't record this bit. Have this warning after forgetting about the flag file!
-if ($GIFRecordingMode) {
-    Show-MsgBox -Prompt ("That previous message was false. The installation was blocked by the " + `
-            "existence of file '$GIFRecordingFlagFile'") -Title $MsgBoxTitleBad -Buttons OK -Icon Error | Out-Null
 }
 
 if ($script:gErrorsEncountered) {
