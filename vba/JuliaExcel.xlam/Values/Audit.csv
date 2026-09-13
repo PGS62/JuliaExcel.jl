@@ -3,11 +3,12 @@
 ,"This addin is part of JuliaExcel. For more information visit:",,,,
 ,"https://github.com/PGS62/JuliaExcel.jl",,,,
 ,"The password to view the VBA code is JuliaExcel",,,,
-,"Copyright 2021 Philip Swannell",,,,
+,"Copyright 2021-2026 Philip Swannell",,,,
 ,"License MIT (https://opensource.org/licenses/MIT)",,,,
-,"All 154 rows shown.",,,,
+,"All 155 rows shown.",,,,
 ,"Dbl-click","Double-click","Dbl-click","Double-click","Double-click to filter"
 ,"Version","Date","Time","Author","Comment"
+,155,2026-09-13,0.428749999999127,"Philip Swannell","No change to the VBA. Julia function start_server now sets Content-Length in the http response, working around an apparent inefficiency in MSXML2.ServerXMLHTTP which caused quadratic performance."
 ,154,2026-08-25,0.505115740743349,"Philip Swannell","Corrected bug in TestWideString and added test TestArrayOfSingleCharacters."
 ,153,2026-08-24,0.510821759256942,"Philip Swannell","Changes (Option Private Module etc.) to stop exposing methods to Excel which should not be exposed."
 ,152,2026-08-24,0.476597222223063,"Philip Swannell","Tweak to method Trim255."

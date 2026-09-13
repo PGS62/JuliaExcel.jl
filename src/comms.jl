@@ -15,7 +15,7 @@ Returns the process id of the instance of Excel that the current Julia process i
 """
 function getxlpid()
     xlpid[] == 0 && throw("setxlpid has not been called in this Julia session, it must be" *
-                          " called to set the process id of the active Excel session")
+        " called to set the process id of the active Excel session")
     xlpid[]
 end
 
@@ -49,17 +49,17 @@ function serve_xl(show_results::Bool=true, pid::Integer=0)
         pids = _running_excel_pids()
         if isempty(pids)
             throw("No running Excel process was found. Open Excel and try again, or call" *
-                  " serve_xl(show_results, pid) directly, passing the process id from Excel's" *
-                  " JuliaExcelPID() worksheet function.")
+                " serve_xl(show_results, pid) directly, passing the process id from Excel's" *
+                " JuliaExcelPID() worksheet function.")
         elseif length(pids) > 1
             throw("Found $(length(pids)) running Excel processes (process ids: $(join(pids, ", "))) -" *
-                  " call serve_xl(show_results, pid) directly instead, passing the process id of the" *
-                  " Excel session to attach to, from its JuliaExcelPID() worksheet function.")
+                " call serve_xl(show_results, pid) directly instead, passing the process id of the" *
+                " Excel session to attach to, from its JuliaExcelPID() worksheet function.")
         end
         pid = only(pids)
     elseif Sys.iswindows() && !(pid in _running_excel_pids())
         throw("No running Excel process has process id $pid. Check the value returned by Excel's" *
-              " JuliaExcelPID() worksheet function.")
+            " JuliaExcelPID() worksheet function.")
     end
     _attach_to_excel(show_results, pid)
 end
@@ -82,8 +82,8 @@ function _attach_to_excel(show_results::Bool, pid::Integer)
         existing_port = tryparse(Int, strip(read(portfile(), String)))
         if existing_port !== nothing && existing_port > 0 && _port_is_listening(existing_port)
             throw("Excel (process id $pid) already has a Julia session listening on port" *
-                  " $existing_port - stop that session first (e.g. call stop_server() there, or" *
-                  " close it), then call serve_xl again.")
+                " $existing_port - stop that session first (e.g. call stop_server() there, or" *
+                " close it), then call serve_xl again.")
         end
     end
     display_results(show_results)
@@ -112,8 +112,8 @@ utility. Used by `serve_xl` to find the single Excel process to attach to automa
 """
 function _running_excel_pids()::Vector{Int}
     Sys.iswindows() || throw("Automatic Excel process detection needs Windows - call" *
-                             " serve_xl(show_results, pid) directly instead, passing the process id" *
-                             " from Excel's JuliaExcelPID() worksheet function.")
+        " serve_xl(show_results, pid) directly instead, passing the process id" *
+        " from Excel's JuliaExcelPID() worksheet function.")
     pids = Int[]
     for line in readlines(`tasklist /FI "IMAGENAME eq EXCEL.EXE" /FO CSV /NH`)
         fields = split(line, "\",\"")
@@ -177,7 +177,7 @@ end
 
 function installme()
     Sys.iswindows() || throw("JuliaExcel.installme (which installs a Microsoft Excel " *
-                             "addin) can only be run from Julia on Windows")
+        "addin) can only be run from Julia on Windows")
     installscript = normpath(joinpath(@__DIR__, "..", "installer", "Install.ps1"))
     exefile = "C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe"
     isfile(exefile) || throw("Cannot find PowerShell at '$exefile'")
@@ -209,7 +209,7 @@ function _encode_result_for_xl(result)::String
         println("")
         @error "Result of type $(typeof(result)) could not be encoded for return to Excel."
         encode_for_xl("#Expression evaluated to a variable of type $(typeof(result))," *
-                      " which cannot be returned to Excel because: $(e)!")
+            " which cannot be returned to Excel because: $(e)!")
     end
 end
 
@@ -365,8 +365,26 @@ function start_server(start::Int=2700)
         try
             _server[] = HTTP.serve!("127.0.0.1", port) do req
                 handler = req.target == "/call" ? srv_call_inner : srv_eval_inner
-                HTTP.Response(200, ["Content-Type" => "text/plain; charset=utf-8"],
-                    handler(String(req.body)))
+              #  handler_started = time_ns()
+                result = handler(String(req.body))
+              #  handler_elapsed = (time_ns() - handler_started) / 1e9
+
+                # The explicit Content-Length is vital for performance, not just correctness. Without
+                # it, HTTP.jl falls back to chunked transfer-encoding (since it never inspects the
+                # already-fully-known response body to work out the length itself). The VBA client's
+                # MSXML2.ServerXMLHTTP appears to reassemble a chunked body by repeatedly growing and
+                # copying its buffer, which is quadratic in response size - so a large result made
+                # JuliaCall/JuliaEval far worse than linear in the size of that result. Setting
+                # Content-Length lets it read directly into a preallocated buffer instead, restoring
+                # linear performance.
+
+              #  response_started = time_ns()
+                response = HTTP.Response(200, ["Content-Type" => "text/plain; charset=utf-8",
+                    "Content-Length" => string(ncodeunits(result))], result)
+              #  response_elapsed = (time_ns() - response_started) / 1e9
+             #   println("Julia HTTP handler: ", handler_elapsed, " seconds; response bytes: ",
+             #       sizeof(result), "; HTTP.Response: ", response_elapsed, " seconds")
+                response
             end
             break
         catch

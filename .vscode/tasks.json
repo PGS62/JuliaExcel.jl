@@ -7,6 +7,7 @@
             "type": "shell",
             "command": "powershell",
             "args": [
+                "-ExecutionPolicy", "Bypass",
                 "-File", "${workspaceFolder}/../SolumAddins/scripts/Sync-VbaModules.ps1",
                 "-Action", "Push",
                 "-ActiveFile", "${file}"
@@ -29,6 +30,7 @@
             "type": "shell",
             "command": "powershell",
             "args": [
+                "-ExecutionPolicy", "Bypass",
                 "-File", "${workspaceFolder}/../SolumAddins/scripts/Sync-VbaModules.ps1",
                 "-Action", "Push",
                 "-ActiveFile", "${file}",
@@ -49,6 +51,7 @@
             "type": "shell",
             "command": "powershell",
             "args": [
+                "-ExecutionPolicy", "Bypass",
                 "-File", "${workspaceFolder}/../SolumAddins/scripts/Sync-VbaModules.ps1",
                 "-Action", "Pull",
                 "-ActiveFile", "${file}"
@@ -65,7 +68,7 @@
         {
             "label": "VBA: Run Tests",
             "type": "shell",
-            "command": "powershell -File \"${workspaceFolder}/scripts/Run-VbaTests.ps1\"",
+            "command": "powershell -ExecutionPolicy Bypass -File \"${workspaceFolder}/scripts/Run-VbaTests.ps1\"",
             "group": {
                 "kind": "test",
                 "isDefault": true
