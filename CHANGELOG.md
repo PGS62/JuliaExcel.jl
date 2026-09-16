@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [2.1.2] - 2026-09-16
+
+### Performance improvements
+
+- Julia's HTTP responses to Excel now include an explicit `Content-Length` header. Previously, without it, HTTP.jl fell back to chunked transfer-encoding, and the VBA client's `MSXML2.ServerXMLHTTP` appears to reassemble a chunked body by repeatedly growing and copying its buffer - quadratic in the size of the response, so large results returned from `JuliaCall`/`JuliaEval` were far worse than linearly slower than small ones. Setting `Content-Length` lets it read directly into a preallocated buffer instead, restoring linear performance. For example, `JuliaEval("DataFrame(rand(Float64,(5000,1024)),:auto)")` fell from 241 seconds to 10.9 seconds - a 22x speedup - with smaller results also improving (e.g. 128 columns: 3.0s to 1.2s).
+
 ## [2.1.1] - 2026-08-25
 
 ### Bug fixes

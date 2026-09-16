@@ -365,9 +365,7 @@ function start_server(start::Int=2700)
         try
             _server[] = HTTP.serve!("127.0.0.1", port) do req
                 handler = req.target == "/call" ? srv_call_inner : srv_eval_inner
-              #  handler_started = time_ns()
                 result = handler(String(req.body))
-              #  handler_elapsed = (time_ns() - handler_started) / 1e9
 
                 # The explicit Content-Length is vital for performance, not just correctness. Without
                 # it, HTTP.jl falls back to chunked transfer-encoding (since it never inspects the
@@ -378,13 +376,8 @@ function start_server(start::Int=2700)
                 # Content-Length lets it read directly into a preallocated buffer instead, restoring
                 # linear performance.
 
-              #  response_started = time_ns()
-                response = HTTP.Response(200, ["Content-Type" => "text/plain; charset=utf-8",
+                HTTP.Response(200, ["Content-Type" => "text/plain; charset=utf-8",
                     "Content-Length" => string(ncodeunits(result))], result)
-              #  response_elapsed = (time_ns() - response_started) / 1e9
-             #   println("Julia HTTP handler: ", handler_elapsed, " seconds; response bytes: ",
-             #       sizeof(result), "; HTTP.Response: ", response_elapsed, " seconds")
-                response
             end
             break
         catch

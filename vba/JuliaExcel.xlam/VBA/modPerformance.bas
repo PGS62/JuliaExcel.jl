@@ -339,6 +339,23 @@ Private Sub SimpleSpeedTest()
 'Average time for JuliaEval("collect((1:100000).*pi)") = 4.60276499972679E-02 seconds (averaged over 10 calls)
 'One-way data transport (AbstractRange), Julia to Excel
 'Average time for JuliaEval("(1:100000).*pi") = 1.36371799977496E-02 seconds (averaged over 10 calls)
+'========================================================================================================================
+'Test below is against version that has the "Content-Length" change (commit 39445a284cd72b81c4b9bd76ff7f2a4eda2ce217)
+'which may be why the latency has fallen from 1.11 to 0.38 milliseconds
+'Running method PerformanceTest
+'Time now = 2026-09-16 09:43:03
+'JuliaExcel Version = 155
+'Computer = MSI
+'Latency test
+'Average time for JuliaEval("1+1") = 0.37751240003854 miliseconds (averaged over 500 calls)
+'Two-way data transport test
+'Average time for JuliaCall("identity", vector of 100,000 doubles) = 9.26379599957727E-02 seconds (averaged over 10 calls)
+'One-way data transport test, Excel to Julia
+'Average time for JuliaCall("sum", vector of 100,000 doubles) = 5.37256399984471E-02 seconds (averaged over 10 calls)
+'One-way data transport test, Julia to Excel
+'Average time for JuliaEval("collect((1:100000).*pi)") = 3.93314900051337E-02 seconds (averaged over 10 calls)
+'One-way data transport (AbstractRange), Julia to Excel
+'Average time for JuliaEval("(1:100000).*pi") = 1.14263000024948E-02 seconds (averaged over 10 calls)
 
 Function PerformanceTest() As String
           Const NumCallsOnePlusOne As Long = 500
@@ -594,7 +611,88 @@ ErrHandler:
 21        VFormatEncodeSpeedTest = ReThrow("VFormatEncodeSpeedTest", Err, True)
 End Function
 
-'TryFastEncodeDoubleArrayAsV (a PROTOTYPE-only "V" encoder, used solely to measure whether a "V"
-'encoder would be worth building) and VEncodeSpeedTest (which timed it against SerialiseElement)
-'removed 2026-08-17: the question they existed to answer is settled - the real, NaN/Inf-safe, rank
-'1-9 encoder is TrySerialiseArrayAsV (modSerialise.bas), shipped and in production use.
+
+'========================================================================================================================
+'Running method DataframePerformanceTest
+'Time now = 2026-09-16 11:26:39
+'JuliaExcel Version = 155 WITH JULIA CODE EDITED TO OMIT "Content-Length" from HTTP header equivalent to JuliaExcel 2.1.1
+'Computer = MSI
+'Time to evaluate 'DataFrame(rand(Float64,(5000,1)),:auto)':  8.54120001895353E-03
+'Time to evaluate 'DataFrame(rand(Float64,(5000,2)),:auto)':  0.017211300029885
+'Time to evaluate 'DataFrame(rand(Float64,(5000,4)),:auto)':  4.00946000008844E-02
+'Time to evaluate 'DataFrame(rand(Float64,(5000,8)),:auto)':  6.74322000122629E-02
+'Time to evaluate 'DataFrame(rand(Float64,(5000,16)),:auto)':  0.160341700015124
+'Time to evaluate 'DataFrame(rand(Float64,(5000,32)),:auto)':  0.287520400015637
+'Time to evaluate 'DataFrame(rand(Float64,(5000,64)),:auto)':  0.591385699983221
+'Time to evaluate 'DataFrame(rand(Float64,(5000,128)),:auto)':  2.99924229999306
+'Time to evaluate 'DataFrame(rand(Float64,(5000,256)),:auto)':  13.1958732000203
+'Time to evaluate 'DataFrame(rand(Float64,(5000,512)),:auto)':  50.8415707999957
+'Time to evaluate 'DataFrame(rand(Float64,(5000,1024)),:auto)':  241.41591749998
+
+'========================================================================================================================
+'Running method DataframePerformanceTest
+'Time now = 2026-09-16 11:16:56
+'JuliaExcel Version = 155 - To be released as JuliaExcel 2.1.2
+'Computer = MSI
+'Time to evaluate 'DataFrame(rand(Float64,(5000,1)),:auto)':  1.11267000320368E-02
+'Time to evaluate 'DataFrame(rand(Float64,(5000,2)),:auto)':  2.03008999815211E-02
+'Time to evaluate 'DataFrame(rand(Float64,(5000,4)),:auto)':  3.92062999890186E-02
+'Time to evaluate 'DataFrame(rand(Float64,(5000,8)),:auto)':  0.109932799998205
+'Time to evaluate 'DataFrame(rand(Float64,(5000,16)),:auto)':  0.1594414000283
+'Time to evaluate 'DataFrame(rand(Float64,(5000,32)),:auto)':  0.317960899963509
+'Time to evaluate 'DataFrame(rand(Float64,(5000,64)),:auto)':  0.609124400012661
+'Time to evaluate 'DataFrame(rand(Float64,(5000,128)),:auto)':  1.19918080000207
+'Time to evaluate 'DataFrame(rand(Float64,(5000,256)),:auto)':  2.37117389997002
+'Time to evaluate 'DataFrame(rand(Float64,(5000,512)),:auto)':  4.98593829997117
+'Time to evaluate 'DataFrame(rand(Float64,(5000,1024)),:auto)':  10.8832294999738
+
+Sub DataframePerformanceTest()
+          Dim Report As String
+
+          Const JuliaExpressionTemplate = "DataFrame(rand(Float64,(5000,Ncol)),:auto)"
+          Dim JuliaExpression As String
+          Dim i As Long, j As Long, k As Long, Ncol As Long
+          Dim t1 As Double, t2 As Double
+          Dim Res As Variant
+
+1         On Error GoTo ErrHandler
+2         Report = "'" & String(120, "=") & vbLf
+3         Report = Report & "'Running method DataframePerformanceTest" & vbLf
+4         Report = Report & "'Time now = " & Format$(Now(), "yyyy-mm-dd hh:mm:ss") & vbLf
+5         Report = Report & "'JuliaExcel Version = " & CStr(shAudit.Range("Headers").Cells(2, 1).Value) & vbLf
+6         Report = Report & "'Computer = " & Environ$("ComputerName")
+
+          'Warm up
+7         JuliaEval "exit()" 'shuts down Julia if it's running
+8         PreciseSleep 1000
+9         JuliaLaunch , , gTestCommandOptions
+10        ThrowIfError JuliaEval("1+1")
+
+11        If VarType(JuliaEval("using DataFrames")) = vbString Then
+12            ThrowIfError JuliaEval("using Pkg;Pkg.add(""DataFrames"")")
+13        End If
+
+14        ThrowIfError JuliaEval("using DataFrames")
+
+15        JuliaExpression = Replace(JuliaExpressionTemplate, "Ncol", 1)
+
+16        ThrowIfError (JuliaEval(JuliaExpression))
+
+17        Debug.Print Report
+
+18        For i = 0 To 10
+19            Ncol = 2 ^ i
+20            JuliaExpression = Replace(JuliaExpressionTemplate, "Ncol", CStr(Ncol))
+21            t1 = ElapsedTime
+22            Res = JuliaEval(JuliaExpression)
+23            t2 = ElapsedTime
+24            Debug.Print "'Time to evaluate '" & JuliaExpression & "':  " & CStr(t2 - t1)
+25        Next i
+
+
+27        Exit Sub
+ErrHandler:
+28        MsgBox CStr(Erl) & " " & Err.Description
+End Sub
+
+
