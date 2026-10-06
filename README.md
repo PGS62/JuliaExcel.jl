@@ -70,7 +70,10 @@ Here's a quick demonstration of the functions in action.
  * See how the Julia session on the left responds to the action in Excel on the right, once `display_results(true)` has been called (the formula at B6 does this).
  * The annotations in brown text ("Formula at...") are to make what's happening in the demo clearer. They won't appear when you try JuliaExcel for yourself!
  * Replay the GIF by refreshing you browser (F5).
-![demo2](images/Demo4-take5.gif)
+
+<a href="#no-click">
+  <img src="images/Demo4-take5.gif" alt="demo2" />
+</a>
 
 ## Example VBA
 The VBA code below makes a call to `JuliaLaunch` and `JuliaEvalVBA` and then pastes the result to range A1:J10 in a new worksheet. To run it, make sure that the project has a reference to JuliaExcel (VBA editor, Tools menu -> References).
@@ -246,19 +249,22 @@ For calls from VBA:
  
  <details><summary><u>Round-tripping of vectors and matrices</u></summary>
  <p>
-  
- ![roundtripping](images/roundtripping.gif)
+<a href="#no-click">
+  <img src="images/roundtripping.gif" alt="roundtripping" />
+</a>
 </p>
 </details>
 
 <details><summary>Matrix arithmetic</summary><p>
-
- ![matrixarithmetic](images/matrixarithmetic.gif)
+<a href="#no-click">
+  <img src="images/matrixarithmetic.gif" alt="matrixarithmetic" />
+ </a>
 </p></details>
 
 <details><summary>Function broadcasting</summary><p>
-
- ![functionbroadcasting](images/functionbroadcasting.gif)
+<a href="#no-click">
+  <img src="images/functionbroadcasting.gif" alt="functionbroadcasting" />
+ </a>
  </p></details>
   
 ## Alternatives
