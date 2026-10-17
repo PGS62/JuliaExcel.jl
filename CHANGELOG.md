@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [2.1.3] - 2026-10-17
+
+### Bug fixes
+
+- Fixed `JuliaEval` of multi-line expressions, i.e. a one-column range with one Julia statement per cell. The cells were previously joined with `;` and parsed with `Meta.parse`, so a `#` comment in one cell commented out the code in every cell after it, and multi-line blocks such as `function ... end` spread across several cells could fail to parse. The cells are now joined with newlines, exactly as typed, and parsed with `Meta.parseall`, so comments and multi-line blocks behave as they would in a Julia script. `JuliaExcel.answer_again()` also now uses `Meta.parseall`.
+
 ## [2.1.2] - 2026-09-16
 
 ### Performance improvements
