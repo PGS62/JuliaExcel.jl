@@ -218,6 +218,15 @@ end
 Evaluate a Julia expression and return the encoded result as a string.
 Called by the HTTP request handler in `start_server` for requests to `/eval`, originating
 from VBA calls to JuliaEval and JuliaEvalVBA.
+
+`expression` may contain several newline-separated top-level statements - VBA's
+`ConcatenateExpressions` reassembles a one-column range of cells by joining them with `\\n`,
+one cell per line, exactly as the user typed them. `Meta.parseall` (rather than `Meta.parse`,
+which only ever returns a single top-level form) is what `include_string` itself uses to turn
+such a multi-statement string into one `:toplevel` expression, so it already handles `#`
+comments, `#= =#` block comments and multi-line `function...end`/`begin...end` bodies spread
+across cells correctly - `Main.eval` of that `:toplevel` expression evaluates each statement in
+turn and yields the value of the last one.
 """
 function srv_eval_inner(expression::String)::String
     global last_question = expression
@@ -227,7 +236,7 @@ function srv_eval_inner(expression::String)::String
     end
     success = true
     global last_answer = try
-        Main.eval(Meta.parse(expression))
+        Main.eval(Meta.parseall(expression))
     catch e
         success = false
         printstyled("Something went wrong evaluating the expression: ", color=:red)
@@ -283,7 +292,7 @@ function name and remaining elements are its arguments), call the named function
 return the encoded result as a string. Called by the HTTP request handler in `start_server`
 for requests to `/call`, originating from VBA calls to functions JuliaCall and JuliaCallVBA.
 
-Avoids the `Meta.parse` of a literal expression that `srv_eval_inner` requires, which is
+Avoids the `Meta.parseall` of a literal expression that `srv_eval_inner` requires, which is
 slow for large arrays of arguments.
 
 A trailing "." on the function name (e.g. "f.") requests broadcasting, matching Julia's
@@ -337,9 +346,13 @@ Evaluates `last_question` again, and you can wrap it with `@enter` or your own d
 Useful for interactively debugging a `JuliaCall`/`JuliaEval` that failed (or just misbehaved) when
 called from Excel, without needing to repeat the call from there.
 
+Uses `Meta.parseall` rather than `Meta.parse` since `last_question` set by `srv_eval_inner` can be
+a multi-statement, newline-separated string (see its docstring) - `Meta.parseall` also handles the
+single-statement string that `srv_call_inner` sets `last_question` to, so this is correct either way.
+
 See also `last_question`, `last_answer`, `args_from_xl`.
 """
-answer_again() = Main.eval(Meta.parse(last_question))
+answer_again() = Main.eval(Meta.parseall(last_question))
 
 """
     start_server(start::Int=2700)

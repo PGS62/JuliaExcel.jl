@@ -97,33 +97,34 @@ Function RunTests(Optional SilentMode = False, Optional CommandLineOptions As St
 52        AccResult "TestUnserialiseStringTooLong", TestUnserialiseStringTooLong, NumPassed, NumFailed
 53        AccResult "TestUnserialiseMalformedRank", TestUnserialiseMalformedRank, NumPassed, NumFailed
 54        AccResult "TestConcatenateExpressions", TestConcatenateExpressions, NumPassed, NumFailed
-55        AccResult "TestTrim255", TestTrim255, NumPassed, NumFailed
+55        AccResult "TestJuliaEvalMultiLineWithComment", TestJuliaEvalMultiLineWithComment, NumPassed, NumFailed
+56        AccResult "TestTrim255", TestTrim255, NumPassed, NumFailed
 
-56        Prompt = NumPassed & " test(s) passed" & vbLf & _
+57        Prompt = NumPassed & " test(s) passed" & vbLf & _
               NumFailed & " test(s) failed"
 
-57        If NumFailed > 0 Then
-58            Prompt = Prompt & vbLf & vbLf & _
+58        If NumFailed > 0 Then
+59            Prompt = Prompt & vbLf & vbLf & _
                   "See VBA Immediate window for details"
-59        End If
+60        End If
 
-60        PrintTwice NumPassed & " test(s) passed"
-61        PrintTwice NumFailed & " test(s) failed"
-62        PrintTwice String(80, "=")
+61        PrintTwice NumPassed & " test(s) passed"
+62        PrintTwice NumFailed & " test(s) failed"
+63        PrintTwice String(80, "=")
 
-63        If Not SilentMode Then
-64            AppActivate Application.Caption
-65            MsgBox Prompt, IIf(NumFailed = 0, vbInformation, vbCritical), Title
-66        End If
+64        If Not SilentMode Then
+65            AppActivate Application.Caption
+66            MsgBox Prompt, IIf(NumFailed = 0, vbInformation, vbCritical), Title
+67        End If
 
-67        RunTests = NumFailed = 0
+68        RunTests = NumFailed = 0
 
-68        Exit Function
+69        Exit Function
 ErrHandler:
-69        If Not SilentMode Then
-70            MsgBox ReThrow("RunTests", Err, True), vbCritical, Title
-71        End If
-72        RunTests = False
+70        If Not SilentMode Then
+71            MsgBox ReThrow("RunTests", Err, True), vbCritical, Title
+72        End If
+73        RunTests = False
 End Function
 
 Sub PrintTwice(Text As String)
@@ -1170,12 +1171,12 @@ Function TestConcatenateExpressions() As Boolean
 2         OK = True
 
 3         OK = OK And ConcatenateExpressions("a=1") = "a=1"
-4         OK = OK And ConcatenateExpressions(Array("a=1", "b=2")) = "a=1;b=2"
+4         OK = OK And ConcatenateExpressions(Array("a=1", "b=2")) = "a=1" & vbLf & "b=2"
 
 5         ReDim Arr1Col(1 To 2, 1 To 1)
 6         Arr1Col(1, 1) = "a=1"
 7         Arr1Col(2, 1) = "b=2"
-8         OK = OK And ConcatenateExpressions(Arr1Col) = "a=1;b=2"
+8         OK = OK And ConcatenateExpressions(Arr1Col) = "a=1" & vbLf & "b=2"
 
 9         ReDim Arr2Col(1 To 1, 1 To 2)
 10        Arr2Col(1, 1) = "a=1"
@@ -1200,6 +1201,27 @@ Function TestConcatenateExpressions() As Boolean
 ErrHandler:
 27        PrintTwice ReThrow("TestConcatenateExpressions", Err, True)
 28        TestConcatenateExpressions = False
+End Function
+
+' Regression test: ConcatenateExpressions used to join a multi-line JuliaExpression with ";" rather
+' than vbLf, so a "#" comment on one line could swallow the rest of the expression - including the
+' "end" that closes a function - turning valid Julia code into a syntax error. Defines a function
+' across three array elements with a trailing comment on the middle line and checks it still
+' evaluates correctly.
+Function TestJuliaEvalMultiLineWithComment() As Boolean
+          Dim Lines(1 To 3) As Variant
+          Dim OK As Boolean
+1         On Error GoTo ErrHandler
+2         Lines(1) = "function RegressionTestForComment(a, b)"
+3         Lines(2) = "a + b #this comment messes things up!"
+4         Lines(3) = "end"
+5         ThrowIfError JuliaEval(Lines)
+6         OK = JuliaCall("RegressionTestForComment", 2, 3) = 5
+7         TestJuliaEvalMultiLineWithComment = OK
+8         Exit Function
+ErrHandler:
+9         PrintTwice ReThrow("TestJuliaEvalMultiLineWithComment", Err, True)
+10        TestJuliaEvalMultiLineWithComment = False
 End Function
 
 ' Confirms Trim255's non-ASCII handling: common "smart" typographic characters get sensible ASCII
@@ -1236,4 +1258,6 @@ ErrHandler:
 14        PrintTwice ReThrow("TestTrim255", Err, True)
 15        TestTrim255 = False
 End Function
+
+
 

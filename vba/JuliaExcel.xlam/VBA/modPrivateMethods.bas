@@ -67,8 +67,13 @@ End Function
 
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : ConcatenateExpressions
-' Purpose    : It's convenient to be able to pass in a multi-line expression, which we first concatenate with semi-colon
-'              delimiter before passing to Julia for evaluation
+' Purpose    : It's convenient to be able to pass in a multi-line expression (typically a one-column range, one Julia
+'              statement per cell). We reassemble it into a single string by joining with vbLf, reproducing exactly
+'              what the user typed - this (rather than a ";" delimiter) is essential so that a "#" comment on one line
+'              can't swallow code that follows it. On the Julia side, srv_eval_inner parses the result with
+'              Meta.parseall (not Meta.parse), which is what correctly turns a newline-separated sequence of
+'              top-level statements - comments, multi-line function/begin/end blocks and all - into a single
+'              expression to evaluate.
 ' -----------------------------------------------------------------------------------------------------------------------
 Function ConcatenateExpressions(JuliaExpression As Variant) As String
           Dim i As Long
@@ -82,7 +87,7 @@ Function ConcatenateExpressions(JuliaExpression As Variant) As String
               Case 0
 6                 ConcatenateExpressions = CStr(JuliaExpression)
 7             Case 1
-8                 ConcatenateExpressions = VBA.Join(JuliaExpression, ";")
+8                 ConcatenateExpressions = VBA.Join(JuliaExpression, vbLf)
 9             Case 2
 10                NC = UBound(JuliaExpression, 2) - LBound(JuliaExpression, 1) + 1
 11                If NC > 1 Then Throw "When passed as an array or a Range, JuliaExpression should have only one column, but got " + CStr(NC) + " columns"
@@ -90,7 +95,7 @@ Function ConcatenateExpressions(JuliaExpression As Variant) As String
 13                For i = LBound(Tmp) To UBound(Tmp)
 14                    Tmp(i) = JuliaExpression(i, LBound(JuliaExpression, 2))
 15                Next
-16                ConcatenateExpressions = VBA.Join(Tmp, ";")
+16                ConcatenateExpressions = VBA.Join(Tmp, vbLf)
 17            Case Else
 18                Throw "Too many dimensions in JuliaExpression"
 19        End Select
@@ -134,4 +139,5 @@ Function Trim255(Text As String) As String
 15            Trim255 = Left$(Res, 252) & "..."
 16        End If
 End Function
+
 
