@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-10-31
+
+### New features
+
+- New worksheet function `JuliaCallNamedArgs`, and VBA function `JuliaCallNamedArgsVBA`, for calling Julia functions that take named (keyword) arguments. The argument `";"` marks where the named arguments start, mirroring Julia's own call syntax, and they're given as name-value pairs: `=JuliaCallNamedArgs("sort", A1:A10, ";", "rev", TRUE)` calls `sort(A1:A10; rev=true)`. Julia finds the `";"` by searching backwards from the end of the arguments, so a `";"` among the positional arguments is never mistaken for it. A named argument whose value is `";"` must therefore be the last pair. Example [here](README.md#juliacallnamedargs).
+- New `JuliaExcel.kwargs_from_xl`, holding the named arguments most recently passed to `JuliaCallNamedArgs`/`JuliaCallNamedArgsVBA`, alongside `args_from_xl` for the positional ones.
+
 ## [2.1.3] - 2026-10-17
 
 ### Bug fixes
