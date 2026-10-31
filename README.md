@@ -191,7 +191,7 @@ Public Function JuliaCallNamedArgs(JuliaFunction As String, ParamArray Args())
 |`JuliaFunction`|The name of a Julia function visible from the Julia REPL.|
 |`Args...`|Zero or more positional arguments, then `";"`, then pairs of name and value, e.g. `"a",1,"b",2`. Names must be valid Julia identifiers. Each argument may be a number, string, Boolean, empty cell, array or Range.|
 
-The `";"` mirrors Julia's own call syntax, so for example `=JuliaCallNamedArgs("sort", A1:A10, ";", "rev", TRUE)` calls `sort(A1:A10; rev=true)`. Without a `";"`, `JuliaCallNamedArgs` behaves exactly like `JuliaCall`.
+Named arguments are what Julia's documentation and error messages call _keyword_ arguments. The `";"` mirrors Julia's own call syntax, so for example `=JuliaCallNamedArgs("sort", A1:A10, ";", "rev", TRUE)` calls `sort(A1:A10; rev=true)`. Without a `";"`, `JuliaCallNamedArgs` behaves exactly like `JuliaCall`.
 
 Julia finds the `";"` by searching backwards from the end of the arguments, in steps of two (since name-value pairs follow it), and stops at the first `";"` it finds. So a `";"` among the positional arguments is never mistaken for the marker: `=JuliaCallNamedArgs("split", A1, ";", ";", "keepempty", FALSE)` calls `split(A1, ";"; keepempty=false)`. The cost is that if a named argument's _value_ is `";"`, that pair must be given last, since a `";"` value in any earlier pair would be found first and taken as the marker.
 
