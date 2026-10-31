@@ -62,6 +62,8 @@ JuliaExcel makes the following functions available from Excel worksheets and fro
 |[JuliaSetVar](#juliasetvar)|Set a global variable in the Julia process.|
 |[JuliaEvalVBA](#juliaevalvba)|Evaluate a Julia expression from VBA . Differs from `JuliaCall` in handling of 1-d arrays and strings longer than 32,767 characters. May return data of types that cannot be displayed on a worksheet, such as a dictionary or an array of arrays.|
 |[JuliaCallVBA](#juliacallvba)|Call a named Julia function from VBA. Differs from `JuliaCall` in handling of 1-d arrays and strings longer than 32,767 characters. May return data of types that cannot be displayed on a worksheet, such as a dictionary, an array of arrays, or arrays of dimension up to 9.|
+|[JuliaCallNamedArgs](#juliacallnamedargs)|Call a named Julia function, passing positional and named arguments from the worksheet. The argument `";"` marks where the named arguments start, given as name-value pairs. A named argument whose value is `";"` must be the last pair.|
+|[JuliaCallNamedArgsVBA](#juliacallnamedargsvba)|Call a named Julia function from VBA, passing positional and named arguments, with `";"` marking where the named arguments start. Differs from `JuliaCallNamedArgs` in the same ways that `JuliaCallVBA` differs from `JuliaCall`.|
 |[JuliaIsRunning](#juliaisrunning)|Returns TRUE if an instance of Julia is running and "listening" to the current Excel session, or FALSE otherwise.|
 |[JuliaExcelPID](#juliaexcelpid)|Returns the process id of the current Excel session. Only needed if more than one Excel instance is running - pass it to `serve_xl` to say which one to attach to.|
 
@@ -178,6 +180,34 @@ Public Function JuliaCallVBA(JuliaFunction As String, ParamArray Args())
 |`JuliaFunction`|The name of a Julia function visible from the Julia REPL.|
 |`Args...`|Zero or more arguments. Each may be a number, string, Boolean, empty cell, array or Range. Ranges are expanded to their .Value2 before encoding.|
 
+### `JuliaCallNamedArgs`
+Call a named Julia function, passing positional and named arguments from the worksheet. The argument `";"` marks where the named arguments start, given as name-value pairs. A named argument whose value is `";"` must be the last pair.
+```vba
+Public Function JuliaCallNamedArgs(JuliaFunction As String, ParamArray Args())
+```
+
+|Argument|Description|
+|:-------|:----------|
+|`JuliaFunction`|The name of a Julia function visible from the Julia REPL.|
+|`Args...`|Zero or more positional arguments, then `";"`, then pairs of name and value, e.g. `"a",1,"b",2`. Names must be valid Julia identifiers. Each argument may be a number, string, Boolean, empty cell, array or Range.|
+
+The `";"` mirrors Julia's own call syntax, so for example `=JuliaCallNamedArgs("sort", A1:A10, ";", "rev", TRUE)` calls `sort(A1:A10; rev=true)`. Without a `";"`, `JuliaCallNamedArgs` behaves exactly like `JuliaCall`.
+
+Julia finds the `";"` by searching backwards from the end of the arguments, in steps of two (since name-value pairs follow it), and stops at the first `";"` it finds. So a `";"` among the positional arguments is never mistaken for the marker: `=JuliaCallNamedArgs("split", A1, ";", ";", "keepempty", FALSE)` calls `split(A1, ";"; keepempty=false)`. The cost is that if a named argument's _value_ is `";"`, that pair must be given last, since a `";"` value in any earlier pair would be found first and taken as the marker.
+
+A trailing `.` on the function name broadcasts over the positional arguments, as for `JuliaCall`. As with `f.(x; k=v)` in Julia, the named arguments are passed unchanged to every call rather than broadcast over.
+
+### `JuliaCallNamedArgsVBA`
+Call a named Julia function from VBA, passing positional and named arguments, with `";"` marking where the named arguments start. Differs from `JuliaCallNamedArgs` in the same ways that `JuliaCallVBA` differs from `JuliaCall`.
+```vba
+Public Function JuliaCallNamedArgsVBA(JuliaFunction As String, ParamArray Args())
+```
+
+|Argument|Description|
+|:-------|:----------|
+|`JuliaFunction`|The name of a Julia function visible from the Julia REPL.|
+|`Args...`|Zero or more positional arguments, then `";"`, then pairs of name and value, e.g. `"a",1,"b",2`. Names must be valid Julia identifiers. Each argument may be a number, string, Boolean, empty cell, array or Range.|
+
 ### `JuliaIsRunning`
 Returns TRUE if an instance of Julia is running and "listening" to the current Excel session, or FALSE otherwise.
 ```vba
@@ -215,7 +245,7 @@ Every call to `JuliaCall`/`JuliaCallVBA`/`JuliaEval`/`JuliaEvalVBA` leaves a tra
 
 * `JuliaExcel.last_question` is the expression that was evaluated - either the exact string passed to `JuliaEval`/`JuliaEvalVBA`, or, for `JuliaCall`/`JuliaCallVBA`, a reconstructed call such as `myfunction(JuliaExcel.args_from_xl...)`.
 * `JuliaExcel.last_answer` is the value that was returned to Excel.
-* `JuliaExcel.args_from_xl` holds the arguments most recently passed from Excel to `JuliaCall`/`JuliaCallVBA`.
+* `JuliaExcel.args_from_xl` holds the arguments most recently passed from Excel to `JuliaCall`/`JuliaCallVBA`, or the positional arguments for `JuliaCallNamedArgs`/`JuliaCallNamedArgsVBA`. For those, `JuliaExcel.kwargs_from_xl` holds the named arguments as a `NamedTuple`, and `last_question` is a call such as `myfunction(args_from_xl...; kwargs_from_xl...)`.
 * `JuliaExcel.answer_again()` evaluates `last_question` again, and you can wrap it with `@enter` or your own debugging tools.
 
 All of these only reflect the most recent call, so debug before making another one. Call `JuliaExcel.display_results(true)` to also have each call and its result echoed to the Julia console as it happens.
@@ -266,6 +296,15 @@ For calls from VBA:
   <img src="images/functionbroadcasting.gif" alt="functionbroadcasting" />
  </a>
  </p></details>
+
+### Numbers from a worksheet arrive as `Float64`
+Excel stores every number on a worksheet as a double-precision float, so numbers passed from a worksheet to `JuliaCall`, `JuliaCallNamedArgs` or `JuliaSetVar` always arrive in Julia as `Float64`, even whole numbers such as `2`. This includes the results of other functions in the same formula, since Excel converts a function's result to a worksheet value before passing it on. So `=JuliaCall("typeof", JuliaEval("2"))` returns `Float64`, even though `JuliaEval("2")` returns an `Int64` to VBA.
+
+This matters when calling a Julia function that requires an integer, whether as a positional argument (e.g. `rand(3)`) or a named one (e.g. `round(x; digits=2)`, `split(s, ","; limit=2)`). Passing `Float64` gives a `MethodError` or `TypeError`. There are two workarounds:
+ * Write the whole call in `JuliaEval`, e.g. `=JuliaEval("rand(3)")`, if the integer is a constant.
+ * Write a small Julia function that converts, e.g. `myrand(n) = rand(Int(n))`, loaded with `JuliaInclude`, and call that instead.
+
+From VBA, numbers keep their VBA type: `Integer` arrives as `Int16`, `Long` as `Int32`, `LongLong` as `Int64`, `Single` as `Float32` and `Double` as `Float64`. So pass a `LongLong` (e.g. `2^` or `CLngLng(n)`) where Julia needs an `Int64`. Note that a literal such as `2` in VBA code is an `Integer`, which arrives as `Int16` - some Julia functions, such as `split`, require an `Int64` and won't accept that either.
   
 ## Alternatives
 There is one alternative method of calling Julia from Excel of which I am aware:  
@@ -281,7 +320,7 @@ JuliaExcel has been tested on Excel under Microsoft 365, both 32-bit and 64-bit.
 JuliaExcel communicates between Excel and Julia over a local HTTP connection:
 1) `JuliaLaunch` starts a Julia process (as a normal Windows process, or under WSL) running a small HTTP server (`JuliaExcel.start_server()`) on a free local port, and writes that port number to a file so VBA can discover it. If a session for the current Excel process already appears to be running, `JuliaLaunch` checks that it's actually responding before reusing it, rather than starting a duplicate.
 2) `JuliaEval` POSTs the Julia expression as plain text to the server's `/eval` endpoint. The Julia function `srv_eval_inner` (in `comms.jl`) evaluates it with `Meta.parse`/`eval` and returns the result - encoded in JuliaExcel's own wire format - in the HTTP response body.
-3) `JuliaCall` and `JuliaCallVBA` instead encode the function name and its arguments (marshalled per the rules described in [Marshalling](#marshalling)) into that same wire format and POST it to the `/call` endpoint. `srv_call_inner` decodes it and invokes the named function directly, returning the result the same way. This avoids `Meta.parse`ing a literal expression, which is slow for calls passing large arrays.
+3) `JuliaCall` and `JuliaCallVBA` instead encode the function name and its arguments (marshalled per the rules described in [Marshalling](#marshalling)) into that same wire format and POST it to the `/call` endpoint. `srv_call_inner` decodes it and invokes the named function directly, returning the result the same way. This avoids `Meta.parse`ing a literal expression, which is slow for calls passing large arrays. `JuliaCallNamedArgs` and `JuliaCallNamedArgsVBA` encode their arguments the same way but POST them to the `/callkw` endpoint, where Julia splits them at the `";"` into positional and named arguments.
 4) VBA unserialises the response body back into worksheet values or VBA variables.
 
 Other points to note:
@@ -301,4 +340,4 @@ Given how JuliaExcel works, with serialisation done in VBA - an interpreted lang
 
 Philip Swannell  
 8 December 2021  
-Last updated 22 August 2026
+Last updated 31 October 2026

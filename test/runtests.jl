@@ -277,6 +277,44 @@ end
         @test JuliaExcel.answer_again() == [1, 2, 3]
     end
 
+    # split_named_args (comms.jl) - finds the ";" separator by searching backwards from the
+    # third-from-last argument in steps of 2, so a ";" among the positional arguments is never
+    # taken as the separator, nor is a ";" value in the last pair.
+    let s = JuliaExcel.split_named_args
+        @test s(Any[1, 2]) == (Any[1, 2], NamedTuple())
+        @test s(Any[]) == (Any[], NamedTuple())
+        @test s(Any[";"]) == (Any[";"], NamedTuple())
+        @test s(Any[1, ";", "a", 10]) == (Any[1], (a=10,))
+        @test s(Any[";", "a", 10, "b", 20]) == (Any[], (a=10, b=20))
+        @test s(Any["x;y", ";", ";", "limit", 2]) == (Any["x;y", ";"], (limit=2,))
+        @test s(Any[1, ";", "a", 10, "delim", ";"]) == (Any[1], (a=10, delim=";"))
+        @test s(Any[1, ";"]) == (Any[1, ";"], NamedTuple())     # no pairs after it: not a separator
+        @test_throws ArgumentError s(Any[1, ";", "not valid", 10])
+        @test_throws ArgumentError s(Any[1, ";", 3.0, 10])
+        @test_throws ArgumentError s(Any[1, ";", "a", 10, "a", 20])
+    end
+
+    # srv_call_inner with named_args=true (requests to /callkw, from JuliaCallNamedArgs) passes the
+    # named arguments as keyword arguments, saved in kwargs_from_xl, including when broadcasting.
+    let payload = JuliaExcel.encode_for_xl(Any["split", "a;b;c", ";", ";", "limit", 2])
+        @test JuliaExcel.decode_from_xl(JuliaExcel.srv_call_inner(payload; named_args=true)) == ["a", "b;c"]
+        @test JuliaExcel.last_question == "split(args_from_xl...; kwargs_from_xl...)"
+        @test JuliaExcel.kwargs_from_xl == (limit=2,)
+        @test JuliaExcel.answer_again() == ["a", "b;c"]
+    end
+    let payload = JuliaExcel.encode_for_xl(Any["round.", [1.234, 5.678], ";", "digits", 1])
+        @test JuliaExcel.decode_from_xl(JuliaExcel.srv_call_inner(payload; named_args=true)) == [1.2, 5.7]
+        @test JuliaExcel.last_question == "round.(args_from_xl...; kwargs_from_xl...)"
+        @test JuliaExcel.answer_again() == [1.2, 5.7]
+    end
+    let payload = JuliaExcel.encode_for_xl(Any["round", 1.5, ";", "digitz", 1])
+        @test startswith(JuliaExcel.decode_from_xl(JuliaExcel.srv_call_inner(payload; named_args=true)), "#MethodError")
+    end
+    let payload = JuliaExcel.encode_for_xl(Any["round", 1.5, ";", "a", 1, "a", 2])
+        @test startswith(JuliaExcel.decode_from_xl(JuliaExcel.srv_call_inner(payload; named_args=true)),
+                         "#ArgumentError: Named argument `a` is given more than once")
+    end
+
     # _running_excel_pids (comms.jl) - used by serve_xl() to auto-detect the Excel process to
     # attach to. Just a smoke test: CI has no Excel installed, so this only checks the Windows
     # `tasklist` call runs and parses to the right type, not that it finds anything.

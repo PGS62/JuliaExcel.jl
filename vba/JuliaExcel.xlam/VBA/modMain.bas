@@ -95,6 +95,8 @@ End Function
 Public Function JuliaLaunch(Optional UseLinux As Boolean, Optional MinimiseWindow As Boolean, _
           Optional ByVal CommandLineOptions As String, Optional ByVal Packages As String, _
           Optional ByVal BashStatements As String, Optional TimeOut As Long = 30)
+Attribute JuliaLaunch.VB_Description = "Launches a local Julia session which listens to the current Excel session and responds to calls to JuliaEval etc.."
+Attribute JuliaLaunch.VB_ProcData.VB_Invoke_Func = " \n14"
 
           Const WSLExecutable = "C:\Windows\System32\wsl.exe"
           Dim Command As String
@@ -578,16 +580,21 @@ End Sub
 
 ' -----------------------------------------------------------------------------------------------------------------------
 ' Procedure  : JuliaCall_LowLevel
-' Purpose    : Shared dispatch for JuliaCall and JuliaCallVBA. POSTs EncodedArgs (a 1D array in the
-'              JuliaExcel wire format whose first element is a function name and remaining elements
-'              are its arguments) to the /call HTTP endpoint, handled by Julia's srv_call_inner.
+' Purpose    : Shared dispatch for JuliaCall, JuliaCallVBA, JuliaCallNamedArgs and JuliaCallNamedArgsVBA.
+'              POSTs EncodedArgs (a 1D array in the JuliaExcel wire format whose first element is a
+'              function name and remaining elements are its arguments) to the given HTTP endpoint:
+'                "/call"   -> handled by Julia's srv_call_inner              (JuliaCall, JuliaCallVBA)
+'                "/callkw" -> handled by srv_call_inner(...; named_args=true) (JuliaCallNamedArgs,
+'                             JuliaCallNamedArgsVBA), which finds the ";" separating positional
+'                             from named arguments itself, so EncodedArgs is built the same way.
 '              IsFromWorksheet controls result handling in the same way as for JuliaEval_LowLevel:
 '                False -> AllowNested=True, no string-length limit, vectors stay 1D  (VBA caller)
 '                True  -> AllowNested=False, GetStringLengthLimit(), vectors become columns (worksheet)
 '              Note: cannot accept ParamArray here - VBA forbids using a ParamArray parameter as
 '              an argument in any call, so the encoding loop is duplicated in each public wrapper.
 ' -----------------------------------------------------------------------------------------------------------------------
-Private Function JuliaCall_LowLevel(EncodedArgs As String, IsFromWorksheet As Boolean)
+Private Function JuliaCall_LowLevel(EncodedArgs As String, IsFromWorksheet As Boolean, _
+          Optional Endpoint As String = "/call")
           Dim HttpResult As String
 
 1         On Error GoTo ErrHandler
@@ -596,10 +603,10 @@ Private Function JuliaCall_LowLevel(EncodedArgs As String, IsFromWorksheet As Bo
 4             Exit Function
 5         End If
 6         If IsFromWorksheet Then
-7             HttpResult = JuliaHttpPost(EncodedArgs, "/call")
+7             HttpResult = JuliaHttpPost(EncodedArgs, Endpoint)
 8             Assign JuliaCall_LowLevel, UnserialiseFromString(HttpResult, False, GetStringLengthLimit(), True)
 9         Else
-10            Assign JuliaCall_LowLevel, UnserialiseFromString(JuliaHttpPost(EncodedArgs, "/call"), True, 0, False)
+10            Assign JuliaCall_LowLevel, UnserialiseFromString(JuliaHttpPost(EncodedArgs, Endpoint), True, 0, False)
 11        End If
 12        Exit Function
 ErrHandler:
@@ -697,3 +704,104 @@ Attribute JuliaCallVBA.VB_ProcData.VB_Invoke_Func = " \n14"
 ErrHandler:
 16        ReThrow "JuliaCallVBA", Err
 End Function
+
+' -----------------------------------------------------------------------------------------------------------------------
+' Procedure : JuliaCallNamedArgs
+' Purpose   : Call a named Julia function from a worksheet, passing both positional and named (keyword)
+'             arguments. As JuliaCall, except that the argument ";" marks where the named arguments
+'             start, mirroring Julia's own call syntax: JuliaCallNamedArgs("f", x, y, ";", "a", 1, "b", 2)
+'             calls f(x, y; a=1, b=2). Julia finds the ";" by searching backwards from the end, in steps
+'             of two, so a ";" among the positional arguments is never mistaken for it. A named argument
+'             whose value is the string ";" must therefore be the last pair. See JuliaCallNamedArgsVBA
+'             for the VBA equivalent.
+' Arguments
+' JuliaFunction: The name of a Julia function visible from the Julia REPL.
+' Args...   : Zero or more positional arguments, then ";", then pairs of name and value. Names must
+'             be valid Julia identifiers. Each argument may be a number, string, Boolean, empty cell,
+'             array or Range. Ranges are expanded to their .Value2 before encoding.
+' -----------------------------------------------------------------------------------------------------------------------
+Public Function JuliaCallNamedArgs(JuliaFunction As String, ParamArray Args())
+Attribute JuliaCallNamedArgs.VB_Description = "Call a named Julia function, passing positional and named arguments from the worksheet. The argument "";"" marks where the named arguments start, given as name-value pairs. A named argument whose value is "";"" must be the last pair."
+Attribute JuliaCallNamedArgs.VB_ProcData.VB_Invoke_Func = " \n14"
+          Dim Arg As Variant
+          Dim ContentsSection As String
+          Dim i As Long
+          Dim LengthsSection As String
+          Dim NumArgs As Long
+          Dim NumElements As Long
+          Dim ThisEncoded As String
+
+1         On Error GoTo ErrHandler
+
+2         If IsFunctionWizardActive() Then
+3             JuliaCallNamedArgs = "#Disabled in Function Wizard!"
+4             Exit Function
+5         End If
+
+6         ThisEncoded = Chr(163) & JuliaFunction
+7         LengthsSection = CStr(Len(ThisEncoded)) & ","
+8         ContentsSection = ThisEncoded
+9         NumArgs = IIf(UBound(Args) >= LBound(Args), UBound(Args) - LBound(Args) + 1, 0)
+10        NumElements = 1 + NumArgs
+11        For i = 0 To NumArgs - 1
+12            Assign Arg, Args(LBound(Args) + i)
+13            If TypeName(Arg) = "Range" Then Arg = Arg.Value2
+14            ThisEncoded = SerialiseElement(Arg)
+15            LengthsSection = LengthsSection & CStr(Len(ThisEncoded)) & ","
+16            ContentsSection = ContentsSection & ThisEncoded
+17        Next i
+18        Assign JuliaCallNamedArgs, JuliaCall_LowLevel("*1," & CStr(NumElements) & ";" & LengthsSection & ";" & ContentsSection, _
+              IsFromWorksheet:=True, Endpoint:="/callkw")
+
+19        Exit Function
+ErrHandler:
+20        JuliaCallNamedArgs = ReThrow("JuliaCallNamedArgs", Err, True)
+End Function
+
+' -----------------------------------------------------------------------------------------------------------------------
+' Procedure : JuliaCallNamedArgsVBA
+' Purpose   : Call a named Julia function from VBA, passing both positional and named (keyword) arguments,
+'             with ";" marking where the named arguments start - see JuliaCallNamedArgs. Differs from
+'             JuliaCallNamedArgs in the same ways that JuliaCallVBA differs from JuliaCall: handling of
+'             1-dimensional arrays and strings longer than 32,767 characters, and may return data not
+'             displayable on a worksheet (e.g. a dictionary or array of arrays).
+' Arguments
+' JuliaFunction: The name of a Julia function visible from the Julia REPL.
+' Args...   : Zero or more positional arguments, then ";", then pairs of name and value. Names must
+'             be valid Julia identifiers. Each argument may be a number, string, Boolean, empty cell,
+'             array or Range. Ranges are expanded to their .Value2 before encoding.
+' -----------------------------------------------------------------------------------------------------------------------
+Public Function JuliaCallNamedArgsVBA(JuliaFunction As String, ParamArray Args())
+Attribute JuliaCallNamedArgsVBA.VB_Description = "Call a named Julia function from VBA, passing positional and named arguments, with "";"" marking where the named arguments start. Differs from JuliaCallNamedArgs in the same ways that JuliaCallVBA differs from JuliaCall."
+Attribute JuliaCallNamedArgsVBA.VB_ProcData.VB_Invoke_Func = " \n14"
+          Dim Arg As Variant
+          Dim ContentsSection As String
+          Dim i As Long
+          Dim LengthsSection As String
+          Dim NumArgs As Long
+          Dim NumElements As Long
+          Dim ThisEncoded As String
+
+1         On Error GoTo ErrHandler
+
+2         ThisEncoded = Chr(163) & JuliaFunction
+3         LengthsSection = CStr(Len(ThisEncoded)) & ","
+4         ContentsSection = ThisEncoded
+5         NumArgs = IIf(UBound(Args) >= LBound(Args), UBound(Args) - LBound(Args) + 1, 0)
+6         NumElements = 1 + NumArgs
+7         For i = 0 To NumArgs - 1
+8             Assign Arg, Args(LBound(Args) + i)
+9             If TypeName(Arg) = "Range" Then Arg = Arg.Value2
+10            ThisEncoded = SerialiseElement(Arg)
+11            LengthsSection = LengthsSection & CStr(Len(ThisEncoded)) & ","
+12            ContentsSection = ContentsSection & ThisEncoded
+13        Next i
+14        Assign JuliaCallNamedArgsVBA, JuliaCall_LowLevel("*1," & CStr(NumElements) & ";" & LengthsSection & ";" & ContentsSection, _
+              IsFromWorksheet:=False, Endpoint:="/callkw")
+
+15        Exit Function
+ErrHandler:
+16        ReThrow "JuliaCallNamedArgsVBA", Err
+End Function
+
+

@@ -21,4 +21,10 @@ JuliaEvalVBA	Evaluate a Julia expression from VBA . Differs from JuliaCall in ha
 JuliaCallVBA	Call a named Julia function from VBA. Differs from JuliaCall in handling of 1-d arrays and strings longer than 32,767 characters. May return data of types that cannot be displayed on a worksheet, such as a dictionary, an array of arrays, or arrays of dimension up to 9.	
 	JuliaFunction	The name of a Julia function visible from the Julia REPL.
 	Args...	Zero or more arguments. Each may be a number, string, Boolean, empty cell, array or Range. Ranges are expanded to their .Value2 before encoding.
+JuliaCallNamedArgs	Call a named Julia function, passing positional and named arguments from the worksheet. The argument ";" marks where the named arguments start, given as name-value pairs. A named argument whose value is ";" must be the last pair.	
+	JuliaFunction	The name of a Julia function visible from the Julia REPL.
+	Args...	Zero or more positional arguments, then ";", then pairs of name and value, e.g. "a",1,"b",2. Names must be valid Julia identifiers. Each argument may be a number, string, Boolean, empty cell, array or Range.
+JuliaCallNamedArgsVBA	Call a named Julia function from VBA, passing positional and named arguments, with ";" marking where the named arguments start. Differs from JuliaCallNamedArgs in the same ways that JuliaCallVBA differs from JuliaCall.	
+	JuliaFunction	The name of a Julia function visible from the Julia REPL.
+	Args...	Zero or more positional arguments, then ";", then pairs of name and value, e.g. "a",1,"b",2. Names must be valid Julia identifiers. Each argument may be a number, string, Boolean, empty cell, array or Range.
 JuliaIsRunning	Returns TRUE if an instance of Julia is running and "listening" to the current Excel session, or FALSE otherwise.	

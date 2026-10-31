@@ -89,42 +89,44 @@ Function RunTests(Optional SilentMode = False, Optional CommandLineOptions As St
 46        AccResult "TestNaNInfRoundTripViaV", TestNaNInfRoundTripViaV, NumPassed, NumFailed
 47        AccResult "TestExcelErrorRoundTrip", TestExcelErrorRoundTrip, NumPassed, NumFailed
 48        AccResult "TestArrayOfSingleCharacters", TestArrayOfSingleCharacters, NumPassed, NumFailed
+49        AccResult "TestNamedArgs", TestNamedArgs, NumPassed, NumFailed
+50        AccResult "TestNamedArgsVBA", TestNamedArgsVBA, NumPassed, NumFailed
 
           'Tests of various other functions
-49        AccResult "TestSerialiseArrayAsV", TestSerialiseArrayAsV, NumPassed, NumFailed
-50        AccResult "TestVFormatBoundarySizes", TestVFormatBoundarySizes, NumPassed, NumFailed
-51        AccResult "TestMakeJuliaLiteral", TestMakeJuliaLiteral, NumPassed, NumFailed
-52        AccResult "TestUnserialiseStringTooLong", TestUnserialiseStringTooLong, NumPassed, NumFailed
-53        AccResult "TestUnserialiseMalformedRank", TestUnserialiseMalformedRank, NumPassed, NumFailed
-54        AccResult "TestConcatenateExpressions", TestConcatenateExpressions, NumPassed, NumFailed
-55        AccResult "TestJuliaEvalMultiLineWithComment", TestJuliaEvalMultiLineWithComment, NumPassed, NumFailed
-56        AccResult "TestTrim255", TestTrim255, NumPassed, NumFailed
+51        AccResult "TestSerialiseArrayAsV", TestSerialiseArrayAsV, NumPassed, NumFailed
+52        AccResult "TestVFormatBoundarySizes", TestVFormatBoundarySizes, NumPassed, NumFailed
+53        AccResult "TestMakeJuliaLiteral", TestMakeJuliaLiteral, NumPassed, NumFailed
+54        AccResult "TestUnserialiseStringTooLong", TestUnserialiseStringTooLong, NumPassed, NumFailed
+55        AccResult "TestUnserialiseMalformedRank", TestUnserialiseMalformedRank, NumPassed, NumFailed
+56        AccResult "TestConcatenateExpressions", TestConcatenateExpressions, NumPassed, NumFailed
+57        AccResult "TestJuliaEvalMultiLineWithComment", TestJuliaEvalMultiLineWithComment, NumPassed, NumFailed
+58        AccResult "TestTrim255", TestTrim255, NumPassed, NumFailed
 
-57        Prompt = NumPassed & " test(s) passed" & vbLf & _
+59        Prompt = NumPassed & " test(s) passed" & vbLf & _
               NumFailed & " test(s) failed"
 
-58        If NumFailed > 0 Then
-59            Prompt = Prompt & vbLf & vbLf & _
+60        If NumFailed > 0 Then
+61            Prompt = Prompt & vbLf & vbLf & _
                   "See VBA Immediate window for details"
-60        End If
+62        End If
 
-61        PrintTwice NumPassed & " test(s) passed"
-62        PrintTwice NumFailed & " test(s) failed"
-63        PrintTwice String(80, "=")
+63        PrintTwice NumPassed & " test(s) passed"
+64        PrintTwice NumFailed & " test(s) failed"
+65        PrintTwice String(80, "=")
 
-64        If Not SilentMode Then
-65            AppActivate Application.Caption
-66            MsgBox Prompt, IIf(NumFailed = 0, vbInformation, vbCritical), Title
-67        End If
+66        If Not SilentMode Then
+67            AppActivate Application.Caption
+68            MsgBox Prompt, IIf(NumFailed = 0, vbInformation, vbCritical), Title
+69        End If
 
-68        RunTests = NumFailed = 0
+70        RunTests = NumFailed = 0
 
-69        Exit Function
+71        Exit Function
 ErrHandler:
-70        If Not SilentMode Then
-71            MsgBox ReThrow("RunTests", Err, True), vbCritical, Title
-72        End If
-73        RunTests = False
+72        If Not SilentMode Then
+73            MsgBox ReThrow("RunTests", Err, True), vbCritical, Title
+74        End If
+75        RunTests = False
 End Function
 
 Sub PrintTwice(Text As String)
@@ -934,6 +936,66 @@ ErrHandler:
 7         TestArrayOfSingleCharacters = False
 End Function
 
+' Checks JuliaCallNamedArgs passes the arguments after ";" as keyword arguments: with some named
+' arguments, with none, with ";" also used as a positional argument and as the value of the last
+' named argument (the cases the backwards search for the separator is designed to allow), and that a
+' repeated name is reported as an error. Uses a Boolean keyword argument for split, since a number
+' would arrive as Int16 (from VBA) or Float64 (from a worksheet), and split's limit needs an Int64.
+Function TestNamedArgs()
+          Dim Expected1(1 To 4, 1 To 1) As Variant
+          Dim Expected2(1 To 4, 1 To 1) As Variant
+          Dim Expected3(1 To 2, 1 To 1) As Variant
+          Dim OK As Boolean
+
+1         On Error GoTo ErrHandler
+2         ThrowIfError JuliaEval("named_args_test(x, y=0; a=1, b=2) = [x, y, a, b]; named_args_join(xs...; delim="","") = join(xs, delim)")
+
+3         Expected1(1, 1) = 10#: Expected1(2, 1) = 0#: Expected1(3, 1) = 1#: Expected1(4, 1) = 5#
+4         OK = ArraysIdentical(Expected1, ThrowIfError(JuliaCallNamedArgs("named_args_test", 10#, ";", "b", 5#)))
+
+5         Expected2(1, 1) = 10#: Expected2(2, 1) = 0#: Expected2(3, 1) = 1#: Expected2(4, 1) = 2#
+6         OK = OK And ArraysIdentical(Expected2, ThrowIfError(JuliaCallNamedArgs("named_args_test", 10#)))
+
+7         Expected3(1, 1) = "a": Expected3(2, 1) = "b"
+8         OK = OK And ArraysIdentical(Expected3, ThrowIfError(JuliaCallNamedArgs("split", "a;;b", ";", ";", "keepempty", False)))
+9         OK = OK And JuliaCallNamedArgs("named_args_join", "a", ";", "b", ";", "delim", ";") = "a;;;b"
+
+10        OK = OK And Left$(JuliaCallNamedArgs("named_args_test", 10#, ";", "a", 1, "a", 2), 15) = "#ArgumentError:"
+
+11        TestNamedArgs = OK
+12        Exit Function
+ErrHandler:
+13        PrintTwice ReThrow("TestNamedArgs", Err, True)
+14        TestNamedArgs = False
+End Function
+
+' Checks JuliaCallNamedArgsVBA returns a vector as a 1-dimensional array, and that both argument and
+' return types that can't live on a worksheet (here Dictionaries) work as named argument values.
+Function TestNamedArgsVBA()
+          Dim Expected(1 To 4) As Variant
+          Dim OK As Boolean
+          Dim x As New Scripting.Dictionary
+          Dim y As Scripting.Dictionary
+
+1         On Error GoTo ErrHandler
+2         ThrowIfError JuliaEval("named_args_test(x, y=0; a=1, b=2) = [x, y, a, b]")
+3         Expected(1) = 10#: Expected(2) = 0#: Expected(3) = 1#: Expected(4) = 5#
+4         OK = ArraysIdentical(Expected, JuliaCallNamedArgsVBA("named_args_test", 10#, ";", "b", 5#))
+
+5         ThrowIfError JuliaEval("named_args_dict(; kw...) = Dict(string(k) => v for (k, v) in kw)")
+6         x.Add "alpha", 100
+7         Set y = JuliaCallNamedArgsVBA("named_args_dict", ";", "d", x, "n", 1#)
+8         OK = OK And y.Count = 2
+9         OK = OK And y("n") = 1#
+10        OK = OK And y("d")("alpha") = 100
+
+11        TestNamedArgsVBA = OK
+12        Exit Function
+ErrHandler:
+13        PrintTwice ReThrow("TestNamedArgsVBA", Err, True)
+14        TestNamedArgsVBA = False
+End Function
+
 ' Direct unit test of TrySerialiseArrayAsV (modSerialise.bas) - the Excel -> Julia direction "V"
 ' encoder wired into SerialiseElement. Checks the exact wire string for a vector and a (non-square,
 ' column-major) matrix, that it correctly declines (returns False) for a mixed-type array, and
@@ -1258,6 +1320,8 @@ ErrHandler:
 14        PrintTwice ReThrow("TestTrim255", Err, True)
 15        TestTrim255 = False
 End Function
+
+
 
 
 

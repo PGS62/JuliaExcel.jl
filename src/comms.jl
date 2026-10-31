@@ -285,12 +285,56 @@ function friendly_error(e)
 end
 
 """
-    srv_call_inner(payload::String)::String
+    split_named_args(args::AbstractVector)
+
+Split the arguments of a call from `JuliaCallNamedArgs`/`JuliaCallNamedArgsVBA` into positional
+arguments and named (keyword) arguments, returning a tuple `(positional, named)` where
+`positional` is a vector and `named` a `NamedTuple`.
+
+The arguments take the form `p1, ..., pk, ";", name1, value1, ..., namem, valuem`, mirroring
+the `;` that separates positional and keyword arguments in Julia's own call syntax. The
+separator is found by searching backwards from the third-from-last argument in steps of 2 -
+the positions it can occupy given that pairs follow it - and taking the first `";"` found.
+Searching backwards means a `";"` among the positional arguments (e.g. the delimiter in a call
+to `split`) is never mistaken for the separator. The cost is that a named argument whose
+*value* is `";"` must be given as the last pair, since a `";"` value in any earlier pair would
+be found first. If no separator is found, all arguments are positional.
+
+Throws an `ArgumentError` if a name is not a valid Julia identifier or is given more than once
+(Julia itself would silently use the last of repeated names when splatting).
+"""
+function split_named_args(args::AbstractVector)
+    sep = 0
+    for i in length(args)-2:-2:1
+        if args[i] isa AbstractString && args[i] == ";"
+            sep = i
+            break
+        end
+    end
+    sep == 0 && return args, NamedTuple()
+    names = args[sep+1:2:end]
+    values = args[sep+2:2:end]
+    for name in names
+        (name isa AbstractString && Base.isidentifier(name)) || throw(ArgumentError(
+            "Named argument name $(repr(name)) is not a valid Julia identifier"))
+    end
+    for name in unique(names)
+        count(==(name), names) > 1 && throw(ArgumentError(
+            "Named argument `$name` is given more than once"))
+    end
+    args[1:sep-1], NamedTuple{Tuple(Symbol.(names))}(Tuple(values))
+end
+
+"""
+    srv_call_inner(payload::String; named_args::Bool=false)::String
 
 Decode `payload` (in the JuliaExcel wire format - a 1D array whose first element is a
 function name and remaining elements are its arguments), call the named function, and
 return the encoded result as a string. Called by the HTTP request handler in `start_server`
-for requests to `/call`, originating from VBA calls to functions JuliaCall and JuliaCallVBA.
+for requests to `/call`, originating from VBA calls to functions JuliaCall and JuliaCallVBA,
+and with `named_args=true` for requests to `/callkw`, originating from JuliaCallNamedArgs and
+JuliaCallNamedArgsVBA. In that case the arguments are split into positional and named
+arguments by `split_named_args`, the named ones being saved in `kwargs_from_xl`.
 
 Avoids the `Meta.parseall` of a literal expression that `srv_eval_inner` requires, which is
 slow for large arrays of arguments.
@@ -299,31 +343,40 @@ A trailing "." on the function name (e.g. "f.") requests broadcasting, matching 
 `f.(...)` call syntax. That syntax is a transform on the call site itself (it lowers to
 `broadcast(f, ...)`) rather than a property of a standalone function reference, so "f."
 can't just be handed to `Meta.parse` as-is - the dot is stripped before resolving the
-function, and `broadcast` is called explicitly instead of a plain call.
+function, and `broadcast` is called explicitly instead of a plain call. As with `f.(x; k=v)`
+in Julia, named arguments are passed unchanged to every call, not broadcast over.
 """
-function srv_call_inner(payload::String)::String
+function srv_call_inner(payload::String; named_args::Bool=false)::String
     fn_name = "<unknown>"
     global args_from_xl = ["<unknown>"]
+    global kwargs_from_xl = NamedTuple()
     broadcasting = false
     success = true
+    kwpart = named_args ? "; kwargs_from_xl..." : ""
     global last_answer = try
         decoded = decode_from_xl(payload)
         fn_name = decoded[1]::String
         broadcasting = endswith(fn_name, ".")
         broadcasting && (fn_name = chop(fn_name))
-        global last_question = broadcasting ? "$fn_name.(args_from_xl...)" : "$fn_name(args_from_xl...)"
+        global last_question = broadcasting ? "$fn_name.(args_from_xl...$kwpart)" : "$fn_name(args_from_xl...$kwpart)"
         if _display_results[]
             printstyled("question> ", color=:green)
             println(last_question)
         end
         fn_to_call = Main.eval(Meta.parse(fn_name))             # fast: parses only the short function name
         args_from_xl = decoded[2:end]
-        broadcasting ? broadcast(fn_to_call, args_from_xl...) : fn_to_call(args_from_xl...)
+        named_args && ((args_from_xl, kwargs_from_xl) = split_named_args(args_from_xl))
+        if broadcasting
+            broadcast((xs...) -> fn_to_call(xs...; kwargs_from_xl...), args_from_xl...)
+        else
+            fn_to_call(args_from_xl...; kwargs_from_xl...)
+        end
     catch e
         success = false
-        global last_question = broadcasting ? "$fn_name.(args_from_xl...)" : "$fn_name(args_from_xl...)"
+        global last_question = broadcasting ? "$fn_name.(args_from_xl...$kwpart)" : "$fn_name(args_from_xl...$kwpart)"
         printstyled("Something went wrong calling the Julia function $fn_name", color=:red)
-        print(" from Excel against\narguments saved in args_from_xl (overwritten by the next call),")
+        print(" from Excel against\narguments saved in args_from_xl", named_args ? " and kwargs_from_xl" : "")
+        print(" (overwritten by the next call),")
         print(" so\nthe error should be reproducible from here with '$last_question'.\n\n")
         friendly_error(e)
     end
@@ -377,8 +430,10 @@ function start_server(start::Int=2700)
     while true
         try
             _server[] = HTTP.serve!("127.0.0.1", port) do req
-                handler = req.target == "/call" ? srv_call_inner : srv_eval_inner
-                result = handler(String(req.body))
+                body = String(req.body)
+                result = req.target == "/call" ? srv_call_inner(body) :
+                         req.target == "/callkw" ? srv_call_inner(body; named_args=true) :
+                         srv_eval_inner(body)
 
                 # The explicit Content-Length is vital for performance, not just correctness. Without
                 # it, HTTP.jl falls back to chunked transfer-encoding (since it never inspects the
