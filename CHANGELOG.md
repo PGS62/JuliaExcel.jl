@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [2.4.1] - 2026-11-01
+
+### Bug fixes
+
+- The add-in's VBA project is named `JuliaExcel` again. In versions 2.3.1 and 2.4.0 it was named `VBAProject` by mistake, which breaks VBA code that calls the add-in's functions as, for example, `JuliaExcel.JuliaCall(...)`, and references to the add-in from a workbook's VBA project.
+- Fixed links to Julia's documentation that had moved, in the README and in `JuliaLaunch`'s error message for invalid `CommandLineOptions`.
+
 ## [2.4.0] - 2026-11-01
 
 ### Changes
