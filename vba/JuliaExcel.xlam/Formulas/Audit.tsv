@@ -1,0 +1,13 @@
+Address	Formula
+H10	=JuliaExcelPID
+I10:I20	=FORMULATEXT(H10:H20)
+H11	=JuliaExcel.xlam!JuliaLaunch
+H12	=JuliaExcel.xlam!JuliaInclude
+H13	=JuliaExcel.xlam!JuliaEval
+H14	=JuliaExcel.xlam!JuliaCall
+H15	=JuliaExcel.xlam!JuliaSetVar
+H16	=JuliaExcel.xlam!JuliaEvalVBA
+H17	=JuliaExcel.xlam!JuliaCallVBA
+H18	=JuliaExcel.xlam!JuliaCallNamedArgs
+H19	=JuliaExcel.xlam!JuliaCallNamedArgsVBA
+H20	=JuliaIsRunning

@@ -146,3 +146,9 @@ ErrHandler:
 22        ReThrow "IsFunctionWizardActive", Err
 End Function
 
+Sub EmergencySaveMe()
+1         ThisWorkbook.IsAddin = True
+3         ThisWorkbook.SaveAs ThisWorkbook.Path & "\JuliaExcel.xlam", xlOpenXMLAddIn
+End Sub
+
+

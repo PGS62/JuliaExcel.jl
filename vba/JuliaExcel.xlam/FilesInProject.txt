@@ -1,7 +1,8 @@
 ﻿AuditSheetComments.txt
 FilesInProject.txt
+Formulas\Audit.tsv
 Intellisense.txt
-Values\_IntelliSense_.csv
+Values\_Intellisense_.csv
 Values\Audit.csv
 VBA\modHttp.bas
 VBA\modJuliaLiteral.bas
