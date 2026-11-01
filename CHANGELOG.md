@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [2.3.1] - 2026-11-01
+
+### Bug fixes
+
+- Excel no longer changes the capitalisation of JuliaExcel's worksheet functions, e.g. turning `JuliaCall` into `JULIACALL`, when they're typed into a formula.
+
 ## [2.3.0] - 2026-11-01
 
 ### Changes
