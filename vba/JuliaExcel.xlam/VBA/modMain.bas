@@ -383,7 +383,7 @@ Private Function JuliaEval_LowLevel(ByVal JuliaExpression As Variant, _
 4             Exit Function
 5         End If
 6         strJuliaExpression = ConcatenateExpressions(JuliaExpression)
-7         Assign JuliaEval_LowLevel, UnserialiseFromString(JuliaHttpPost(strJuliaExpression), AllowNested, StringLengthLimit, JuliaVectorToXLColumn)
+7         Assign JuliaEval_LowLevel, UnserialiseFromString(JuliaHttpPost(strJuliaExpression, "/eval"), AllowNested, StringLengthLimit, JuliaVectorToXLColumn)
 8         Exit Function
 ErrHandler:
 9         ReThrow "JuliaEval_LowLevel", Err
@@ -593,8 +593,7 @@ End Sub
 '              Note: cannot accept ParamArray here - VBA forbids using a ParamArray parameter as
 '              an argument in any call, so the encoding loop is duplicated in each public wrapper.
 ' -----------------------------------------------------------------------------------------------------------------------
-Private Function JuliaCall_LowLevel(EncodedArgs As String, IsFromWorksheet As Boolean, _
-          Optional Endpoint As String = "/call")
+Private Function JuliaCall_LowLevel(EncodedArgs As String, IsFromWorksheet As Boolean, Endpoint As String)
           Dim HttpResult As String
 
 1         On Error GoTo ErrHandler
@@ -655,7 +654,7 @@ Attribute JuliaCall.VB_ProcData.VB_Invoke_Func = " \n14"
 15            LengthsSection = LengthsSection & CStr(Len(ThisEncoded)) & ","
 16            ContentsSection = ContentsSection & ThisEncoded
 17        Next i
-18        Assign JuliaCall, JuliaCall_LowLevel("*1," & CStr(NumElements) & ";" & LengthsSection & ";" & ContentsSection, IsFromWorksheet:=True)
+18        Assign JuliaCall, JuliaCall_LowLevel("*1," & CStr(NumElements) & ";" & LengthsSection & ";" & ContentsSection, True, "/call")
 
 19        Exit Function
 ErrHandler:
@@ -698,7 +697,7 @@ Attribute JuliaCallVBA.VB_ProcData.VB_Invoke_Func = " \n14"
 11            LengthsSection = LengthsSection & CStr(Len(ThisEncoded)) & ","
 12            ContentsSection = ContentsSection & ThisEncoded
 13        Next i
-14        Assign JuliaCallVBA, JuliaCall_LowLevel("*1," & CStr(NumElements) & ";" & LengthsSection & ";" & ContentsSection, IsFromWorksheet:=False)
+14        Assign JuliaCallVBA, JuliaCall_LowLevel("*1," & CStr(NumElements) & ";" & LengthsSection & ";" & ContentsSection, False, "/call")
 
 15        Exit Function
 ErrHandler:
@@ -751,7 +750,7 @@ Attribute JuliaCallNamedArgs.VB_ProcData.VB_Invoke_Func = " \n14"
 16            ContentsSection = ContentsSection & ThisEncoded
 17        Next i
 18        Assign JuliaCallNamedArgs, JuliaCall_LowLevel("*1," & CStr(NumElements) & ";" & LengthsSection & ";" & ContentsSection, _
-              IsFromWorksheet:=True, Endpoint:="/callkw")
+              True, "/callkw")
 
 19        Exit Function
 ErrHandler:
@@ -797,7 +796,7 @@ Attribute JuliaCallNamedArgsVBA.VB_ProcData.VB_Invoke_Func = " \n14"
 12            ContentsSection = ContentsSection & ThisEncoded
 13        Next i
 14        Assign JuliaCallNamedArgsVBA, JuliaCall_LowLevel("*1," & CStr(NumElements) & ";" & LengthsSection & ";" & ContentsSection, _
-              IsFromWorksheet:=False, Endpoint:="/callkw")
+              False, "/callkw")
 
 15        Exit Function
 ErrHandler:

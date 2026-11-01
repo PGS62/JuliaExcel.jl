@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Changes
+
+- `JuliaCallNamedArgs` and `JuliaCallNamedArgsVBA` now require the `";"` argument, followed by a positive even number of arguments (the name-value pairs). Previously a call without a `";"`, or with an odd number of arguments after it, quietly treated every argument as positional, so a mistake such as `=JuliaCallNamedArgs("sort", A1:A10, ";", "rev", FALSE, "foo")` returned a misleading `MethodError` for `sort`. Such calls now return an `ArgumentError` explaining what's wrong.
+- JuliaExcel now requires Julia 1.7 or later.
+
 ### Bug fixes
 
 - `serve_xl` (and the server it starts) now creates the comms folder (`%TEMP%\@JuliaExcel`) if it doesn't already exist, rather than failing to write its port file. Normally Excel creates that folder, so this only went wrong on a machine where JuliaExcel had never been used from Excel - including the GitHub Actions test runner, where the Julia tests had been failing since `serve_xl` was introduced in 2.1.0.

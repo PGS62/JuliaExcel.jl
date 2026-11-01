@@ -134,11 +134,14 @@ End Function
 '             long time to compute, and must never be aborted just for being slow to respond once
 '             connected.
 ' Arguments
-' Payload   : For Path = "/eval" (the default), a Julia expression to evaluate. For "/call", a
+' Payload   : For Path = "/eval", a Julia expression to evaluate. For "/call" or "/callkw", a
 '             1D array in the JuliaExcel wire format whose first element is a function name and
 '             remaining elements are its arguments.
+' Path      : The HTTP endpoint, which determines how Julia handles Payload: "/eval" (JuliaEval),
+'             "/call" (JuliaCall, JuliaCallVBA) or "/callkw" (JuliaCallNamedArgs,
+'             JuliaCallNamedArgsVBA).
 ' -----------------------------------------------------------------------------------------------------------------------
-Function JuliaHttpPost(Payload As String, Optional Path As String = "/eval") As String
+Function JuliaHttpPost(Payload As String, Path As String) As String
           Const ConnectTimeoutMs As Long = 150
           Const SXH_PROXY_SET_DIRECT As Long = 1   'MSXML2.ServerXMLHTTP's SXH_PROXY_SETTING enum
           Static xhr As Object

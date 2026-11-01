@@ -243,9 +243,9 @@ end
     # _encode_result_for_xl above). Checks the exact text so a regression (a stray backtrace frame,
     # a changed cap, a wording change) is caught, not just "it's some string starting with #".
     let msg = JuliaExcel.decode_from_xl(JuliaExcel.srv_eval_inner("1+\"1\""))
-        @test msg == "#MethodError: no method matching +(::Int64, ::String) The function `+` " *
-                     "exists, but no method is defined for this combination of argument types. " *
-                     "Julia REPL has more details and stacktrace!"
+        @test msg == "#MethodError: no method matching +(::Int64, ::String) The function `+` \
+                     exists, but no method is defined for this combination of argument types. \
+                     Julia REPL has more details and stacktrace!"
     end
 
     # display_results (comms.jl) - toggles REPL echoing of calls from Excel; check both the
@@ -279,16 +279,20 @@ end
 
     # split_named_args (comms.jl) - finds the ";" separator by searching backwards from the
     # third-from-last argument in steps of 2, so a ";" among the positional arguments is never
-    # taken as the separator, nor is a ";" value in the last pair.
+    # taken as the separator, nor is a ";" value in the last pair. The separator is required, and
+    # must be followed by a positive even number of arguments.
     let s = JuliaExcel.split_named_args
-        @test s(Any[1, 2]) == (Any[1, 2], NamedTuple())
-        @test s(Any[]) == (Any[], NamedTuple())
-        @test s(Any[";"]) == (Any[";"], NamedTuple())
+        msg(args) = try s(args); "" catch e; e.msg end
+        @test startswith(msg(Any[1, 2]), "No \";\" argument found")
+        @test startswith(msg(Any[]), "No \";\" argument found")
+        @test startswith(msg(Any[";"]), "No named arguments follow")
+        @test startswith(msg(Any[1, ";"]), "No named arguments follow")
+        @test endswith(msg(Any[1, ";", "rev", false, "foo"]), "an odd number (3) of arguments follow it")
+        @test endswith(msg(Any[1, ";", "rev"]), "an odd number (1) of arguments follow it")
         @test s(Any[1, ";", "a", 10]) == (Any[1], (a=10,))
         @test s(Any[";", "a", 10, "b", 20]) == (Any[], (a=10, b=20))
         @test s(Any["x;y", ";", ";", "limit", 2]) == (Any["x;y", ";"], (limit=2,))
         @test s(Any[1, ";", "a", 10, "delim", ";"]) == (Any[1], (a=10, delim=";"))
-        @test s(Any[1, ";"]) == (Any[1, ";"], NamedTuple())     # no pairs after it: not a separator
         @test_throws ArgumentError s(Any[1, ";", "not valid", 10])
         @test_throws ArgumentError s(Any[1, ";", 3.0, 10])
         @test_throws ArgumentError s(Any[1, ";", "a", 10, "a", 20])
@@ -313,6 +317,10 @@ end
     let payload = JuliaExcel.encode_for_xl(Any["round", 1.5, ";", "a", 1, "a", 2])
         @test startswith(JuliaExcel.decode_from_xl(JuliaExcel.srv_call_inner(payload; named_args=true)),
                          "#ArgumentError: Named argument `a` is given more than once")
+    end
+    let payload = JuliaExcel.encode_for_xl(Any["sort", [3, 1, 2], ";", "rev", false, "foo"])
+        @test startswith(JuliaExcel.decode_from_xl(JuliaExcel.srv_call_inner(payload; named_args=true)),
+                         "#ArgumentError: Named arguments must be given as name-value pairs")
     end
 
     # _running_excel_pids (comms.jl) - used by serve_xl() to auto-detect the Excel process to
@@ -346,6 +354,18 @@ end
     @test JuliaExcel.server_status().running == false
     JuliaExcel._attach_to_excel(false, 4321)
     @test JuliaExcel.display_results() == false
+
+    # start_server dispatches on the request path, with no default: "/eval", "/call" and "/callkw"
+    # reach srv_eval_inner and srv_call_inner, and any other path gets a 404.
+    let post(path, body) = JuliaExcel.HTTP.post("http://127.0.0.1:$(JuliaExcel.xlport[])$path", [], body;
+            status_exception=false)
+        @test JuliaExcel.decode_from_xl(String(post("/eval", "1+1").body)) == 2
+        @test JuliaExcel.decode_from_xl(String(post("/call", JuliaExcel.encode_for_xl(Any["+", 1, 2])).body)) == 3
+        @test JuliaExcel.decode_from_xl(String(post("/callkw",
+            JuliaExcel.encode_for_xl(Any["round", 1.25, ";", "digits", 1])).body)) == 1.2
+        @test post("/", "1+1").status == 404
+        @test post("/evil", "1+1").status == 404
+    end
 
     # _attach_to_excel refuses to start a second, useless listener when one is already serving the
     # same pid - starting a fresh session again for 4321 without stopping the previous one first.

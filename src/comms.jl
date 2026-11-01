@@ -14,8 +14,8 @@ end
 Returns the process id of the instance of Excel that the current Julia process is serving.
 """
 function getxlpid()
-    xlpid[] == 0 && throw("setxlpid has not been called in this Julia session, it must be" *
-        " called to set the process id of the active Excel session")
+    xlpid[] == 0 && throw("setxlpid has not been called in this Julia session, it must be \
+        called to set the process id of the active Excel session")
     xlpid[]
 end
 
@@ -48,18 +48,18 @@ function serve_xl(show_results::Bool=true, pid::Integer=0)
     if pid == 0
         pids = _running_excel_pids()
         if isempty(pids)
-            throw("No running Excel process was found. Open Excel and try again, or call" *
-                " serve_xl(show_results, pid) directly, passing the process id from Excel's" *
-                " JuliaExcelPID() worksheet function.")
+            throw("No running Excel process was found. Open Excel and try again, or call \
+                serve_xl(show_results, pid) directly, passing the process id from Excel's \
+                JuliaExcelPID() worksheet function.")
         elseif length(pids) > 1
-            throw("Found $(length(pids)) running Excel processes (process ids: $(join(pids, ", "))) -" *
-                " call serve_xl(show_results, pid) directly instead, passing the process id of the" *
-                " Excel session to attach to, from its JuliaExcelPID() worksheet function.")
+            throw("Found $(length(pids)) running Excel processes (process ids: $(join(pids, ", "))) - \
+                call serve_xl(show_results, pid) directly instead, passing the process id of the \
+                Excel session to attach to, from its JuliaExcelPID() worksheet function.")
         end
         pid = only(pids)
     elseif Sys.iswindows() && !(pid in _running_excel_pids())
-        throw("No running Excel process has process id $pid. Check the value returned by Excel's" *
-            " JuliaExcelPID() worksheet function.")
+        throw("No running Excel process has process id $pid. Check the value returned by Excel's \
+            JuliaExcelPID() worksheet function.")
     end
     _attach_to_excel(show_results, pid)
 end
@@ -81,9 +81,9 @@ function _attach_to_excel(show_results::Bool, pid::Integer)
     if isfile(portfile())
         existing_port = tryparse(Int, strip(read(portfile(), String)))
         if existing_port !== nothing && existing_port > 0 && _port_is_listening(existing_port)
-            throw("Excel (process id $pid) already has a Julia session listening on port" *
-                " $existing_port - stop that session first (e.g. call stop_server() there, or" *
-                " close it), then call serve_xl again.")
+            throw("Excel (process id $pid) already has a Julia session listening on port \
+                $existing_port - stop that session first (e.g. call stop_server() there, or \
+                close it), then call serve_xl again.")
         end
     end
     display_results(show_results)
@@ -111,9 +111,9 @@ Returns the process ids of all running Excel.exe processes, found via the Window
 utility. Used by `serve_xl` to find the single Excel process to attach to automatically.
 """
 function _running_excel_pids()::Vector{Int}
-    Sys.iswindows() || throw("Automatic Excel process detection needs Windows - call" *
-        " serve_xl(show_results, pid) directly instead, passing the process id" *
-        " from Excel's JuliaExcelPID() worksheet function.")
+    Sys.iswindows() || throw("Automatic Excel process detection needs Windows - call \
+        serve_xl(show_results, pid) directly instead, passing the process id \
+        from Excel's JuliaExcelPID() worksheet function.")
     pids = Int[]
     for line in readlines(`tasklist /FI "IMAGENAME eq EXCEL.EXE" /FO CSV /NH`)
         fields = split(line, "\",\"")
@@ -176,8 +176,8 @@ function _default_commsfolder()
 end
 
 function installme()
-    Sys.iswindows() || throw("JuliaExcel.installme (which installs a Microsoft Excel " *
-        "addin) can only be run from Julia on Windows")
+    Sys.iswindows() || throw("JuliaExcel.installme (which installs a Microsoft Excel \
+        addin) can only be run from Julia on Windows")
     installscript = normpath(joinpath(@__DIR__, "..", "installer", "Install.ps1"))
     exefile = "C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe"
     isfile(exefile) || throw("Cannot find PowerShell at '$exefile'")
@@ -208,8 +208,8 @@ function _encode_result_for_xl(result)::String
     catch e
         println("")
         @error "Result of type $(typeof(result)) could not be encoded for return to Excel."
-        encode_for_xl("#Expression evaluated to a variable of type $(typeof(result))," *
-            " which cannot be returned to Excel because: $(e)!")
+        encode_for_xl("#Expression evaluated to a variable of type $(typeof(result)), \
+            which cannot be returned to Excel because: $(e)!")
     end
 end
 
@@ -298,20 +298,33 @@ the positions it can occupy given that pairs follow it - and taking the first `"
 Searching backwards means a `";"` among the positional arguments (e.g. the delimiter in a call
 to `split`) is never mistaken for the separator. The cost is that a named argument whose
 *value* is `";"` must be given as the last pair, since a `";"` value in any earlier pair would
-be found first. If no separator is found, all arguments are positional.
+be found first.
 
-Throws an `ArgumentError` if a name is not a valid Julia identifier or is given more than once
-(Julia itself would silently use the last of repeated names when splatting).
+Throws an `ArgumentError` if there is no separator, if it is not followed by a positive even
+number of arguments (the most likely mistake, which would otherwise surface as a misleading
+`MethodError` for the function being called), or if a name is not a valid Julia identifier or is
+given more than once (Julia itself would silently use the last of repeated names when splatting).
 """
 function split_named_args(args::AbstractVector)
+    issep(x) = x isa AbstractString && x == ";"
     sep = 0
     for i in length(args)-2:-2:1
-        if args[i] isa AbstractString && args[i] == ";"
+        if issep(args[i])
             sep = i
             break
         end
     end
-    sep == 0 && return args, NamedTuple()
+    if sep == 0
+        last_sep = findlast(issep, args)
+        last_sep === nothing && throw(ArgumentError("No \";\" argument found to mark where the \
+            named arguments start. Use JuliaCall or JuliaCallVBA to call a function without \
+            named arguments"))
+        n = length(args) - last_sep
+        throw(ArgumentError(n == 0 ?
+            "No named arguments follow the \";\" - give them after it as name-value pairs" :
+            "Named arguments must be given as name-value pairs after the \";\", but an odd number \
+            ($n) of arguments follow it"))
+    end
     names = args[sep+1:2:end]
     values = args[sep+2:2:end]
     for name in names
@@ -410,7 +423,9 @@ answer_again() = Main.eval(Meta.parseall(last_question))
 """
     start_server(start::Int=2700)
 Start an HTTP server on a free local port that handles evaluation requests from Excel,
-trying up to 100 candidate ports starting from `start`. Tries the real bind directly rather
+trying up to 100 candidate ports starting from `start`. Requests to `/eval` go to
+`srv_eval_inner`, and to `/call` and `/callkw` to `srv_call_inner`. Any other path gets a 404
+response. Tries the real bind directly rather
 than probing with a separate test-listener first: a probe-then-release check has a gap
 between "verified free" and the real bind moments later, during which another process (e.g.
 an orphaned Julia session from a previously-closed Excel session) could still be holding
@@ -431,9 +446,12 @@ function start_server(start::Int=2700)
         try
             _server[] = HTTP.serve!("127.0.0.1", port) do req
                 body = String(req.body)
-                result = req.target == "/call" ? srv_call_inner(body) :
+                # No default endpoint: VBA always names one, so anything else is a bug worth reporting
+                # (VBA's JuliaHttpPost turns a non-200 status into an error) rather than guessing.
+                result = req.target == "/eval" ? srv_eval_inner(body) :
+                         req.target == "/call" ? srv_call_inner(body) :
                          req.target == "/callkw" ? srv_call_inner(body; named_args=true) :
-                         srv_eval_inner(body)
+                         return HTTP.Response(404, "Unknown JuliaExcel endpoint $(req.target)")
 
                 # The explicit Content-Length is vital for performance, not just correctness. Without
                 # it, HTTP.jl falls back to chunked transfer-encoding (since it never inspects the

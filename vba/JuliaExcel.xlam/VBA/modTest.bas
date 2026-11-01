@@ -936,14 +936,14 @@ ErrHandler:
 7         TestArrayOfSingleCharacters = False
 End Function
 
-' Checks JuliaCallNamedArgs passes the arguments after ";" as keyword arguments: with some named
-' arguments, with none, with ";" also used as a positional argument and as the value of the last
-' named argument (the cases the backwards search for the separator is designed to allow), and that a
-' repeated name is reported as an error. Uses a Boolean keyword argument for split, since a number
-' would arrive as Int16 (from VBA) or Float64 (from a worksheet), and split's limit needs an Int64.
+' Checks JuliaCallNamedArgs passes the arguments after ";" as keyword arguments, including with ";"
+' also used as a positional argument and as the value of the last named argument (the cases the
+' backwards search for the separator is designed to allow), and that a missing ";", an odd number of
+' arguments after it, and a repeated name are each reported as an error. Uses a Boolean keyword
+' argument for split, since a number would arrive as Int16 (from VBA) or Float64 (from a worksheet),
+' and split's limit needs an Int64.
 Function TestNamedArgs()
           Dim Expected1(1 To 4, 1 To 1) As Variant
-          Dim Expected2(1 To 4, 1 To 1) As Variant
           Dim Expected3(1 To 2, 1 To 1) As Variant
           Dim OK As Boolean
 
@@ -953,8 +953,8 @@ Function TestNamedArgs()
 3         Expected1(1, 1) = 10#: Expected1(2, 1) = 0#: Expected1(3, 1) = 1#: Expected1(4, 1) = 5#
 4         OK = ArraysIdentical(Expected1, ThrowIfError(JuliaCallNamedArgs("named_args_test", 10#, ";", "b", 5#)))
 
-5         Expected2(1, 1) = 10#: Expected2(2, 1) = 0#: Expected2(3, 1) = 1#: Expected2(4, 1) = 2#
-6         OK = OK And ArraysIdentical(Expected2, ThrowIfError(JuliaCallNamedArgs("named_args_test", 10#)))
+5         OK = OK And Left$(JuliaCallNamedArgs("named_args_test", 10#), 15) = "#ArgumentError:"
+6         OK = OK And Left$(JuliaCallNamedArgs("named_args_test", 10#, ";", "b", 5#, "a"), 15) = "#ArgumentError:"
 
 7         Expected3(1, 1) = "a": Expected3(2, 1) = "b"
 8         OK = OK And ArraysIdentical(Expected3, ThrowIfError(JuliaCallNamedArgs("split", "a;;b", ";", ";", "keepempty", False)))
