@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [2.4.0] - 2026-11-01
+
 ### Changes
 
 - Complex numbers now return to Excel as text in the format of Excel's `COMPLEX` function, e.g. `"3+4i"`, so that Excel's `IMREAL`, `IMSUM` etc. can work with them. Previously they returned as Julia's display text, e.g. `"3 + 4im"`, which those functions don't accept. Details [here](README.md#complex-numbers-return-as-text).
