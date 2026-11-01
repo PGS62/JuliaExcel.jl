@@ -78,7 +78,7 @@ End Function
 '             down cleanly - while a long-running or blocking evaluation is in progress. Supplying
 '             your own --threads option (e.g. `--threads=8,2`) disables this automatic behaviour, so
 '             include a dedicated interactive thread of your own if you need that reliability.
-'             https://docs.julialang.org/en/v1/manual/command-line-options/
+'             https://docs.julialang.org/en/v1/manual/command-line-interface/#command-line-interface
 ' Packages  : Packages to load, which must be available in the default Julia environment (or environment set
 '             via the `--project` command line option). Delimit multiple packages with commas.
 ' BashStatements: Relevant only when UseLinux is TRUE. Bash statements executed prior to launching Julia,
@@ -313,13 +313,13 @@ Attribute JuliaLaunch.VB_ProcData.VB_Invoke_Func = " \n14"
                   'finishing startup, typically because CommandLineOptions was invalid.
 99                ErrDescription = "Julia's console window closed before start-up finished."
 100               If UserSuppliedCommandLineOptions <> "" Then
-101                   ErrDescription = ErrDescription & " Check the CommandLineOptions are valid (https://docs.julialang.org/en/v1/manual/command-line-options/)"
+101                   ErrDescription = ErrDescription & " Check the CommandLineOptions are valid (https://docs.julialang.org/en/v1/manual/command-line-interface/#command-line-interface)"
 102               End If
 103               Throw ErrDescription
 104           ElseIf ElapsedTime() - StartTime > LaunchDetectionSecs Then
 105               ErrDescription = "Julia failed to launch after " & CStr(LaunchDetectionSecs) & " seconds."
 106               If UserSuppliedCommandLineOptions <> "" Then
-107                   ErrDescription = ErrDescription & " Check the CommandLineOptions are valid (https://docs.julialang.org/en/v1/manual/command-line-options/)"
+107                   ErrDescription = ErrDescription & " Check the CommandLineOptions are valid (https://docs.julialang.org/en/v1/manual/command-line-interface/#command-line-interface)"
 108               End If
 109               Throw ErrDescription
 110           End If

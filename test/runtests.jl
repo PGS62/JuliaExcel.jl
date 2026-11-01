@@ -387,6 +387,21 @@ end
     @test_throws String JuliaExcel._attach_to_excel(true, 4321)
     JuliaExcel.stop_server()
 
+    # The add-in's VBA project must be named "JuliaExcel", not Excel's default "VBAProject": user code
+    # may qualify calls as JuliaExcel.JuliaCall(...), and a workbook (itself "VBAProject" by default)
+    # can't reference another project of the same name. Version 2.3.1 shipped renamed by mistake. An
+    # .xlam is a zip file, and its xl/vbaProject.bin holds the name as plain text (Name="..."). Uses
+    # Windows' own tar.exe, which can read zip files, unlike the GNU tar that Git for Windows has.
+    if Sys.iswindows()
+        tar = joinpath(ENV["SystemRoot"], "System32", "tar.exe")
+        for xlam in (joinpath(pkgdir(JuliaExcel), "workbooks", "JuliaExcel.xlam"),
+                     joinpath(pkgdir(JuliaExcel), "vba", "JuliaExcel.xlam", "JuliaExcel.xlam"))
+            vbaproject = String(read(`$tar -xOf $xlam xl/vbaProject.bin`))
+            m = match(r"Name=\"([^\"]*)\"", vbaproject)
+            @test m !== nothing && m.captures[1] == "JuliaExcel"
+        end
+    end
+
 end
 
 # The VBA-side test suite (modTest.RunTests) needs a live Excel/VBA session (via COM automation),

@@ -1,4 +1,4 @@
 Address	Formula
-B7:B16	=MarkdownForSummaryOfFunctions()
-B22:B125	=HelpForVBEAll(SourceFile)
-G22:G107	=MarkdownHelpAll(SourceFile,$G$2:$H$3)
+B7:B19	=MarkdownForSummaryOfFunctions()
+B22:B158	=HelpForVBEAll(SourceFile)
+G22:G135	=MarkdownHelpAll(SourceFile,$G$2:$H$3)
