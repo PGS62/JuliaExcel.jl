@@ -6,6 +6,7 @@ export serve_xl, display_results, last_question, last_answer, answer_again, args
 using DataFrames: DataFrames, DataFrame, Missing
 using Dates: Dates, Date, DateTime
 using HTTP: HTTP
+using Printf: @sprintf
 using Sockets: Sockets
 
 const global xlpid = Ref(0)

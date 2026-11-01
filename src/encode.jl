@@ -116,6 +116,20 @@ function encode_for_xl(x::Float32)
     end
 end
 
+# Excel has no complex number type: its IMREAL, IMSUM etc. work on text such as "3+4i". So a complex
+# number is returned as text in exactly the format of Excel's own COMPLEX function, with 15
+# significant digits (what Excel itself shows), "i" rather than "1i" for a unit imaginary part, and
+# no imaginary part at all when it's zero - e.g. "3+4i", "-i", "1.5+i", "3". An infinite or NaN
+# part gives #NUM!, as for a real Inf.
+function encode_for_xl(z::Complex)
+    re, im_ = Float64(real(z)) + 0.0, Float64(imag(z)) + 0.0   # + 0.0 turns -0.0 into 0.0
+    (isfinite(re) && isfinite(im_)) || return "!2036" # #NUM! in Excel
+    fmt(x) = @sprintf("%.15g", x)
+    im_ == 0 && return encode_for_xl(fmt(re))
+    imstr = (im_ == 1 ? "" : im_ == -1 ? "-" : fmt(im_)) * "i"
+    encode_for_xl(re == 0 ? imstr : fmt(re) * (im_ > 0 ? "+" : "") * imstr)
+end
+
 # An ExcelError decoded from VBA (see decode_from_xl's '!' branch, decode.jl) re-emits the same
 # wire form it was decoded from, so an Excel error genuinely round-trips through Julia - e.g.
 # JuliaCall("identity", SomeErrorCell) returns the same error, unlike the Inf/Float64 case above,

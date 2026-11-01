@@ -1,16 +1,18 @@
-# JuliaExcel
+# JuliaExcel - call Julia from Excel
 
 Call [Julia](https://julialang.org/) from Microsoft Excel worksheets and from VBA.  
 
+JuliaExcel is an Excel add-in that lets you use any Julia function in a worksheet formula. For example, `=JuliaEval("using LinearAlgebra")` loads one of Julia's standard libraries, then `=JuliaCall("eigvals", A1:J10)` passes a range to Julia as a matrix and returns its eigenvalues to the worksheet (as complex numbers, if the matrix isn't symmetric) - something Excel has no built-in function for. Keep your front end in Excel, and do the heavy computation in Julia. Installation doesn't need admin rights.
+
 Compatible with Excel's [dynamic array formulas](https://support.microsoft.com/en-us/office/dynamic-array-formulas-and-spilled-array-behavior-205c6b06-03ba-4151-89a1-87a7eb36e531).
 
-Support Excel for Windows (not Mac). Julia can be run under Windows or Linux (via [WSL](https://docs.microsoft.com/en-us/windows/wsl/about)).
+Supports Excel for Windows (not Mac). Julia can be run under Windows or Linux (via [WSL](https://docs.microsoft.com/en-us/windows/wsl/about)).
 
 ## Contents
+[Demo](#demo)  
 [Installation](#installation)  
 [Installation (Linux)](#installation-linux)  
 [Functions](#functions)   
-[Demo](#demo)  
 [Example VBA](#example-vba)  
 [Function Documentation](#function-documentation)  
 [Attaching to a Julia session already running elsewhere](#attaching-to-a-julia-session-already-running-elsewhere)  
@@ -21,6 +23,16 @@ Support Excel for Windows (not Mac). Julia can be run under Windows or Linux (vi
 [Viewing the code](#viewing-the-code)  
 [How JuliaExcel works](#how-juliaexcel-works)  
 [Shortcomings](#shortcomings)  
+
+## Demo
+Here's a quick demonstration of JuliaExcel's functions in action.
+ * See how the Julia session on the left responds to the action in Excel on the right, once `display_results(true)` has been called (the formula at B6 does this).
+ * The annotations in brown text ("Formula at...") are to make what's happening in the demo clearer. They won't appear when you try JuliaExcel for yourself!
+ * Replay the GIF by refreshing your browser (F5).
+
+<a href="#no-click">
+  <img src="images/Demo4-take5.gif" alt="Calling Julia from Excel worksheet formulas with JuliaLaunch, JuliaEval and JuliaCall, with the Julia REPL echoing each call" />
+</a>
 
 ## Installation
 Installation does not require admin rights on the PC.
@@ -40,7 +52,7 @@ Installation does not require admin rights on the PC.
 The process is illustrated in the GIF below. F5 to replay.
 
 <a href="#no-click">
-  <img src="images/install-take4.gif" alt="installation" />
+  <img src="images/install-take4.gif" alt="Installing the JuliaExcel Excel add-in from the Julia REPL with Pkg.add, then checking the Julia functions appear in Excel" />
 </a>
 
 ## Installation (Linux)
@@ -66,16 +78,6 @@ JuliaExcel makes the following functions available from Excel worksheets and fro
 |[JuliaCallNamedArgsVBA](#juliacallnamedargsvba)|Call a named Julia function from VBA, passing positional and named arguments, with `";"` marking where the named arguments start. Differs from `JuliaCallNamedArgs` in the same ways that `JuliaCallVBA` differs from `JuliaCall`.|
 |[JuliaIsRunning](#juliaisrunning)|Returns TRUE if an instance of Julia is running and "listening" to the current Excel session, or FALSE otherwise.|
 |[JuliaExcelPID](#juliaexcelpid)|Returns the process id of the current Excel session. Only needed if more than one Excel instance is running - pass it to `serve_xl` to say which one to attach to.|
-
-## Demo
-Here's a quick demonstration of the functions in action.
- * See how the Julia session on the left responds to the action in Excel on the right, once `display_results(true)` has been called (the formula at B6 does this).
- * The annotations in brown text ("Formula at...") are to make what's happening in the demo clearer. They won't appear when you try JuliaExcel for yourself!
- * Replay the GIF by refreshing you browser (F5).
-
-<a href="#no-click">
-  <img src="images/Demo4-take5.gif" alt="demo2" />
-</a>
 
 ## Example VBA
 The VBA code below makes a call to `JuliaLaunch` and `JuliaEvalVBA` and then pastes the result to range A1:J10 in a new worksheet. To run it, make sure that the project has a reference to JuliaExcel (VBA editor, Tools menu -> References).
@@ -280,20 +282,20 @@ For calls from VBA:
  <details><summary><u>Round-tripping of vectors and matrices</u></summary>
  <p>
 <a href="#no-click">
-  <img src="images/roundtripping.gif" alt="roundtripping" />
+  <img src="images/roundtripping.gif" alt="Round-tripping vectors and matrices between an Excel worksheet and Julia" />
 </a>
 </p>
 </details>
 
 <details><summary>Matrix arithmetic</summary><p>
 <a href="#no-click">
-  <img src="images/matrixarithmetic.gif" alt="matrixarithmetic" />
+  <img src="images/matrixarithmetic.gif" alt="Matrix arithmetic in Julia on Excel ranges, results spilling as dynamic arrays" />
  </a>
 </p></details>
 
 <details><summary>Function broadcasting</summary><p>
 <a href="#no-click">
-  <img src="images/functionbroadcasting.gif" alt="functionbroadcasting" />
+  <img src="images/functionbroadcasting.gif" alt="Broadcasting a Julia function over Excel ranges with JuliaCall" />
  </a>
  </p></details>
 
@@ -305,6 +307,9 @@ This matters when calling a Julia function that requires an integer, whether as 
  * Write a small Julia function that converts, e.g. `myrand(n) = rand(Int(n))`, loaded with `JuliaInclude`, and call that instead.
 
 From VBA, numbers keep their VBA type: `Integer` arrives as `Int16`, `Long` as `Int32`, `LongLong` as `Int64`, `Single` as `Float32` and `Double` as `Float64`. So pass a `LongLong` (e.g. `2^` or `CLngLng(n)`) where Julia needs an `Int64`. Note that a literal such as `2` in VBA code is an `Integer`, which arrives as `Int16` - some Julia functions, such as `split`, require an `Int64` and won't accept that either.
+
+### Complex numbers return as text
+Excel has no complex number type. Its functions such as `IMREAL`, `IMAGINARY` and `IMSUM` work on text such as `"3+4i"` instead. So complex numbers in Julia return to Excel as text in exactly the format of Excel's own `COMPLEX` function, e.g. `"3+4i"`, `"-i"` or `"1.5+i"`, with 15 significant digits. As with `COMPLEX`, a number with a zero imaginary part returns as text without one, e.g. `"3"`. Text in this form passed from Excel to Julia arrives as a `String`, not as a complex number.
   
 ## Alternatives
 There is one alternative method of calling Julia from Excel of which I am aware:  
