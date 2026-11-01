@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Bug fixes
+
+- `serve_xl` (and the server it starts) now creates the comms folder (`%TEMP%\@JuliaExcel`) if it doesn't already exist, rather than failing to write its port file. Normally Excel creates that folder, so this only went wrong on a machine where JuliaExcel had never been used from Excel - including the GitHub Actions test runner, where the Julia tests had been failing since `serve_xl` was introduced in 2.1.0.
+- GitHub Actions workflow updated to versions of `actions/checkout` and `julia-actions/setup-julia` that run on Node.js 24, in place of the deprecated Node.js 20.
+
 ## [2.2.0] - 2026-10-31
 
 ### New features

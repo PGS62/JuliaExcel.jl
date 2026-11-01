@@ -453,6 +453,7 @@ function start_server(start::Int=2700)
             port > start + 100 && rethrow()
         end
     end
+    mkpath(comms_folder())
     open(portfile(), "w") do f
         write(f, string(port))
     end
