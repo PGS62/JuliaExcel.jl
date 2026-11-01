@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-11-01
+
 ### Changes
 
 - `JuliaCallNamedArgs` and `JuliaCallNamedArgsVBA` now require the `";"` argument, followed by a positive even number of arguments (the name-value pairs). Previously a call without a `";"`, or with an odd number of arguments after it, quietly treated every argument as positional, so a mistake such as `=JuliaCallNamedArgs("sort", A1:A10, ";", "rev", FALSE, "foo")` returned a misleading `MethodError` for `sort`. Such calls now return an `ArgumentError` explaining what's wrong.
