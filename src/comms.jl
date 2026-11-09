@@ -481,7 +481,8 @@ function start_server(start::Int=2700)
     xlport[] = port
     settitle()
     println("JuliaExcel HTTP server listening on port $port")
-    println("JuliaExcel has been superseded by CallFromExcel, which is two to three times faster: https://github.com/PGS62/CallFromExcel.jl")
+    printstyled("JuliaExcel has been superseded by CallFromExcel, which is two to three times faster: https://github.com/PGS62/CallFromExcel.jl\n";
+        color=:light_red)
     nothing
 end
 
