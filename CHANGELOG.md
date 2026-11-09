@@ -4,7 +4,7 @@
 
 ## [2.4.2] - 2026-11-09
 
-JuliaExcel has been superseded by [CallFromExcel](https://github.com/PGS62/CallFromExcel.jl), which does the same job two to three times faster. This is JuliaExcel's final release. To switch, see [Upgrading from JuliaExcel](https://github.com/PGS62/CallFromExcel.jl#upgrading-from-juliaexcel).
+JuliaExcel has been superseded by [CallFromExcel](https://github.com/PGS62/CallFromExcel.jl), which does the same job two to three times faster, and about eight times faster for large DataFrames. This is JuliaExcel's final release. To switch, see [Upgrading from JuliaExcel](https://github.com/PGS62/CallFromExcel.jl#upgrading-from-juliaexcel).
 
 ### Bug fixes
 

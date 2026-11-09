@@ -333,7 +333,7 @@ switch ($gOfficeBitness) {
     default { $InstallIntellisense = $false }
 }
 
-$prompt = "JuliaExcel has been superseded by CallFromExcel, which is two to three times faster. " + `
+$prompt = "JuliaExcel has been superseded by CallFromExcel, which is up to eight times faster. " + `
     "Please consider installing that instead: $SuccessorWebsite`n`n" + `
     "This will install JuliaExcel by copying two files: `n`n" + `
     (Join-Path $AddinsSource $AddinName) + "`n" + `
