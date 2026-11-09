@@ -13,6 +13,7 @@ Set-StrictMode -Version Latest
 
 $AddinName = "JuliaExcel.xlam"
 $Website = "https://github.com/PGS62/JuliaExcel.jl"
+$SuccessorWebsite = "https://github.com/PGS62/CallFromExcel.jl"
 $WebsiteIntellisense = "https://github.com/Excel-DNA/IntelliSense"
 $GIFRecordingFlagFile = "C:\Temp\RecordingGIF.tmp"
 $MsgBoxTitle = "Install JuliaExcel"
@@ -333,7 +334,9 @@ switch ($gOfficeBitness) {
     default { $InstallIntellisense = $false }
 }
 
-$prompt = "This will install JuliaExcel by copying two files: `n`n" + `
+$prompt = "JuliaExcel has been superseded by CallFromExcel, which is two to three times faster. " + `
+    "Please consider installing that instead: $SuccessorWebsite`n`n" + `
+    "This will install JuliaExcel by copying two files: `n`n" + `
     (Join-Path $AddinsSource $AddinName) + "`n" + `
     (Join-Path $IntellisenseSource $IntellisenseName) + "`n`n" + `
     "to:`n`n" + `
@@ -369,7 +372,8 @@ if ($script:gErrorsEncountered) {
     Show-MsgBox -Prompt $prompt -Title $MsgBoxTitleBad -Buttons OK -Icon Error | Out-Null
 } else {
     $prompt = "JuliaExcel is installed, and its functions such as JuliaEval and JuliaCall will " + `
-        "be available the next time you start Excel.`n`n$Website"
+        "be available the next time you start Excel.`n`n$Website`n`n" + `
+        "JuliaExcel has been superseded by CallFromExcel: $SuccessorWebsite"
     Show-MsgBox -Prompt $prompt -Title $MsgBoxTitle -Buttons OK -Icon Info | Out-Null
 }
 

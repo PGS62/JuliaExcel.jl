@@ -1,4 +1,6 @@
-# JuliaExcel - call Julia from Excel
+# JuliaExcel - call Julia from Excel (superseded by CallFromExcel)
+
+> **JuliaExcel has been superseded by [CallFromExcel](https://github.com/PGS62/CallFromExcel.jl)**, which does the same job - call Julia from Excel worksheets and VBA - two to three times faster. New users should install CallFromExcel. Existing users, see [Upgrading from JuliaExcel](https://github.com/PGS62/CallFromExcel.jl#upgrading-from-juliaexcel). JuliaExcel will get no further updates.
 
 Call [Julia](https://julialang.org/) from Microsoft Excel worksheets and from VBA.  
 

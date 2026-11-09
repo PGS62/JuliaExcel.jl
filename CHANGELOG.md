@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [2.4.2] - (release date)
+
+JuliaExcel has been superseded by [CallFromExcel](https://github.com/PGS62/CallFromExcel.jl), which does the same job two to three times faster. This is JuliaExcel's final release. To switch, see [Upgrading from JuliaExcel](https://github.com/PGS62/CallFromExcel.jl#upgrading-from-juliaexcel).
+
+### Bug fixes
+
+- Julia no longer accepts requests from web pages. Previously, any web page open in a browser while JuliaExcel's Julia was running could send it code to run.
+- Julia ranges of floating-point numbers, such as `0:0.1:1`, now return exactly the same values as Julia's own elements. Previously some elements could differ in the last digit, e.g. `0.30000000000000004` instead of `0.3`.
+- `JuliaSetVar` now works when its value is a single string. Previously `JuliaSetVar("x", "hello")` failed, and `JuliaSetVar("x", "pi")` set `x` to the number π.
+
 ## [2.4.1] - 2026-11-01
 
 ### Bug fixes
