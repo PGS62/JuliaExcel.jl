@@ -371,7 +371,7 @@ if ($script:gErrorsEncountered) {
     Show-MsgBox -Prompt $prompt -Title $MsgBoxTitleBad -Buttons OK -Icon Error | Out-Null
 } else {
     $prompt = "JuliaExcel is installed, and its functions such as JuliaEval and JuliaCall will " + `
-        "be available the next time you start Excel.`n`n$Website`n`n" + `
+        "be available the next time you start Excel.`n`n" + `
         "JuliaExcel has been superseded by CallFromExcel: $SuccessorWebsite"
     Show-MsgBox -Prompt $prompt -Title $MsgBoxTitle -Buttons OK -Icon Info | Out-Null
 }
