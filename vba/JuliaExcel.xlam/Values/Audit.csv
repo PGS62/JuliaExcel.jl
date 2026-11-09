@@ -8,7 +8,7 @@
 ,"All 162 rows shown.",,,,,,,
 ,"Dbl-click","Double-click","Dbl-click","Double-click","Double-click to filter",,"Cells designed to ""lock-in"" the function capitalisation.",
 ,"Version","Date","Time","Author","Comment",,#NAME?,"=JuliaExcelPID"
-,162,2026-11-09,0.697916666664241,"Philip Swannell","Changed to TestRangeWireFomat to test only for integer ranges.",,#NAME?,"=JuliaLaunch"
+,162,2026-11-09,0.697916666664241,"Philip Swannell","Change to TestRangeWireFormat to test only for integer ranges.",,#NAME?,"=JuliaLaunch"
 ,161,2026-11-01,0.774768518516794,"Philip Swannell","Documentation tweaks.",,#NAME?,"=JuliaInclude"
 ,160,2026-11-01,0.65165509259532,"Philip Swannell","Change to fix auto-correction of the capitalisation of the functions exported by this addin.",,#NAME?,"=JuliaEval"
 ,159,2026-11-01,0.570752314815763,"Philip Swannell","semi-colon argument to JuliaCallNamedArgs is now compulsory.",,#NAME?,"=JuliaCall"
