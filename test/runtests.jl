@@ -199,58 +199,40 @@ end
         @test JuliaExcel.decode_from_xl(manual3d) == reshape(vals3d, 2, 3, 4)
     end
 
-    # "R" format - compact encoding for Ranges (UnitRange/StepRange/StepRangeLen/LinRange etc.):
-    # encodes only first/step/length, not every element, so wire size is O(1) regardless of the
-    # range's length - see encode_for_xl(::AbstractRange{Float64})/(::AbstractRange{<:Integer}) in
-    # src/encode.jl. Julia -> Excel only: VBA arrays are always fully materialized, so there's no
-    # lazy range concept on the VBA side to send this format back - unlike "V", decode_from_xl has
-    # no 'R' case and doesn't need one, so these are encode-only checks (no round_trip).
+    # "R" format - compact encoding for integer ranges: encodes only first/step/length, not every
+    # element, so wire size is O(1) regardless of the range's length - see
+    # encode_for_xl(::AbstractRange{<:Integer}) in src/encode.jl. Julia -> Excel only, so these are
+    # encode-only checks (no round_trip).
     @test JuliaExcel.encode_for_xl(1:5) == "RI,5,1,1;"
     @test JuliaExcel.encode_for_xl(5:3:47) == "RI,15,5,3;"  # non-1 step
-    @test JuliaExcel.encode_for_xl((1:3) .* pi) == "RF,3;" * JuliaExcel.float64_to_hex(Float64(pi)) * JuliaExcel.float64_to_hex(Float64(pi))
-
-    # Wire size doesn't scale with length at all - the whole point of this format.
     @test length(JuliaExcel.encode_for_xl(1:1_000_000)) < 20
-    @test length(JuliaExcel.encode_for_xl((1:1_000_000) .* pi)) < 60
-
-    # Empty ranges and non-finite first/step (Float64 only - integer ranges can't hold NaN/Inf)
-    # must fall back to the general "*" format, not "R".
     @test JuliaExcel.encode_for_xl(1:0) == JuliaExcel.encode_array_general(1:0)
-    @test JuliaExcel.encode_for_xl(1.0:1.0:0.0) == JuliaExcel.encode_array_general(1.0:1.0:0.0)
-    @test !startswith(JuliaExcel.encode_for_xl(1:0), "R")
-    let weird = range(1.0, step=NaN, length=5)
-        @test !startswith(JuliaExcel.encode_for_xl(weird), "R")
+
+    # Float ranges are sent exactly as the same values collected into a Vector. They used to be
+    # sent as first/step/length, rebuilt by VBA as first + i*step, which differs in the last bit
+    # from Julia's own elements for decimal steps: element 4 of 0:0.1:1 arrived as
+    # 0.30000000000000004.
+    for r in (0:0.1:1, 0:0.01:1, range(0, 1, length=101), (1:1000) .* pi, 1.0:1.0:0.0, range(1.0, step=NaN, length=5))
+        @test JuliaExcel.encode_for_xl(r) == JuliaExcel.encode_for_xl(collect(r))
     end
 
-    # Exactness: VBA reconstructs each element via plain "first + (i-1)*step" arithmetic, not by
-    # decoding any per-element wire data - confirms that matches Julia's own range materialization
-    # exactly, including StepRangeLen's twice-precision internal representation, over a large case.
-    let r = (1:1_000_000) .* pi
-        f, s = first(r), step(r)
-        @test all(i -> (f + (i - 1) * s) === r[i], 1:length(r))
-    end
-
-    # Defensive guard: nothing compiler-enforces that a type subtyping AbstractRange actually
-    # behaves as an arithmetic progression (Julia's abstract types carry no semantic guarantees,
-    # only nominal ones - a third-party AbstractRange subtype could implement `step` to mean
-    # anything). This checks that encode_for_xl verifies last(x) == first(x) + (n-1)*step(x) before
-    # trusting the fast path, using a deliberately "lying" range as a regression test - a real
-    # geometric progression whose step() claims (wrongly) that it's arithmetic with step 1.0.
-    # Must fall back to the general format and still round-trip correctly, not go through "R" and
-    # silently produce a linear approximation of non-arithmetic data.
-    struct LyingRange <: AbstractRange{Float64}
-        data::Vector{Float64}
+    # Defensive guard: nothing stops a third-party AbstractRange subtype implementing `step` to mean
+    # something else. encode_for_xl checks last(x) == first(x) + (n-1)*step(x) before using "R",
+    # here with a range whose step() claims (wrongly) it's evenly spaced by 1. Must fall back to
+    # the general format, not silently send a linear approximation.
+    struct LyingRange <: AbstractRange{Int64}
+        data::Vector{Int64}
     end
     Base.length(r::LyingRange) = length(r.data)
     Base.first(r::LyingRange) = r.data[1]
     Base.last(r::LyingRange) = r.data[end]
-    Base.step(r::LyingRange) = 1.0
+    Base.step(r::LyingRange) = 1
     Base.getindex(r::LyingRange, i::Int) = r.data[i]
     Base.size(r::LyingRange) = (length(r.data),)
 
-    let lr = LyingRange([1.0, 2.0, 100.0])  # not actually evenly spaced by 1.0
+    let lr = LyingRange([1, 2, 100])  # not actually evenly spaced by 1
         @test !startswith(JuliaExcel.encode_for_xl(lr), "R")
-        @test JuliaExcel.decode_from_xl(JuliaExcel.encode_for_xl(lr)) == [1.0, 2.0, 100.0]
+        @test JuliaExcel.decode_from_xl(JuliaExcel.encode_for_xl(lr)) == [1, 2, 100]
     end
 
     # friendly_error (comms.jl) - srv_eval_inner's error path for a JuliaEval expression that
@@ -380,12 +362,31 @@ end
             JuliaExcel.encode_for_xl(Any["round", 1.25, ";", "digits", 1])).body)) == 1.2
         @test post("/", "1+1").status == 404
         @test post("/evil", "1+1").status == 404
+
+        # Requests from a web page (Origin header), to a DNS-rebound host name, or that aren't
+        # POSTs are refused, so a web page can't send this server code to run.
+        url = "http://127.0.0.1:$(JuliaExcel.xlport[])/eval"
+        @test JuliaExcel.HTTP.post(url, ["Origin" => "https://example.com"], "1+1"; status_exception=false).status == 403
+        @test JuliaExcel.HTTP.post(url, ["Host" => "evil.example.com"], "1+1"; status_exception=false).status == 403
+        @test JuliaExcel.HTTP.get(url; status_exception=false).status == 405
+        @test JuliaExcel.HTTP.post("http://localhost:$(JuliaExcel.xlport[])/eval", [], "1+1"; status_exception=false).status == 200
     end
 
     # _attach_to_excel refuses to start a second, useless listener when one is already serving the
     # same pid - starting a fresh session again for 4321 without stopping the previous one first.
     @test_throws String JuliaExcel._attach_to_excel(true, 4321)
     JuliaExcel.stop_server()
+
+    # setvar assigns the value itself. It used to re-parse the value's printed form as code, so a
+    # string became a variable name: "hello" failed with UndefVarError, and "pi" set the number pi.
+    for v in Any["hello", "pi", "a\"b\$c", 1.5, [1.0, 2.0], ["a", "b"], Any[1.0, missing, JuliaExcel.ExcelError(2042)],
+                 JuliaExcel.ExcelError(2007)]
+        JuliaExcel.setvar("setvar_test_value", v)
+        got = Base.invokelatest(getfield, Main, :setvar_test_value)
+        @test isequal(got, v) && typeof(got) == typeof(v)
+    end
+    @test JuliaExcel.setvar("setvar_test_value", [1.0, 2.0]) == "Set global variable `setvar_test_value` to 2-element Vector{Float64}"
+    @test startswith(JuliaExcel.setvar("1bad", 1), "#")
 
     # The add-in's VBA project must be named "JuliaExcel", not Excel's default "VBAProject": user code
     # may qualify calls as JuliaExcel.JuliaCall(...), and a workbook (itself "VBAProject" by default)

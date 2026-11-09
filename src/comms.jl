@@ -444,7 +444,10 @@ function start_server(start::Int=2700)
     port = start
     while true
         try
+            bound_port = port
             _server[] = HTTP.serve!("127.0.0.1", port) do req
+                rejection = _reject_request(req, bound_port)
+                rejection === nothing || return rejection
                 body = String(req.body)
                 # No default endpoint: VBA always names one, so anything else is a bug worth reporting
                 # (VBA's JuliaHttpPost turns a non-200 status into an error) rather than guessing.
@@ -478,6 +481,24 @@ function start_server(start::Int=2700)
     xlport[] = port
     settitle()
     println("JuliaExcel HTTP server listening on port $port")
+    nothing
+end
+
+"""
+    _reject_request(req, port) -> Union{HTTP.Response,Nothing}
+
+Refuses requests that can't have come from JuliaExcel's add-in, so that a web page open in a
+browser can't send code to this server to run. Browsers add an `Origin` header to a web page's
+requests, which the add-in never sends; checking the `Host` header also defeats DNS rebinding,
+where a web page's own host name is made to point at 127.0.0.1. The add-in only ever POSTs.
+Returns the response to send, or `nothing` if the request is acceptable.
+"""
+function _reject_request(req, port::Integer)
+    req.method == "POST" || return HTTP.Response(405, "JuliaExcel accepts only POST requests")
+    HTTP.hasheader(req, "Origin") &&
+        return HTTP.Response(403, "JuliaExcel does not accept requests from web pages")
+    HTTP.header(req, "Host") in ("127.0.0.1", "127.0.0.1:$port", "localhost", "localhost:$port") ||
+        return HTTP.Response(403, "JuliaExcel accepts only requests addressed to 127.0.0.1")
     nothing
 end
 
@@ -523,14 +544,15 @@ Set a variable in global scope. Called by VBA function JuliaSetVar.
 function setvar(name::String, arg)
 
     if Base.isidentifier(name)
-        Main.eval(Main.eval(Meta.parse(":(global $name = $arg)")))
+        # Assign the value itself, not its printed form re-parsed as source code, which
+        # fails for strings ("hello" would become the variable name hello) and for values
+        # with no parseable repr, such as ExcelError.
+        Core.eval(Main, Expr(:global, Expr(:(=), Symbol(name), QuoteNode(arg))))
 
         thesize = ()
-        thetype = Nothing
+        thetype = typeof(arg)
         try
-            tmp = Main.eval(Meta.parse(name))
-            thesize = size(tmp)
-            thetype = typeof(tmp)
+            thesize = size(arg)
         catch
         end
 
