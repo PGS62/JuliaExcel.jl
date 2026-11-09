@@ -14,7 +14,6 @@ Set-StrictMode -Version Latest
 $AddinName = "JuliaExcel.xlam"
 $Website = "https://github.com/PGS62/JuliaExcel.jl"
 $SuccessorWebsite = "https://github.com/PGS62/CallFromExcel.jl"
-$WebsiteIntellisense = "https://github.com/Excel-DNA/IntelliSense"
 $GIFRecordingFlagFile = "C:\Temp\RecordingGIF.tmp"
 $MsgBoxTitle = "Install JuliaExcel"
 $MsgBoxTitleBad = "Install JuliaExcel - Error Encountered"
@@ -345,7 +344,7 @@ $prompt = "JuliaExcel has been superseded by CallFromExcel, which is two to thre
     "and make them both Excel add-ins,`n" + `
     "via Excel > File > Options > Add-ins > Excel Add-ins.`n`n" + `
     "Do you wish to continue?`n`n`n" + `
-    "$Website`n$WebsiteIntellisense"
+    "$SuccessorWebsite"
 
 if ((Show-MsgBox -Prompt $prompt -Title $MsgBoxTitle -Buttons YesNo -Icon Question) -ne [System.Windows.Forms.DialogResult]::Yes) {
     exit 1
