@@ -5,19 +5,20 @@
 ,"The password to view the VBA code is JuliaExcel",,,,,,,
 ,"Copyright 2021-2026 Philip Swannell",,,,,,,
 ,"License MIT (https://opensource.org/licenses/MIT)",,,,,,,
-,"All 161 rows shown.",,,,,,,
+,"All 162 rows shown.",,,,,,,
 ,"Dbl-click","Double-click","Dbl-click","Double-click","Double-click to filter",,"Cells designed to ""lock-in"" the function capitalisation.",
 ,"Version","Date","Time","Author","Comment",,#NAME?,"=JuliaExcelPID"
-,161,2026-11-01,0.774768518516794,"Philip Swannell","Documentation tweaks.",,#NAME?,"=JuliaLaunch"
-,160,2026-11-01,0.65165509259532,"Philip Swannell","Change to fix auto-correction of the capitalisation of the functions exported by this addin.",,#NAME?,"=JuliaInclude"
-,159,2026-11-01,0.570752314815763,"Philip Swannell","semi-colon argument to JuliaCallNamedArgs is now compulsory.",,#NAME?,"=JuliaEval"
-,158,2026-10-31,0.716238425928168,"Philip Swannell","Added functions JuliaCallNamedArgs and JuliaCallNamedArgsVBA.",,#NAME?,"=JuliaCall"
-,157,2026-10-17,0.478807870371384,"Philip Swannell","Changes to how JuliaEval handles multi-line expressions. Now concatenate with vbLf delimiter rather than semi-colon previously. On the Julia side now use Meta.parseall in place of Meta.parse.",,#NAME?,"=JuliaSetVar"
-,156,2026-09-16,0.484178240740741,"Philip Swannell","Added method DataframePerformanceTest.",,#NAME?,"=JuliaEvalVBA"
-,155,2026-09-13,0.428749999999127,"Philip Swannell","No change to the VBA. Julia function start_server now sets Content-Length in the http response, working around an apparent inefficiency in MSXML2.ServerXMLHTTP which caused quadratic performance.",,#NAME?,"=JuliaCallVBA"
-,154,2026-08-25,0.505115740743349,"Philip Swannell","Corrected bug in TestWideString and added test TestArrayOfSingleCharacters.",,#NAME?,"=JuliaCallNamedArgs"
-,153,2026-08-24,0.510821759256942,"Philip Swannell","Changes (Option Private Module etc.) to stop exposing methods to Excel which should not be exposed.",,#NAME?,"=JuliaCallNamedArgsVBA"
-,152,2026-08-24,0.476597222223063,"Philip Swannell","Tweak to method Trim255.",,#NAME?,"=JuliaIsRunning"
+,162,2026-11-09,0.697916666664241,"Philip Swannell","Changed to TestRangeWireFomat to test only for integer ranges.",,#NAME?,"=JuliaLaunch"
+,161,2026-11-01,0.774768518516794,"Philip Swannell","Documentation tweaks.",,#NAME?,"=JuliaInclude"
+,160,2026-11-01,0.65165509259532,"Philip Swannell","Change to fix auto-correction of the capitalisation of the functions exported by this addin.",,#NAME?,"=JuliaEval"
+,159,2026-11-01,0.570752314815763,"Philip Swannell","semi-colon argument to JuliaCallNamedArgs is now compulsory.",,#NAME?,"=JuliaCall"
+,158,2026-10-31,0.716238425928168,"Philip Swannell","Added functions JuliaCallNamedArgs and JuliaCallNamedArgsVBA.",,#NAME?,"=JuliaSetVar"
+,157,2026-10-17,0.478807870371384,"Philip Swannell","Changes to how JuliaEval handles multi-line expressions. Now concatenate with vbLf delimiter rather than semi-colon previously. On the Julia side now use Meta.parseall in place of Meta.parse.",,#NAME?,"=JuliaEvalVBA"
+,156,2026-09-16,0.484178240740741,"Philip Swannell","Added method DataframePerformanceTest.",,#NAME?,"=JuliaCallVBA"
+,155,2026-09-13,0.428749999999127,"Philip Swannell","No change to the VBA. Julia function start_server now sets Content-Length in the http response, working around an apparent inefficiency in MSXML2.ServerXMLHTTP which caused quadratic performance.",,#NAME?,"=JuliaCallNamedArgs"
+,154,2026-08-25,0.505115740743349,"Philip Swannell","Corrected bug in TestWideString and added test TestArrayOfSingleCharacters.",,#NAME?,"=JuliaCallNamedArgsVBA"
+,153,2026-08-24,0.510821759256942,"Philip Swannell","Changes (Option Private Module etc.) to stop exposing methods to Excel which should not be exposed.",,#NAME?,"=JuliaIsRunning"
+,152,2026-08-24,0.476597222223063,"Philip Swannell","Tweak to method Trim255.",,,
 ,151,2026-08-24,0.467627314814308,"Philip Swannell","Added TestMakeJuliaLiteral, TestUnserialiseStringTooLong, TestUnserialiseMalformedRank to modTest.bas, and TestConcatenateExpressions to modMain.bas (needs to live there since ConcatenateExpressions is Private to that module). All four registered in RunTests.",,,
 ,150,2026-08-24,0.457534722219862,"Philip Swannell","Deleted dead code.",,,
 ,149,2026-08-24,0.443726851852261,"Philip Swannell","Rewrote method CleanLocalTemp. It now deletes files whose names embed a PID that is not a running process.",,,

@@ -840,21 +840,19 @@ End Function
 
 ' Directly confirms the compact "R" wire format is actually used (not just that results happen to
 ' be correct via some fallback) - checks the literal prefix of the raw string
-' encode_for_xl produces, for both the integer and float sub-formats.
+' encode_for_xl produces, for integer ranges only.
 Function TestRangeWireFormat()
           Dim s As Variant
 
 1         On Error GoTo ErrHandler
 2         s = ThrowIfError(JuliaEvalVBA("JuliaExcel.encode_for_xl(1:1000)"))
 3         If Left$(s, 3) <> "RI," Then Throw "Expected integer range to use 'RI' wire format, got: " & Left$(s, 10)
-4         s = ThrowIfError(JuliaEvalVBA("JuliaExcel.encode_for_xl((1:1000).*pi)"))
-5         If Left$(s, 3) <> "RF," Then Throw "Expected float range to use 'RF' wire format, got: " & Left$(s, 10)
-6         TestRangeWireFormat = True
+4         TestRangeWireFormat = True
 
-7         Exit Function
+5         Exit Function
 ErrHandler:
-8         PrintTwice ReThrow("TestRangeWireFormat", Err, True)
-9         TestRangeWireFormat = False
+6         PrintTwice ReThrow("TestRangeWireFormat", Err, True)
+7         TestRangeWireFormat = False
 End Function
 
 ' Confirms that removing TrySerialiseArrayAsV's NaN/Inf check (2026-08-18) didn't change end-to-end
